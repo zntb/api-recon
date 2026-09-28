@@ -1,6 +1,42 @@
-/** Chromium session factory (Playwright) with storage-state and SPA route hooks. */
+/**
+ * Session factory for Chromium, Firefox, and WebKit (Playwright), with
+ * storage-state restore and SPA route hooks. Chromium is the default engine;
+ * the others are opt-in via `--browser` / the `browser` option.
+ */
 
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
+import {
+  chromium,
+  firefox,
+  webkit,
+  type Browser,
+  type BrowserContext,
+  type BrowserType,
+  type Page,
+} from 'playwright';
+import { BROWSER_ENGINES, type BrowserEngine } from '../types.js';
+import { SafetyError } from '../utils/safety.js';
+
+/** Playwright launcher for each supported engine. */
+const ENGINE_LAUNCHERS: Record<BrowserEngine, BrowserType> = { chromium, firefox, webkit };
+
+/** True when `value` names an engine this tool can drive. */
+export function isBrowserEngine(value: string): value is BrowserEngine {
+  return (BROWSER_ENGINES as readonly string[]).includes(value);
+}
+
+/**
+ * Resolve an engine name to a supported engine, defaulting to Chromium and
+ * rejecting anything unknown with the list of valid options.
+ */
+export function resolveEngine(value: string | undefined): BrowserEngine {
+  const engine = (value ?? 'chromium').trim().toLowerCase();
+  if (!isBrowserEngine(engine)) {
+    throw new SafetyError(
+      `Unknown browser engine '${value}'. Supported engines: ${BROWSER_ENGINES.join(', ')}.`,
+    );
+  }
+  return engine;
+}
 
 export interface BrowserSession {
   browser: Browser;
@@ -13,10 +49,13 @@ export interface LaunchOptions {
   headless: boolean;
   /** Path to a Playwright storageState.json to restore an authenticated session. */
   storageState?: string | null;
+  /** Engine to launch. Defaults to `chromium`. */
+  engine?: BrowserEngine;
 }
 
 export async function launchSession(options: LaunchOptions): Promise<BrowserSession> {
-  const browser = await chromium.launch({ headless: options.headless });
+  const engine = options.engine ?? 'chromium';
+  const browser = await ENGINE_LAUNCHERS[engine].launch({ headless: options.headless });
   const context = await browser.newContext({
     ...(options.storageState ? { storageState: options.storageState } : {}),
     ignoreHTTPSErrors: true,

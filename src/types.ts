@@ -7,6 +7,11 @@ export type ReportFormat = 'json' | 'md' | 'html' | 'pdf' | 'openapi';
 
 export const REPORT_FORMATS: readonly ReportFormat[] = ['json', 'md', 'html', 'pdf', 'openapi'];
 
+/** Playwright engines a scan can run in. Chromium is the default. */
+export type BrowserEngine = 'chromium' | 'firefox' | 'webkit';
+
+export const BROWSER_ENGINES: readonly BrowserEngine[] = ['chromium', 'firefox', 'webkit'];
+
 export type Category =
   | 'authentication'
   | 'data-fetching'
@@ -137,6 +142,8 @@ export interface ScanOptions {
   record?: boolean;
   actions?: string;
   rate?: number;
+  /** Playwright engine to drive. Defaults to `chromium`. */
+  browser?: BrowserEngine;
   respectRobots?: boolean;
   force?: boolean;
   includeThirdParty?: boolean;

@@ -23,7 +23,8 @@ authentication, or defeat CAPTCHAs and bot protections.
 ## Requirements
 
 - Node.js **22+**
-- Chromium for Playwright (downloaded once)
+- A Playwright browser, downloaded once. Chromium is the default and the only
+  one needed for PDF reports; Firefox and WebKit are opt-in.
 
 ## Install
 
@@ -37,6 +38,12 @@ Or as a project dependency (library use):
 ```bash
 npm install api-recon
 npx playwright install chromium
+```
+
+To scan with a different engine, install it too:
+
+```bash
+npx playwright install firefox webkit
 ```
 
 ## Quickstart
@@ -57,6 +64,9 @@ APP_USER=you@example.com APP_PASS='…' \
 
 # Drive the browser yourself and capture as you click
 api-recon https://app.example.com --record
+
+# Scan in Firefox instead of Chromium (needs `npx playwright install firefox`)
+api-recon https://example.com --browser firefox
 ```
 
 ## CLI reference
@@ -68,6 +78,7 @@ api-recon https://app.example.com --record
 | `-m, --max-pages <n>` | `25` | Hard cap on pages visited |
 | `-o, --out <dir>` | `./api-recon-output` | Output directory |
 | `-f, --formats <list>` | `json,md,html,pdf,openapi` | Report formats to write |
+| `-b, --browser <engine>` | `chromium` | Playwright engine to drive (`chromium`, `firefox`, `webkit`) |
 | `-a, --auth <file>` | — | Playwright `storageState.json` session |
 | `-l, --login <file>` | — | Login-flow config (YAML/JSON) |
 | `--record` | off | Interactive recording mode (headed browser) |
@@ -107,6 +118,14 @@ parameters** with sample values, and **JSON schemas** (depth 4) for request and
 response bodies. Where possible it fingerprints the stack (frameworks, CMS,
 CDN, analytics) from headers, cookies, HTML, and script paths.
 
+The capture layer is engine-independent: `--browser` swaps the Playwright
+driver, and interception, categorization, technology detection, and schema
+inference all behave the same.
+
+> Firefox and WebKit send different `User-Agent` and `Accept` headers than
+> Chromium, and sites sometimes serve different responses per engine — so if
+you only care about the API surface, Chromium is the safer default.
+
 ## Reports
 
 | File | Contents |
@@ -121,7 +140,7 @@ CDN, analytics) from headers, cookies, HTML, and script paths.
 
 ```jsonc
 {
-  "meta": { "seedUrl": "…", "startedAt": "…", "durationMs": 1234, "pagesVisited": 6, "apiReconVersion": "0.1.0" },
+  "meta": { "seedUrl": "…", "startedAt": "…", "durationMs": 1234, "pagesVisited": 6, "apiReconVersion": "0.1.1" },
   "technologies": [{ "name": "Express", "category": "framework", "evidence": "x-powered-by: Express" }],
   "endpoints": [
     {
@@ -231,7 +250,7 @@ await result.writeReports('./out');
 `scan()` returns `{ report, endpoints, technologies, safety, writeReports(dir), files }`.
 Passing `out` writes the reports during the scan; `writeReports()` writes them
 later. All CLI flags have camelCase equivalents (`maxPages`, `respectRobots`,
-`includeThirdParty`, `allowLocal`, `maxBodyBytes`, …).
+`includeThirdParty`, `allowLocal`, `maxBodyBytes`, `browser`, …).
 
 Types are exported for every report structure:
 
@@ -260,7 +279,7 @@ import type { ReconReport, Endpoint, ScanOptions, ScanResult } from 'api-recon';
 
 ```bash
 npm install
-npx playwright install chromium
+npx playwright install chromium firefox webkit   # the suite drives all three
 
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
@@ -279,12 +298,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for test expectations.
 
 ## Limitations
 
-- Only Chromium is used; Firefox/WebKit are not wired up.
+- Chromium, Firefox, and WebKit are supported through `--browser`, but the
+  engine you pick must be installed (`npx playwright install <engine>`).
+- `page.pdf()` only exists in Chromium, so PDF reports always need Chromium
+  installed — even when the scan itself ran in Firefox or WebKit. If it is
+  missing, the other formats are still written and a warning is logged.
 - GraphQL bodies and WebSocket frames are not analyzed.
 - Heuristic categorization and schema inference are best-effort starting
   points — review reports before publishing them.
-- `page.pdf()` requires headless Chromium, which is what the PDF reporter
-  starts.
 
 ## License
 

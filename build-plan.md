@@ -197,14 +197,27 @@ Tasks:
 
 ### Phase 10 — Post-Release Hardening (ongoing)
 
-Ideas for follow-ups, not required for v0.1.0:
+Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
 
-- Support Firefox/WebKit via Playwright.
+**Shipped**
+
+- **Firefox and WebKit support** — `--browser chromium|firefox|webkit` (Chromium
+  by default), with the same `browser` option in the library API. The engine map
+  lives in `src/core/browser.ts`; interception, categorization, technology
+  detection, and schema inference are engine-independent, and the multi-engine
+  integration suite (`test/integration/engines.test.ts`) drives the fixture site
+  in Firefox and WebKit. PDF reports still render through Chromium, because
+  `page.pdf()` is Chromium-only, and are skipped with a warning without it.
+
+**Ideas for follow-ups**
+
 - Add a `--diff` mode comparing two scans to detect API changes.
 - Add GraphQL detection (introspection query + operation names).
 - Add WebSocket capture.
 - Add an HTML dashboard with filtering and search.
 - Optional telemetry (opt-in) to improve categorization heuristics.
+- Record the engine used in the report, so a scan is reproducible from its own
+  output.
 
 ---
 

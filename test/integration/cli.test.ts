@@ -63,6 +63,7 @@ describe('api-recon CLI', () => {
       '--formats',
       '--auth',
       '--login',
+      '--browser',
       '--record',
       '--actions',
       '--rate',
@@ -94,6 +95,10 @@ describe('api-recon CLI', () => {
     const dir = join(outDir, 'cli-scan');
     const { code, stdout } = await runCli([
       fixture.url,
+      // Exercises the --browser flag end to end: through commander's validator,
+      // into scan(), and out to a real Playwright launch.
+      '--browser',
+      'chromium',
       '--allow-local',
       '--depth',
       '1',

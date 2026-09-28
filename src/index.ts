@@ -10,7 +10,7 @@
 import type { CapturedCall, CapturedPage, ReconReport, ReportFormat, ScanOptions, ScanResult } from './types.js';
 import { REPORT_FORMATS } from './types.js';
 import { TOOL_VERSION } from './version.js';
-import { launchSession } from './core/browser.js';
+import { launchSession, resolveEngine } from './core/browser.js';
 import { TrafficInterceptor } from './core/interceptor.js';
 import { crawl } from './core/crawler.js';
 import { runActions, loadActions } from './core/actions.js';
@@ -38,6 +38,8 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const redact = options.redact ?? true;
   const maxBodyBytes = options.maxBodyBytes ?? 1024 * 1024;
   const formats = normalizeFormats(options.formats);
+  // Validated up front so a typo fails before any network or browser work.
+  const engine = resolveEngine(options.browser);
   const logger = options.logger ?? new Logger({ quiet: options.quiet, verbose: options.verbose });
 
   assertScanAllowed(seedUrl, { allowLocal });
@@ -78,7 +80,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   // Record mode is headed for humans; API_RECON_HEADLESS=1 keeps it testable.
   const headless = record ? process.env.API_RECON_HEADLESS === '1' : true;
 
-  const session = await launchSession({ headless, storageState });
+  const session = await launchSession({ headless, storageState, engine });
   const interceptor = new TrafficInterceptor({
     redact,
     maxBodyBytes,
@@ -184,6 +186,7 @@ export function normalizeFormats(formats: readonly string[] | undefined): Report
 export { SafetyError } from './utils/safety.js';
 export { Logger } from './utils/logger.js';
 export type {
+  BrowserEngine,
   CapturedCall,
   CapturedPage,
   Category,
@@ -196,4 +199,4 @@ export type {
   ScanResult,
   Technology,
 } from './types.js';
-export { REPORT_FORMATS, CATEGORIES } from './types.js';
+export { REPORT_FORMATS, CATEGORIES, BROWSER_ENGINES } from './types.js';

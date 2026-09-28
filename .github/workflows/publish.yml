@@ -106,10 +106,10 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
 
-      # The integration suite drives a real browser; installing Chromium keeps
+      # The integration suite drives real browsers; installing all three keeps
       # it from silently skipping, which would weaken the pre-publish gate.
-      - name: Install Chromium
-        run: npx playwright install chromium --with-deps
+      - name: Install browsers
+        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Lint
         run: npm run lint

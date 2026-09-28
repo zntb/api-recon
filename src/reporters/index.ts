@@ -44,7 +44,13 @@ export async function writeReports(
     const file = join(outDir, FORMAT_FILENAMES.pdf);
     const ok = await writePdfReport(html, file);
     if (ok) files.push(file);
-    else logger?.warn('PDF generation failed — skipping report.pdf (other formats were still written).');
+    else {
+      logger?.warn(
+        'PDF generation failed — skipping report.pdf. Rendering always needs Chromium ' +
+          '(`npx playwright install chromium`), even when the scan ran in Firefox or WebKit. ' +
+          'The other formats were still written.',
+      );
+    }
   }
 
   if (formats.includes('openapi')) {

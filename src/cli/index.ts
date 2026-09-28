@@ -3,7 +3,9 @@
 
 import chalk from 'chalk';
 import { Command, InvalidArgumentError } from 'commander';
-import { normalizeFormats, scan } from '../index.js';
+import { BROWSER_ENGINES, normalizeFormats, scan } from '../index.js';
+import { resolveEngine } from '../core/browser.js';
+import type { BrowserEngine } from '../types.js';
 import { showBannerOnce } from '../utils/banner.js';
 import { Logger } from '../utils/logger.js';
 import { SafetyError } from '../utils/safety.js';
@@ -22,6 +24,16 @@ function numberArg(value: string): number {
   return n;
 }
 
+function engineArg(value: string): BrowserEngine {
+  try {
+    return resolveEngine(value);
+  } catch {
+    throw new InvalidArgumentError(
+      `Expected one of: ${BROWSER_ENGINES.join(', ')}, got "${value}"`,
+    );
+  }
+}
+
 const program = new Command();
 
 program
@@ -38,6 +50,12 @@ program
     '-f, --formats <list>',
     'comma-separated report formats (json,md,html,pdf,openapi)',
     'json,md,html,pdf,openapi',
+  )
+  .option(
+    '-b, --browser <engine>',
+    `Playwright engine to drive (${BROWSER_ENGINES.join(', ')})`,
+    engineArg,
+    'chromium',
   )
   .option('-a, --auth <file>', 'path to a Playwright storageState.json for an authenticated session')
   .option('-l, --login <file>', 'path to a login-flow config (YAML/JSON) with ${ENV_VAR} substitution')
@@ -82,6 +100,7 @@ program
         record: opts.record,
         ...(opts.actions ? { actions: opts.actions } : {}),
         rate: opts.rate,
+        browser: opts.browser,
         respectRobots: opts.respectRobots,
         force: opts.force,
         includeThirdParty: opts.includeThirdParty,
@@ -126,6 +145,7 @@ interface CliOptions {
   record: boolean;
   actions?: string;
   rate: number;
+  browser: BrowserEngine;
   respectRobots: boolean;
   includeThirdParty: boolean;
   redact: boolean;

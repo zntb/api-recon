@@ -5,6 +5,37 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.1.1] - 2026-09-28
+
+Adds a choice of browser engine and automates releases. Existing flags, options,
+and the report schema are unchanged.
+
+### Added
+
+- **Multiple browser engines** — `--browser chromium|firefox|webkit` (Chromium by
+  default) selects the Playwright engine a scan runs in, and the library API takes
+  the same `browser` option. Interception, categorization, technology detection,
+  and schema inference are engine-independent, and the integration suite drives
+  the fixture site in all three engines. PDF reports still require Chromium, since
+  `page.pdf()` is Chromium-only; without it the other formats are written and a
+  warning is logged.
+
+### Fixed
+
+- `package.json`'s `repository`, `homepage`, and `bugs` fields, and this
+  changelog's release link, now point at `zntb/api-recon`. The old link pointed at
+  a repository that does not exist, and the missing `repository` field would have
+  made `npm publish --provenance` fail.
+
+### Internal
+
+- Releases are tag-driven: a `vX.Y.Z` tag checks that the tag, `package.json`, and
+  this changelog agree, builds the GitHub Release from the matching section here,
+  and publishes to npm with a provenance attestation.
+- Text files are normalized to LF through `.gitattributes`, enforced by a CI check.
+
 ## [0.1.0] - 2026-09-27
 
 First release. `api-recon` discovers a website's own API surface by driving a
@@ -57,4 +88,6 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[Unreleased]: https://github.com/zntb/api-recon/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/zntb/api-recon/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/zntb/api-recon/releases/tag/v0.1.0

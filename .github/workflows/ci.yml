@@ -38,12 +38,15 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
 
-      - name: Install Chromium
-        run: npx playwright install chromium
+      # All three engines: the suite drives Chromium by default and Firefox +
+      # WebKit via --browser. Installing only Chromium would make those cases
+      # skip silently instead of proving the feature works.
+      - name: Install browsers
+        run: npx playwright install chromium firefox webkit
         if: runner.os != 'Linux'
 
-      - name: Install Chromium + system deps (Linux)
-        run: npx playwright install chromium --with-deps
+      - name: Install browsers + system deps (Linux)
+        run: npx playwright install --with-deps chromium firefox webkit
         if: runner.os == 'Linux'
 
       - name: Lint
