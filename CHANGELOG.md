@@ -57,4 +57,4 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
-[0.1.0]: https://github.com/nightjobs-collab/api-recon/releases/tag/v0.1.0
+[0.1.0]: https://github.com/zntb/api-recon/releases/tag/v0.1.0

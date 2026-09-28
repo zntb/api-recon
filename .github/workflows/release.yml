@@ -107,12 +107,18 @@ jobs:
             --verify-tag \
             api-recon-*.tgz
 
-      # ---------------------------------------------------------------------
-      # Publishing to npm runs locally, AFTER this release succeeds:
-      #
-      #   npm login
-      #   npm publish --access public
-      #
-      # `prepublishOnly` re-runs lint, typecheck, and the full test suite, and
-      # `prepack` builds dist/. Nothing here touches npm credentials.
-      # ---------------------------------------------------------------------
+  # Publishing is a separate, reusable workflow so the same code path serves the
+  # automated release, a release published by hand, and a manual retry. It is
+  # called directly rather than left to the `release: published` event because
+  # events raised with GITHUB_TOKEN (what `gh release create` uses) do not start
+  # new workflow runs. See .github/workflows/publish.yml.
+  publish:
+    name: Publish to npm
+    needs: release
+    permissions:
+      contents: read
+      id-token: write # npm provenance attestation
+    uses: ./.github/workflows/publish.yml
+    with:
+      tag: ${{ inputs.tag || github.ref_name }}
+    secrets: inherit

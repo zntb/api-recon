@@ -53,9 +53,15 @@ the section for the tag and publishes it as the GitHub Release body, so the
 release matches what readers see in the repository. Check yours with
 `npm run changelog:extract -- --version 0.2.0`.
 
-Publishing to npm is a **manual step** so that no npm token is stored in this
-repository. The GitHub Actions workflow (`.github/workflows/release.yml`) only
-builds the tarball and creates the GitHub Release.
+Publishing to npm is automatic. `.github/workflows/release.yml` builds the
+tarball and creates the GitHub Release; publishing that release then triggers
+`.github/workflows/publish.yml`, which pushes the package. One tag push, two
+workflows, no manual `npm publish`.
+
+That needs an `NPM_TOKEN` repository secret: an npm **Automation** token with
+publish rights for `api-recon` (Automation tokens are the ones that bypass 2FA
+in CI). Add it under *Settings → Secrets and variables → Actions* before your
+first release, or the publish job will fail.
 
 ```bash
 # 0. Start from a green, up-to-date main
@@ -73,16 +79,32 @@ npm version patch        # or: minor / major
 # 3. Push the commit and the tag (the tag triggers the Release workflow)
 git push && git push --tags
 
-# 4. Publish to npm once the release workflow is green
-npm login                # once per machine
-npm publish --access public
+# 4. Both workflows run from that tag: release.yml builds and creates the
+#    GitHub Release, then publish.yml pushes the tarball to npm.
+gh run list --limit 5
 ```
 
-`npm publish` runs the `prepublishOnly` guard (lint → typecheck → tests) and then
-`prepack` (builds `dist/`), so a broken tree cannot be published. Preview the
-contents without publishing with `npm run release:dry`.
+The publish job re-runs lint, typecheck, the test suite, and the build before
+pushing, and it refuses to run when the version is already on npm — so re-running
+it can never overwrite a published version. To retry a publish that failed:
 
-If your account requires two-factor auth for publishing, add `--otp=<code>`.
+```bash
+gh workflow run publish.yml -f tag=v0.2.0   # or use the Actions tab
+```
+
+`publish.yml` publishes with `--provenance`, which attaches a signed attestation
+tying the tarball to the workflow run. That requires the repository to be public.
+
+Publishing from your own machine is still possible if you ever need it, and the
+guard still applies:
+
+```bash
+npm login
+npm publish --access public   # runs prepublishOnly: lint, typecheck, tests
+npm run release:dry           # preview the tarball without publishing
+```
+
+If your npm account requires two-factor auth for publishing, add `--otp=<code>`.
 
 The tag must match the version exactly: `v0.2.0` for `"version": "0.2.0"`.
 
