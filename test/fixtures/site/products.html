@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture Shop — Products</title>
+    <meta name="generator" content="FixtureKit 1.0" />
+  </head>
+  <body>
+    <h1>Products</h1>
+    <ul id="product-list"></ul>
+    <button id="load-more" type="button">Load more</button>
+
+    <form id="search-form" action="/api/search" method="post">
+      <input id="q" name="q" type="search" placeholder="Search products" />
+      <button id="search-btn" type="submit">Search</button>
+    </form>
+    <pre id="search-results"></pre>
+
+    <script>
+      // GET /api/products on load
+      fetch('/api/products')
+        .then((r) => r.json())
+        .then((data) => {
+          document.querySelector('#product-list').innerHTML = data.products
+            .map((p) => `<li>${p.name} — $${p.price}</li>`)
+            .join('');
+        });
+
+      // Paginated call triggered by the "Load more" button.
+      document.querySelector('#load-more').addEventListener('click', () => {
+        fetch('/api/products?page=2')
+          .then((r) => r.json())
+          .then((data) => {
+            const ul = document.querySelector('#product-list');
+            ul.insertAdjacentHTML(
+              'beforeend',
+              data.products.map((p) => `<li>${p.name} — $${p.price}</li>`).join(''),
+            );
+          });
+      });
+
+      // POST /api/search via the search form.
+      document.querySelector('#search-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const q = document.querySelector('#q').value;
+        fetch('/api/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ q: q }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            document.querySelector('#search-results').textContent = JSON.stringify(data);
+          });
+      });
+
+      // Same-origin analytics beacon.
+      fetch('/api/collect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'pageview', path: '/products' }),
+      });
+    </script>
+  </body>
+</html>

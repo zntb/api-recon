@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture Shop — Partner widgets</title>
+  </head>
+  <body>
+    <h1>Partner widgets</h1>
+    <div id="partner"></div>
+    <p>The partner SDK is loaded from a different origin to exercise third-party capture.</p>
+    <script>
+      // Cross-origin beacon (different host:port) — analytics-shaped.
+      fetch('__THIRD_PARTY_BASE__/collect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'partner_impression', source: 'external.html' }),
+      }).catch(() => {});
+
+      // Cross-origin JSON config — should be categorized as third-party.
+      fetch('__THIRD_PARTY_BASE__/sdk/config.json')
+        .then((r) => r.json())
+        .then((cfg) => {
+          document.querySelector('#partner').textContent = 'partner ' + cfg.partner;
+        })
+        .catch(() => {
+          document.querySelector('#partner').textContent = 'partner offline';
+        });
+    </script>
+  </body>
+</html>

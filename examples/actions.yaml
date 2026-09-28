@@ -1,0 +1,12 @@
+# Example scripted actions.
+#
+#   api-recon https://app.example.com --actions examples/actions.yaml
+#
+# Steps run on every crawled page. Each step is resilient: a missing selector
+# logs a warning and the run continues.
+- wait: 500
+- scroll: { to: bottom }
+- click: 'button.load-more'
+- wait: 1000
+- fill: { selector: 'input[name="q"]', value: 'widget' }
+- submit: 'form#search'

@@ -1,0 +1,291 @@
+# api-recon
+
+**Discover a website's APIs by driving a real browser.** Give it one seed URL;
+it crawls (or you drive it interactively), records every XHR/fetch call, infers
+schemas, categorizes the endpoints, and writes a report in **JSON, Markdown,
+HTML, PDF, and OpenAPI 3.0**.
+
+`api-recon` is for **observation and documentation** of APIs your own frontend
+already talks to. It does not attack endpoints, fuzz inputs, bypass
+authentication, or defeat CAPTCHAs and bot protections.
+
+```
+  ┌─────────────────────────────────────────────────────────────┐
+  │  api-recon — acceptable use                                 │
+  │                                                             │
+  │  This tool observes and documents the APIs of sites you     │
+  │  are authorized to test. It never bypasses auth, captchas,  │
+  │  or bot protections. Respect robots.txt and rate limits,    │
+  │  and only scan systems you own or have permission to scan.  │
+  └─────────────────────────────────────────────────────────────┘
+```
+
+## Requirements
+
+- Node.js **22+**
+- Chromium for Playwright (downloaded once)
+
+## Install
+
+```bash
+npm install -g api-recon
+npx playwright install chromium
+```
+
+Or as a project dependency (library use):
+
+```bash
+npm install api-recon
+npx playwright install chromium
+```
+
+## Quickstart
+
+```bash
+# Crawl one page, write every report format
+api-recon https://example.com
+
+# Two levels deep, capped at 50 pages, into a custom directory
+api-recon https://example.com --depth 2 --max-pages 50 --out ./reports
+
+# Authenticated scan with a saved session
+api-recon https://app.example.com --auth ./session.json
+
+# Scripted login (credentials come from the environment)
+APP_USER=you@example.com APP_PASS='…' \
+  api-recon https://app.example.com --login examples/login.yaml
+
+# Drive the browser yourself and capture as you click
+api-recon https://app.example.com --record
+```
+
+## CLI reference
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `<seedUrl>` | — | Start URL (required) |
+| `-d, --depth <n>` | `1` | Same-domain crawl depth (0 = seed page only) |
+| `-m, --max-pages <n>` | `25` | Hard cap on pages visited |
+| `-o, --out <dir>` | `./api-recon-output` | Output directory |
+| `-f, --formats <list>` | `json,md,html,pdf,openapi` | Report formats to write |
+| `-a, --auth <file>` | — | Playwright `storageState.json` session |
+| `-l, --login <file>` | — | Login-flow config (YAML/JSON) |
+| `--record` | off | Interactive recording mode (headed browser) |
+| `--actions <file>` | — | Scripted interaction steps (YAML/JSON) |
+| `-r, --rate <ms>` | `500` | Minimum delay between requests to the same origin |
+| `--respect-robots` / `--no-respect-robots` | on | robots.txt compliance (`--no-…` requires `--force`) |
+| `--include-third-party` | off | Also capture cross-origin XHR/fetch calls |
+| `--redact` / `--no-redact` | on | Redact sensitive headers and secret-shaped body fields |
+| `--force` | off | Bypass robots.txt restrictions (only for systems you may test) |
+| `--allow-local` | off | Allow scanning localhost/private network ranges |
+| `--max-body-mb <n>` | `1` | Maximum response body size kept per response |
+| `-q, --quiet` / `-v, --verbose` | — | Reduce / increase progress output |
+
+Exit codes: `0` success, `1` runtime failure, `2` refused by a safety guard.
+
+## What it captures
+
+For every XHR/fetch request it records the method, normalized URL, status,
+MIME type, redacted request/response headers, request body, JSON response body
+(size-capped), timing, and the page that triggered it. Calls are deduplicated
+by `(method, URL pattern, status)` and grouped into endpoints such as
+`GET /api/orders/{id}`.
+
+Endpoints are categorized with heuristics:
+
+| Category | Heuristic |
+| --- | --- |
+| `authentication` | paths like `/login`, `/oauth`, `/token`, `/session`, `/sso` |
+| `analytics` | analytics hosts (`google-analytics.com`, `segment.io`, …) or paths like `/track`, `/collect`, `/beacon` |
+| `third-party` | anything cross-origin (only reported with `--include-third-party`) |
+| `mutations` | POST/PUT/PATCH/DELETE |
+| `data-fetching` | GET/HEAD returning JSON |
+| `uncategorized` | everything else |
+
+The analyzer also infers **path parameters** (id-like segments), **query
+parameters** with sample values, and **JSON schemas** (depth 4) for request and
+response bodies. Where possible it fingerprints the stack (frameworks, CMS,
+CDN, analytics) from headers, cookies, HTML, and script paths.
+
+## Reports
+
+| File | Contents |
+| --- | --- |
+| `report.json` | Machine-readable source of truth |
+| `report.md` | Overview, technologies, endpoint tables, detailed endpoints, auth flows, third-party calls, safety notes |
+| `report.html` | Styled standalone version of the Markdown |
+| `report.pdf` | Rendered from the HTML with Playwright's `page.pdf()` |
+| `openapi.yaml` | Best-effort OpenAPI 3.0 spec from inferred paths, methods, params, and schemas |
+
+`report.json` shape:
+
+```jsonc
+{
+  "meta": { "seedUrl": "…", "startedAt": "…", "durationMs": 1234, "pagesVisited": 6, "apiReconVersion": "0.1.0" },
+  "technologies": [{ "name": "Express", "category": "framework", "evidence": "x-powered-by: Express" }],
+  "endpoints": [
+    {
+      "id": "GET /api/orders/{id}",
+      "method": "GET",
+      "urlPattern": "/api/orders/{id}",
+      "origins": ["https://example.com"],
+      "category": "data-fetching",
+      "count": 3,
+      "statusCodes": [200],
+      "pathParams": ["id"],
+      "queryParams": [{ "name": "page", "sampleValues": ["2"] }],
+      "requestHeaders": { "accept": "application/json" },
+      "responseHeaders": { "content-type": "application/json" },
+      "requestBodySample": null,
+      "responseBodySample": "{\"orders\":[…]}",
+      "requestBodySchema": null,
+      "responseSchema": { "type": "object", "properties": { "orders": { "type": "array", "items": { "type": "object", "properties": { "id": { "type": "integer" } } } } } },
+      "mimeTypes": ["application/json"],
+      "triggeredBy": ["https://example.com/dashboard"]
+    }
+  ],
+  "pages": [{ "url": "…", "normalizedUrl": "…", "depth": 0, "title": "…", "visitedAt": 0 }],
+  "safety": { "robotsRespected": true, "robotsSkippedPaths": [], "rateLimitMs": 500, "maxBodyBytes": 1048576, "allowLocal": false, "redact": true }
+}
+```
+
+Look at [`examples/output/`](examples/output) for a real report generated from
+the bundled fixture site.
+
+## Authentication
+
+Two mechanisms, both credential-safe:
+
+**Saved session** — anything you saved with Playwright, or that `--login`
+produced:
+
+```bash
+api-recon https://app.example.com --auth ./session.json
+```
+
+**Scripted login** — a YAML/JSON flow with `${ENV_VAR}` substitution. Values are
+read from the environment, never logged, and never written to reports:
+
+```yaml
+loginUrl: https://app.example.com/login
+steps:
+  - fill: { selector: '#email', value: '${APP_USER}' }
+  - fill: { selector: '#password', value: '${APP_PASS}' }
+  - click: 'button[type="submit"]'
+  - waitForURL: '**/dashboard'
+saveStateTo: ./session.json   # optional: reuse later with --auth
+```
+
+Supported steps: `fill`, `click`, `submit`, `waitForURL`, `waitForSelector`,
+`waitForTimeout`.
+
+## Scripted actions
+
+Run interaction steps on every crawled page to surface lazy-loaded endpoints:
+
+```yaml
+- wait: 500
+- scroll: { to: bottom }
+- click: 'button.load-more'
+- wait: 1000
+- fill: { selector: 'input[name="q"]', value: 'widget' }
+- submit: 'form#search'
+```
+
+Supported steps: `click`, `fill`, `submit`, `wait`, `waitForSelector`,
+`scroll` (`{ to: top|bottom }` or a selector), `navigate`, `press`. A failing
+step logs a warning and the run continues.
+
+## Interactive record mode
+
+```bash
+api-recon https://app.example.com --record
+```
+
+A headed browser opens; browse, click, log in — every XHR/fetch call is
+captured. Type `done` + Enter (or press Ctrl+C) to finish and write the report.
+Redaction settings still apply.
+
+Automation hooks: `API_RECON_HEADLESS=1` runs record mode headless, and
+`API_RECON_RECORD_AUTOSTOP_MS=<ms>` ends the session automatically.
+
+## Library API
+
+```js
+import { scan } from 'api-recon';
+
+const result = await scan({
+  url: 'https://example.com',
+  depth: 2,
+  formats: ['json', 'md', 'openapi'],
+  auth: './session.json',
+  actions: './actions.yaml',
+  redact: true,
+  respectRobots: true,
+});
+
+console.log(result.endpoints);
+await result.writeReports('./out');
+```
+
+`scan()` returns `{ report, endpoints, technologies, safety, writeReports(dir), files }`.
+Passing `out` writes the reports during the scan; `writeReports()` writes them
+later. All CLI flags have camelCase equivalents (`maxPages`, `respectRobots`,
+`includeThirdParty`, `allowLocal`, `maxBodyBytes`, …).
+
+Types are exported for every report structure:
+
+```ts
+import type { ReconReport, Endpoint, ScanOptions, ScanResult } from 'api-recon';
+```
+
+## Safety guardrails
+
+- **robots.txt** is fetched and enforced by default; the seed path itself must
+  be allowed. `--force` bypasses the rules and prints a warning.
+- **Rate limiting** waits at least `--rate` ms between requests to the same
+  origin, and respects `Crawl-delay` when it is stricter.
+- **Redaction is on by default** and runs at capture time, so secrets never
+  reach any report: `Authorization`, `Proxy-Authorization`, `Cookie`,
+  `Set-Cookie`, `X-Api-Key`, `X-Auth-Token`, `X-Csrf-Token`, `X-Xsrf-Token`,
+  plus JSON body fields such as `password`, `token`, `secret`, `apiKey`,
+  `creditCard`, `cvv`.
+- **Local/private targets are refused** unless `--allow-local` is passed.
+- **Size caps**: 1 MB per response body (`--max-body-mb`) and a global capture
+  budget, plus `--max-pages` and `--depth` bounds.
+- The tool **never** bypasses authentication, CAPTCHAs, or bot protections, and
+  never fuzzes or brute-forces endpoints.
+
+## Development
+
+```bash
+npm install
+npx playwright install chromium
+
+npm run typecheck   # tsc --noEmit
+npm run lint        # eslint
+npm run build       # tsc -> dist/
+npm test            # unit + integration (drives a real browser)
+
+npm run test:server # fixture site on http://127.0.0.1:4599
+```
+
+The integration suite runs the whole pipeline against a local fixture site
+(`test/fixtures/`) covering data fetching, mutations, login + cookie-protected
+APIs, pagination via scripted actions, a same-origin analytics beacon, a
+cross-origin partner endpoint, and a robots-disallowed page.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for test expectations.
+
+## Limitations
+
+- Only Chromium is used; Firefox/WebKit are not wired up.
+- GraphQL bodies and WebSocket frames are not analyzed.
+- Heuristic categorization and schema inference are best-effort starting
+  points — review reports before publishing them.
+- `page.pdf()` requires headless Chromium, which is what the PDF reporter
+  starts.
+
+## License
+
+[MIT](LICENSE)

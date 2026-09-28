@@ -1,0 +1,9 @@
+# Scripted login flow used by tests and examples.
+# Credentials are never hard-coded — they are read from the environment.
+loginUrl: ${FIXTURE_BASE_URL}/login
+steps:
+  - fill: { selector: '#username', value: '${FIXTURE_USER}' }
+  - fill: { selector: '#password', value: '${FIXTURE_PASS}' }
+  - click: '#login-btn'
+  - waitForURL: '**/dashboard'
+saveStateTo: ./test/output/session.json

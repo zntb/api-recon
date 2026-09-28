@@ -1,0 +1,7 @@
+[
+  { "click": "#load-more" },
+  { "wait": 400 },
+  { "fill": { "selector": "#q", "value": "widget" } },
+  { "click": "#search-btn" },
+  { "wait": 400 }
+]

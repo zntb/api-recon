@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture Shop — Login</title>
+    <meta name="generator" content="FixtureKit 1.0" />
+  </head>
+  <body>
+    <h1>Sign in</h1>
+    <form id="login-form">
+      <label for="username">Email</label>
+      <input id="username" name="username" type="email" autocomplete="username" />
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" />
+      <button id="login-btn" type="submit">Sign in</button>
+    </form>
+    <p id="login-error" hidden>Invalid credentials</p>
+
+    <script>
+      document.querySelector('#login-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const username = document.querySelector('#username').value;
+        const password = document.querySelector('#password').value;
+        fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: username, password: password }),
+        }).then((response) => {
+          if (response.ok) {
+            window.location.assign('/dashboard');
+          } else {
+            document.querySelector('#login-error').hidden = false;
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

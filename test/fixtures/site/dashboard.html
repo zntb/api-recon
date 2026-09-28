@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture Shop — Dashboard</title>
+    <meta name="generator" content="FixtureKit 1.0" />
+  </head>
+  <body>
+    <h1>Your dashboard</h1>
+    <pre id="user"></pre>
+    <pre id="orders"></pre>
+    <script>
+      // Both calls require the session cookie set by /api/login.
+      fetch('/api/user')
+        .then((r) => r.json())
+        .then((data) => (document.querySelector('#user').textContent = JSON.stringify(data)));
+
+      fetch('/api/orders')
+        .then((r) => r.json())
+        .then((data) => (document.querySelector('#orders').textContent = JSON.stringify(data)));
+    </script>
+  </body>
+</html>

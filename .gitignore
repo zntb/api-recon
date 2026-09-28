@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+
+# api-recon output
+api-recon-output/
+test/output/
+
+# Sessions may contain auth tokens/cookies — never commit them
+session*.json
+*.storageState.json

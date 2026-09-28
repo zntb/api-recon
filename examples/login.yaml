@@ -1,0 +1,16 @@
+# Example scripted login flow.
+#
+#   export APP_USER=you@example.com
+#   export APP_PASS='…'
+#   api-recon https://app.example.com --login examples/login.yaml
+#
+# Credentials are read from the environment via ${VAR} substitution and are
+# never written into the report. saveStateTo persists the session (cookies /
+# localStorage) so later runs can reuse it with --auth session.json.
+loginUrl: https://app.example.com/login
+steps:
+  - fill: { selector: '#email', value: '${APP_USER}' }
+  - fill: { selector: '#password', value: '${APP_PASS}' }
+  - click: 'button[type="submit"]'
+  - waitForURL: '**/dashboard'
+saveStateTo: ./session.json
