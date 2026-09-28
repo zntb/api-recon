@@ -58,10 +58,25 @@ tarball and creates the GitHub Release; publishing that release then triggers
 `.github/workflows/publish.yml`, which pushes the package. One tag push, two
 workflows, no manual `npm publish`.
 
-That needs an `NPM_TOKEN` repository secret: an npm **Automation** token with
-publish rights for `api-recon` (Automation tokens are the ones that bypass 2FA
-in CI). Add it under *Settings → Secrets and variables → Actions* before your
-first release, or the publish job will fail.
+Authentication is configured once on npmjs.com, and no secret is needed:
+
+1. Open the package on npmjs.com → **Settings → Trusted Publisher**.
+2. Choose **GitHub Actions** and fill in user `zntb`, repository `api-recon`, and
+   workflow filename `publish.yml` (the filename only, with its extension).
+3. Allow **direct publishing** (`npm publish`), not stage-only. A trusted
+   publisher created after 2026-09-03 defaults to stage-publish only, and
+   `npm publish` then fails with `E_STAGE_REQUIRED`.
+
+The workflow exchanges a short-lived OIDC token for publish credentials, so
+nothing long-lived is stored. It installs npm ≥ 11.5.1 itself, because trusted
+publishing needs it and Node 22 still ships npm 10.
+
+If you ever need the fallback instead, set an `NPM_TOKEN` secret (*Settings →
+Secrets and variables → Actions*) to a **granular** access token with
+read-and-write package access and **Bypass 2FA** enabled. Two things to know:
+without `Bypass 2FA` every CI publish fails with `EOTP`, and npm removed legacy
+classic tokens (including "Automation") in November 2025. Bypass-2FA direct
+publishing is itself being removed in January 2027, so OIDC is the durable path.
 
 ```bash
 # 0. Start from a green, up-to-date main

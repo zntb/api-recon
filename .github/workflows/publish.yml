@@ -15,12 +15,27 @@ name: Publish
 # exactly once; if release.yml were ever changed to use a PAT, both would fire
 # and the second run would stop at the "already on npm" check below.
 #
-# Requires one repository secret:
+# Authentication prefers *trusted publishing* (OIDC) and falls back to a token.
+# The npm CLI detects an OIDC environment and uses it before falling back to
+# traditional tokens, so no secret is needed once the publisher is configured:
 #
-#   NPM_TOKEN — an npm *Automation* access token with publish rights for
-#               `api-recon`. Automation tokens are the ones that bypass 2FA in
-#               CI; a granular token needs "Read and write" package access and
-#               "Bypass 2FA" enabled.
+#   npmjs.com → the package → Settings → Trusted Publisher
+#     Publisher            GitHub Actions
+#     Organization / user  zntb
+#     Repository           api-recon
+#     Workflow filename    publish.yml
+#
+# Allow *direct* `npm publish`, not stage-only: a trusted publisher created
+# after 2026-09-03 defaults to stage-publish only, and `npm publish` then fails
+# with E_STAGE_REQUIRED. Trusted publishing needs npm >= 11.5.1, which the job
+# installs because Node 22 still ships npm 10.
+#
+# Optional fallback for if trusted publishing is unavailable: set an NPM_TOKEN
+# secret to a *granular* access token with read-and-write package access and
+# **Bypass 2FA** enabled, scoped to this package. Without Bypass 2FA, every CI
+# publish fails with EOTP. Note that npm removed legacy classic tokens in
+# November 2025, and bypass-2FA direct publishing is being removed in
+# January 2027 — which is why OIDC is the preferred path.
 #
 # Every run refuses to publish a version that is already on npm, so a retry can
 # never overwrite a published version.
@@ -125,10 +140,19 @@ jobs:
       - name: Build
         run: npm run build
 
+      # OIDC token exchange for trusted publishing needs npm >= 11.5.1.
+      # Installed here, rather than before `npm ci`, so the verified install,
+      # test, and build path keeps running on the stock npm.
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g "npm@^11.5.1"
+
       # --ignore-scripts because lint, typecheck, test, and build already ran as
       # explicit steps above; `prepublishOnly` and `prepack` would repeat them.
       # --provenance attaches a signed attestation linking the tarball to this
       # workflow run (requires a public repository).
+      #
+      # NODE_AUTH_TOKEN is only a fallback: when the OIDC environment is present
+      # npm authenticates with it first and ignores the token entirely.
       - name: Publish
         run: npm publish --ignore-scripts --provenance --access public
         env:
