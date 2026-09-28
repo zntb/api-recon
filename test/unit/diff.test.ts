@@ -1,0 +1,275 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { diffReports, formatDiffSummary, loadBaseline } from '../../src/core/diff.js';
+import { SafetyError } from '../../src/utils/safety.js';
+import type { Endpoint, JsonSchemaLike, ReconReport } from '../../src/types.js';
+
+function endpoint(overrides: Partial<Endpoint> & { id: string }): Endpoint {
+  const [method, ...rest] = overrides.id.split(' ');
+  return {
+    method: method!,
+    urlPattern: rest.join(' '),
+    origins: ['https://example.com'],
+    category: 'data-fetching',
+    count: 1,
+    statusCodes: [200],
+    requestHeaders: {},
+    responseHeaders: {},
+    requestBodySample: null,
+    responseBodySample: null,
+    pathParams: [],
+    queryParams: [],
+    requestBodySchema: null,
+    responseSchema: null,
+    mimeTypes: ['application/json'],
+    triggeredBy: ['https://example.com/'],
+    ...overrides,
+  };
+}
+
+function report(endpoints: Endpoint[], overrides: Partial<ReconReport> = {}): ReconReport {
+  return {
+    meta: {
+      seedUrl: 'https://example.com',
+      startedAt: '2026-09-01T00:00:00.000Z',
+      durationMs: 1000,
+      pagesVisited: 2,
+      apiReconVersion: '0.1.1',
+    },
+    technologies: [],
+    endpoints,
+    pages: [],
+    safety: {
+      robotsRespected: true,
+      robotsSkippedPaths: [],
+      rateLimitMs: 500,
+      maxBodyBytes: 1024,
+      allowLocal: false,
+      redact: true,
+    },
+    ...overrides,
+  };
+}
+
+const PRODUCTS_SCHEMA: JsonSchemaLike = {
+  type: 'object',
+  properties: {
+    page: { type: 'integer' },
+    products: { type: 'array', items: { type: 'object', properties: { id: { type: 'integer' } } } },
+  },
+};
+
+/** Find the single change for an id, failing loudly when it is absent. */
+function changeFor(diff: ReturnType<typeof diffReports>, id: string) {
+  const change = diff.changes.find((c) => c.id === id);
+  expect(change, `expected a change for ${id}`).toBeDefined();
+  return change!;
+}
+
+describe('diffReports', () => {
+  it('reports no changes for identical scans', () => {
+    const scan = report([endpoint({ id: 'GET /api/products', responseSchema: PRODUCTS_SCHEMA })]);
+
+    const diff = diffReports(scan, scan);
+
+    expect(diff.hasChanges).toBe(false);
+    expect(diff.changes).toEqual([]);
+    expect(diff.counts).toEqual({ added: 0, removed: 0, changed: 0, breaking: 0 });
+  });
+
+  it('records the scans it compared', () => {
+    const baseline = report([], { meta: { ...report([]).meta, startedAt: '2026-01-01T00:00:00.000Z' } });
+
+    const diff = diffReports(baseline, report([]));
+
+    expect(diff.baseline.startedAt).toBe('2026-01-01T00:00:00.000Z');
+    expect(diff.current.startedAt).toBe('2026-09-01T00:00:00.000Z');
+    expect(diff.baseline.seedUrl).toBe('https://example.com');
+  });
+
+  it('treats a new endpoint as an additive, non-breaking change', () => {
+    const diff = diffReports(report([]), report([endpoint({ id: 'GET /api/search' })]));
+
+    const change = changeFor(diff, 'GET /api/search');
+    expect(change.kind).toBe('added');
+    expect(change.breaking).toBe(false);
+    expect(diff.counts.added).toBe(1);
+  });
+
+  it('treats a missing endpoint as breaking, and says so is not proof', () => {
+    const diff = diffReports(report([endpoint({ id: 'GET /api/orders' })]), report([]));
+
+    const change = changeFor(diff, 'GET /api/orders');
+    expect(change.kind).toBe('removed');
+    expect(change.breaking).toBe(true);
+    expect(change.details.join(' ')).toContain('not observed in this scan');
+  });
+
+  it('flags losing every 2xx response as breaking', () => {
+    const baseline = report([endpoint({ id: 'GET /api/user', statusCodes: [200] })]);
+    const current = report([endpoint({ id: 'GET /api/user', statusCodes: [401] })]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/user');
+    expect(change.kind).toBe('changed');
+    expect(change.breaking).toBe(true);
+    expect(change.details.join(' ')).toContain('no longer returns 2xx');
+  });
+
+  it('does not treat an additional status code as breaking', () => {
+    const baseline = report([endpoint({ id: 'GET /api/user', statusCodes: [200] })]);
+    const current = report([endpoint({ id: 'GET /api/user', statusCodes: [200, 304] })]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/user');
+    expect(change.breaking).toBe(false);
+    expect(change.details.join(' ')).toContain('status codes 200 → 200, 304');
+  });
+
+  it('flags a removed response field as breaking, including nested paths', () => {
+    const current: JsonSchemaLike = {
+      type: 'object',
+      properties: {
+        page: { type: 'integer' },
+        products: { type: 'array', items: { type: 'object', properties: {} } },
+      },
+    };
+    const baseline = report([endpoint({ id: 'GET /api/products', responseSchema: PRODUCTS_SCHEMA })]);
+    const after = report([endpoint({ id: 'GET /api/products', responseSchema: current })]);
+
+    const change = changeFor(diffReports(baseline, after), 'GET /api/products');
+    expect(change.breaking).toBe(true);
+    expect(change.details).toContain('response field removed: products[].id');
+  });
+
+  it('treats an added response field as non-breaking', () => {
+    const baseline = report([
+      endpoint({ id: 'GET /api/products', responseSchema: { type: 'object', properties: { a: { type: 'string' } } } }),
+    ]);
+    const current = report([
+      endpoint({
+        id: 'GET /api/products',
+        responseSchema: { type: 'object', properties: { a: { type: 'string' }, b: { type: 'integer' } } },
+      }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/products');
+    expect(change.breaking).toBe(false);
+    expect(change.details).toContain('response field added: b');
+  });
+
+  it('flags a response field type change as breaking', () => {
+    const baseline = report([
+      endpoint({ id: 'GET /api/x', responseSchema: { type: 'object', properties: { n: { type: 'string' } } } }),
+    ]);
+    const current = report([
+      endpoint({ id: 'GET /api/x', responseSchema: { type: 'object', properties: { n: { type: 'integer' } } } }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/x');
+    expect(change.breaking).toBe(true);
+    expect(change.details.join(' ')).toContain('type string → integer');
+  });
+
+  it('reports query parameter drift without calling it breaking', () => {
+    const baseline = report([
+      endpoint({ id: 'GET /api/products', queryParams: [{ name: 'page', sampleValues: ['1'] }] }),
+    ]);
+    const current = report([
+      endpoint({ id: 'GET /api/products', queryParams: [{ name: 'cursor', sampleValues: ['abc'] }] }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/products');
+    expect(change.breaking).toBe(false);
+    const text = change.details.join(' ');
+    expect(text).toContain('new query parameters: cursor');
+    expect(text).toContain('not observed this time: page');
+  });
+
+  it('reports a category change without calling it breaking', () => {
+    const baseline = report([endpoint({ id: 'POST /api/x', category: 'mutations' })]);
+    const current = report([endpoint({ id: 'POST /api/x', category: 'analytics' })]);
+
+    const change = changeFor(diffReports(baseline, current), 'POST /api/x');
+    expect(change.kind).toBe('changed');
+    expect(change.breaking).toBe(false);
+    expect(change.details).toContain('category mutations → analytics');
+  });
+
+  it('counts each kind separately and sorts changes by id', () => {
+    const baseline = report([endpoint({ id: 'GET /b' }), endpoint({ id: 'GET /gone' })]);
+    const current = report([endpoint({ id: 'GET /a' }), endpoint({ id: 'GET /b', statusCodes: [500] })]);
+
+    const diff = diffReports(baseline, current);
+
+    expect(diff.counts).toMatchObject({ added: 1, removed: 1, changed: 1 });
+    expect(diff.changes.map((c) => c.id)).toEqual(['GET /a', 'GET /b', 'GET /gone']);
+  });
+});
+
+describe('formatDiffSummary', () => {
+  it('says so plainly when nothing changed', () => {
+    const diff = diffReports(report([]), report([]));
+    expect(formatDiffSummary(diff)).toEqual(['No endpoint changes since the baseline.']);
+  });
+
+  it('summarises counts and marks breaking changes', () => {
+    const diff = diffReports(report([endpoint({ id: 'GET /gone' })]), report([endpoint({ id: 'GET /new' })]));
+
+    const lines = formatDiffSummary(diff).join('\n');
+    expect(lines).toContain('1 added, 1 removed, 0 changed (1 breaking)');
+    expect(lines).toContain('+ GET /new');
+    expect(lines).toContain('- GET /gone [breaking]');
+  });
+
+  it('truncates long change lists', () => {
+    const current = report(
+      Array.from({ length: 5 }, (_, i) => endpoint({ id: `GET /e${i}` })),
+    );
+
+    const lines = formatDiffSummary(diffReports(report([]), current), 2);
+
+    expect(lines.filter((l) => l.startsWith('  +'))).toHaveLength(2);
+    expect(lines.join('\n')).toContain('and 3 more');
+  });
+});
+
+describe('loadBaseline', () => {
+  let dir: string;
+
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'api-recon-diff-'));
+  });
+
+  afterAll(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  async function write(name: string, contents: string): Promise<string> {
+    const file = join(dir, name);
+    await writeFile(file, contents, 'utf8');
+    return file;
+  }
+
+  it('reads a valid report', async () => {
+    const file = await write('ok.json', JSON.stringify(report([endpoint({ id: 'GET /api/x' })])));
+
+    const loaded = await loadBaseline(file);
+    expect(loaded.endpoints.map((e) => e.id)).toEqual(['GET /api/x']);
+  });
+
+  it('rejects a missing file', async () => {
+    await expect(loadBaseline(join(dir, 'nope.json'))).rejects.toThrow(SafetyError);
+    await expect(loadBaseline(join(dir, 'nope.json'))).rejects.toThrow(/not found or unreadable/);
+  });
+
+  it('rejects malformed JSON', async () => {
+    const file = await write('bad.json', '{ not json');
+    await expect(loadBaseline(file)).rejects.toThrow(/not valid JSON/);
+  });
+
+  it('rejects JSON that is not a report', async () => {
+    const file = await write('shape.json', JSON.stringify({ hello: 'world' }));
+    await expect(loadBaseline(file)).rejects.toThrow(/must be an api-recon report/);
+  });
+});

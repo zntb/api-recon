@@ -83,6 +83,8 @@ api-recon https://example.com --browser firefox
 | `-l, --login <file>` | — | Login-flow config (YAML/JSON) |
 | `--record` | off | Interactive recording mode (headed browser) |
 | `--actions <file>` | — | Scripted interaction steps (YAML/JSON) |
+| `--diff <file>` | — | Compare this scan against a previous `report.json` |
+| `--fail-on-diff` | off | With `--diff`, exit `3` when any endpoint changed (CI gating) |
 | `-r, --rate <ms>` | `500` | Minimum delay between requests to the same origin |
 | `--respect-robots` / `--no-respect-robots` | on | robots.txt compliance (`--no-…` requires `--force`) |
 | `--include-third-party` | off | Also capture cross-origin XHR/fetch calls |
@@ -92,7 +94,8 @@ api-recon https://example.com --browser firefox
 | `--max-body-mb <n>` | `1` | Maximum response body size kept per response |
 | `-q, --quiet` / `-v, --verbose` | — | Reduce / increase progress output |
 
-Exit codes: `0` success, `1` runtime failure, `2` refused by a safety guard.
+Exit codes: `0` success, `1` runtime failure, `2` refused by a safety guard (`--force`,
+`--allow-local`, a bad `--diff` file, …), `3` `--fail-on-diff` found endpoint changes.
 
 ## What it captures
 
@@ -170,6 +173,51 @@ you only care about the API surface, Chromium is the safer default.
 
 Look at [`examples/output/`](examples/output) for a real report generated from
 the bundled fixture site.
+
+## Comparing scans
+
+Pass a previous `report.json` to see what changed since it was captured:
+
+```bash
+# Capture a baseline
+api-recon https://app.example.com --out ./baseline --formats json
+
+# Later, scan again and compare against it
+api-recon https://app.example.com --diff ./baseline/report.json --out ./latest
+```
+
+Every format carries the comparison: `report.json` gains a `diff` object, and
+`report.md`/`.html`/`.pdf` gain a **Changes Since Baseline** section.
+
+Each endpoint is reported as **added**, **removed**, or **changed**, with
+per-field detail for schemas, e.g. `response field removed: products[].id`.
+Changes that could break an existing client are marked **breaking**: a removed
+endpoint, a response that no longer returns 2xx, or a removed or retyped
+response field. Additions never are.
+
+Classification is heuristic and deliberately under-reports. A scan samples
+whatever traffic the crawl happened to trigger, so an endpoint listed as removed
+may simply not have been exercised this time — the evidence sits beside each
+change so you can judge it.
+
+For CI, `--fail-on-diff` turns the finding into an exit code:
+
+```bash
+api-recon https://app.example.com --diff ./baseline/report.json --fail-on-diff
+```
+
+From the library, either pass the option and read `result.diff`, or compare two
+loaded reports directly without scanning:
+
+```js
+import { scan, diffReports, loadBaseline } from 'api-recon';
+
+const result = await scan({ url: 'https://app.example.com', diff: './baseline/report.json' });
+console.log(result.diff?.counts);          // { added, removed, changed, breaking }
+
+const diff = diffReports(await loadBaseline('./old.json'), await loadBaseline('./new.json'));
+console.log(diff.counts.breaking, diff.changes);
+```
 
 ## Authentication
 

@@ -208,10 +208,18 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   integration suite (`test/integration/engines.test.ts`) drives the fixture site
   in Firefox and WebKit. PDF reports still render through Chromium, because
   `page.pdf()` is Chromium-only, and are skipped with a warning without it.
+- **Scan diffing** — `--diff <baseline.json>` compares the current scan against an
+  earlier report and marks each endpoint as added, removed, or changed, with
+  per-endpoint details (status-code drift, category change, request/response
+  schema changes, query-param drift). Changes that can break a client (an
+  endpoint disappearing, losing all 2xx responses, a response field or its type
+  going away) are flagged `breaking`. `--fail-on-diff` exits `3` when anything
+  changed, for CI. The logic lives in `src/core/diff.ts` and is exported as
+  `diffReports`, `loadBaseline`, and `formatDiffSummary`; the diff is also
+  embedded in the report under `diff` and rendered by the Markdown reporter.
 
 **Ideas for follow-ups**
 
-- Add a `--diff` mode comparing two scans to detect API changes.
 - Add GraphQL detection (introspection query + operation names).
 - Add WebSocket capture.
 - Add an HTML dashboard with filtering and search.

@@ -3,7 +3,7 @@
 
 import chalk from 'chalk';
 import { Command, InvalidArgumentError } from 'commander';
-import { BROWSER_ENGINES, normalizeFormats, scan } from '../index.js';
+import { BROWSER_ENGINES, formatDiffSummary, normalizeFormats, scan } from '../index.js';
 import { resolveEngine } from '../core/browser.js';
 import type { BrowserEngine } from '../types.js';
 import { showBannerOnce } from '../utils/banner.js';
@@ -64,6 +64,8 @@ program
   .option('-r, --rate <ms>', 'minimum delay between requests to the same origin', intArg, 500)
   .option('--respect-robots', 'respect robots.txt (default)', true)
   .option('--no-respect-robots', 'ignore robots.txt (requires --force to acknowledge ownership)')
+  .option('--diff <file>', 'compare this scan against a previous report.json and report API changes')
+  .option('--fail-on-diff', 'with --diff, exit 3 when any endpoint changed (for CI gating)', false)
   .option('--include-third-party', 'capture cross-origin XHR/fetch calls as well', false)
   .option('--redact', 'redact sensitive headers such as Authorization and Cookie (default)', true)
   .option('--no-redact', 'disable header redaction (not recommended)')
@@ -80,6 +82,12 @@ program
       logger.error(
         '--no-respect-robots requires --force, which acknowledges that you own or may test the target.',
       );
+      process.exitCode = 2;
+      return;
+    }
+
+    if (opts.failOnDiff && !opts.diff) {
+      logger.error('--fail-on-diff only means something together with --diff <file>.');
       process.exitCode = 2;
       return;
     }
@@ -101,6 +109,7 @@ program
         ...(opts.actions ? { actions: opts.actions } : {}),
         rate: opts.rate,
         browser: opts.browser,
+        ...(opts.diff ? { diff: opts.diff } : {}),
         respectRobots: opts.respectRobots,
         force: opts.force,
         includeThirdParty: opts.includeThirdParty,
@@ -110,7 +119,7 @@ program
         logger,
       });
 
-      const { report, files } = result;
+      const { report, files, diff } = result;
       logger.always('');
       logger.success(
         `Scan complete in ${formatDuration(Date.now() - started)} — ` +
@@ -122,6 +131,18 @@ program
       if (files.length > 0) {
         logger.always('  Reports written:');
         for (const file of files) logger.always(`   ${chalk.cyan('•')} ${file}`);
+      }
+
+      if (diff) {
+        logger.always('');
+        for (const line of formatDiffSummary(diff)) logger.always(line);
+        if (diff.hasChanges && diff.counts.breaking > 0) {
+          logger.warn(`${diff.counts.breaking} breaking change(s) — review before shipping.`);
+        }
+        if (opts.failOnDiff && diff.hasChanges) {
+          logger.error('--fail-on-diff: the scan differs from the baseline.');
+          process.exitCode = 3;
+        }
       }
     } catch (err) {
       if (err instanceof SafetyError) {
@@ -146,6 +167,8 @@ interface CliOptions {
   actions?: string;
   rate: number;
   browser: BrowserEngine;
+  diff?: string;
+  failOnDiff: boolean;
   respectRobots: boolean;
   includeThirdParty: boolean;
   redact: boolean;

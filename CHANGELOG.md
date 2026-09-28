@@ -5,7 +5,30 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.2] - 2026-09-28
+
+Adds scan-to-scan comparison, so a report can be checked against a previously
+saved one. Existing flags, options, and the report schema are unchanged apart
+from the new optional `diff` field.
+
+### Added
+
+- **`--diff` mode** — `--diff <baseline.json>` compares a scan against an earlier
+  report and marks each endpoint as added, removed, or changed, flagging the
+  changes that could break a client: an endpoint that disappeared, a response
+  that no longer returns 2xx, and a response or request field that was removed
+  or retyped. Per-endpoint details also cover status-code drift, category
+  changes, and query-parameter drift. The result is embedded in `report.json`
+  under `diff` and rendered by the Markdown reporter as "Changes Since
+  Baseline", which the HTML and PDF reports inherit; `openapi.yaml` is a schema,
+  not a changelog, so it is left alone.
+- **`--fail-on-diff`** — exits `3` when the comparison found any change, so CI
+  can fail a build that alters the API surface. Using it without `--diff` is an
+  error (exit `2`), as is a baseline that is missing, not JSON, or not an
+  api-recon report.
+- **`diffReports()` and `loadBaseline()`** — exported so two saved reports can be
+  compared without scanning, with `formatDiffSummary()` for the human-readable
+  summary the CLI prints.
 
 ## [0.1.1] - 2026-09-28
 
@@ -88,6 +111,6 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
-[Unreleased]: https://github.com/zntb/api-recon/compare/v0.1.1...HEAD
+[0.1.2]: https://github.com/zntb/api-recon/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/zntb/api-recon/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/zntb/api-recon/releases/tag/v0.1.0

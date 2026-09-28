@@ -17,6 +17,7 @@ import { runActions, loadActions } from './core/actions.js';
 import { loadLoginFlow, runLoginFlow, validateStorageState } from './core/authenticator.js';
 import { runRecordSession } from './core/record.js';
 import { analyzeCalls } from './core/analyzer.js';
+import { diffReports, loadBaseline } from './core/diff.js';
 import { detectTechnologies, type TechEvidence } from './core/techStack.js';
 import { writeReports } from './reporters/index.js';
 import { fetchRobots } from './utils/robots.js';
@@ -71,6 +72,9 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   }
 
   // ---- prepare inputs -----------------------------------------------------
+  // Load the baseline before launching a browser: a bad path should fail in
+  // milliseconds, not after a full crawl.
+  const baseline = options.diff ? await loadBaseline(options.diff) : null;
   const limiter = new RateLimiter({ delayMs: effectiveRate });
   const storageState = options.auth ? await validateStorageState(options.auth) : null;
   const loginFlow = options.login ? await loadLoginFlow(options.login) : null;
@@ -157,13 +161,20 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     },
   };
 
+  if (baseline) report.diff = diffReports(baseline, report);
+
   const writeReportsTo = (outDir: string): Promise<string[]> =>
     writeReports(report, formats, outDir, logger);
 
   let files: string[] = [];
   if (options.out) files = await writeReportsTo(options.out);
 
-  return { report, writeReports: writeReportsTo, files };
+  return {
+    report,
+    writeReports: writeReportsTo,
+    files,
+    ...(report.diff ? { diff: report.diff } : {}),
+  };
 }
 
 export function normalizeFormats(formats: readonly string[] | undefined): ReportFormat[] {
@@ -188,15 +199,20 @@ export { Logger } from './utils/logger.js';
 export type {
   BrowserEngine,
   CapturedCall,
+  ChangeKind,
+  EndpointChange,
   CapturedPage,
   Category,
   Endpoint,
   JsonSchemaLike,
   QueryParam,
   ReconReport,
+  ReportDiff,
   ReportFormat,
   ScanOptions,
   ScanResult,
+  ScanRef,
   Technology,
 } from './types.js';
+export { diffReports, loadBaseline, formatDiffSummary } from './core/diff.js';
 export { REPORT_FORMATS, CATEGORIES, BROWSER_ENGINES } from './types.js';

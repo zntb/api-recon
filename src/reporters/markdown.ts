@@ -2,7 +2,7 @@
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Endpoint, ReconReport } from '../types.js';
+import type { Endpoint, ReconReport, ReportDiff } from '../types.js';
 import { CATEGORIES } from '../types.js';
 import { formatDuration, truncate } from '../utils/misc.js';
 import { FORMAT_FILENAMES } from './json.js';
@@ -134,10 +134,54 @@ export function renderMarkdown(report: ReconReport): string {
   out.push(`- Sensitive headers redacted: **${report.safety.redact ? 'yes' : 'no'}**`);
   out.push(`- Local/private targets allowed: **${report.safety.allowLocal ? 'yes' : 'no'}**`);
   out.push('');
+
+  // ---- 8. Changes since baseline (diff mode only) -----------------------
+  // Appended rather than inserted so the documented numbering of sections
+  // 1–7 never shifts; it is absent unless a baseline was supplied.
+  if (report.diff) out.push(...diffSection(report.diff));
+
   out.push('_api-recon observes and documents only. It does not bypass authentication, CAPTCHAs, or bot protections._');
   out.push('');
 
   return out.join('\n');
+}
+
+function diffSection(diff: ReportDiff): string[] {
+  const out: string[] = [];
+  out.push('## 8. Changes Since Baseline');
+  out.push('');
+  out.push(
+    `Compared with a scan of \`${cell(diff.baseline.seedUrl)}\` from ${cell(diff.baseline.startedAt)} ` +
+      `(api-recon v${cell(diff.baseline.apiReconVersion)}).`,
+  );
+  out.push('');
+
+  if (!diff.hasChanges) {
+    out.push('_No endpoint changes were detected._');
+    out.push('');
+    return out;
+  }
+
+  const { added, removed, changed, breaking } = diff.counts;
+  out.push(
+    `**${added}** added, **${removed}** removed, **${changed}** changed — **${breaking}** classified as breaking.`,
+  );
+  out.push('');
+  out.push('| Change | Endpoint | Breaking | Details |');
+  out.push('| --- | --- | --- | --- |');
+  for (const change of diff.changes) {
+    out.push(
+      `| ${change.kind} | \`${cell(change.id)}\` | ${change.breaking ? 'yes' : 'no'} | ${cell(
+        change.details.join('; '),
+      )} |`,
+    );
+  }
+  out.push('');
+  out.push(
+    '_A scan samples whatever traffic it happens to trigger, so an endpoint listed as removed may simply not have been exercised this time._',
+  );
+  out.push('');
+  return out;
 }
 
 function detailedEndpoint(endpoint: Endpoint): string[] {

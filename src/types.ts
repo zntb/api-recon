@@ -119,6 +119,40 @@ export interface ReportMeta {
   apiReconVersion: string;
 }
 
+/** How an endpoint differs between two scans. */
+export type ChangeKind = 'added' | 'removed' | 'changed';
+
+/** One endpoint-level difference between a baseline scan and the current one. */
+export interface EndpointChange {
+  /** The endpoint's stable id, e.g. `GET /api/orders/{id}`. */
+  id: string;
+  kind: ChangeKind;
+  /**
+   * True when the change can break an existing client. Heuristic, and biased
+   * toward under-reporting: removals and narrowed types are breaking, additions
+   * are not.
+   */
+  breaking: boolean;
+  /** Human-readable descriptions of what differs. */
+  details: string[];
+}
+
+/** Identifies the scan a diff was computed against. */
+export interface ScanRef {
+  seedUrl: string;
+  startedAt: string;
+  apiReconVersion: string;
+}
+
+/** Endpoint-level comparison of a scan against an earlier baseline report. */
+export interface ReportDiff {
+  baseline: ScanRef;
+  current: ScanRef;
+  changes: EndpointChange[];
+  counts: { added: number; removed: number; changed: number; breaking: number };
+  hasChanges: boolean;
+}
+
 /** The single source-of-truth report. All other formats derive from it. */
 export interface ReconReport {
   meta: ReportMeta;
@@ -126,6 +160,8 @@ export interface ReconReport {
   endpoints: Endpoint[];
   pages: CapturedPage[];
   safety: SafetyInfo;
+  /** Present only when the scan was run with a baseline to compare against. */
+  diff?: ReportDiff;
 }
 
 import type { Logger } from './utils/logger.js';
@@ -144,6 +180,11 @@ export interface ScanOptions {
   rate?: number;
   /** Playwright engine to drive. Defaults to `chromium`. */
   browser?: BrowserEngine;
+  /**
+   * Path to a previous `report.json` to compare this scan against. The result
+   * gains a `diff` field; the scan itself is unaffected.
+   */
+  diff?: string;
   respectRobots?: boolean;
   force?: boolean;
   includeThirdParty?: boolean;
@@ -163,4 +204,6 @@ export interface ScanResult {
   writeReports: (outDir: string) => Promise<string[]>;
   /** Paths of report files already written (when formats were emitted during scan). */
   files: string[];
+  /** Convenience alias for `report.diff`, when a baseline was supplied. */
+  diff?: ReportDiff;
 }
