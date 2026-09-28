@@ -1,10 +1,10 @@
 {
   "meta": {
-    "seedUrl": "http://127.0.0.1:46521",
-    "startedAt": "2026-09-27T14:29:56.836Z",
-    "durationMs": 117,
+    "seedUrl": "http://127.0.0.1:51862",
+    "startedAt": "2026-09-28T13:32:30.847Z",
+    "durationMs": 153,
     "pagesVisited": 6,
-    "apiReconVersion": "0.1.0"
+    "apiReconVersion": "0.1.2"
   },
   "technologies": [
     {
@@ -29,7 +29,7 @@
       "method": "POST",
       "urlPattern": "/api/collect",
       "origins": [
-        "http://127.0.0.1:46521"
+        "http://127.0.0.1:51862"
       ],
       "category": "analytics",
       "count": 1,
@@ -44,7 +44,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Sun, 27 Sep 2026 14:29:56 GMT",
+        "date": "Mon, 28 Sep 2026 13:32:30 GMT",
         "keep-alive": "timeout=5",
         "x-powered-by": "Express"
       },
@@ -72,7 +72,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:46521/products"
+        "http://127.0.0.1:51862/products"
       ]
     },
     {
@@ -80,7 +80,7 @@
       "method": "POST",
       "urlPattern": "/collect",
       "origins": [
-        "http://127.0.0.1:34387"
+        "http://127.0.0.1:51863"
       ],
       "category": "analytics",
       "count": 1,
@@ -96,7 +96,7 @@
         "access-control-allow-methods": "POST, GET, OPTIONS",
         "access-control-allow-origin": "*",
         "connection": "keep-alive",
-        "date": "Sun, 27 Sep 2026 14:29:56 GMT",
+        "date": "Mon, 28 Sep 2026 13:32:30 GMT",
         "keep-alive": "timeout=5",
         "x-powered-by": "Express"
       },
@@ -118,7 +118,7 @@
       "responseSchema": null,
       "mimeTypes": [],
       "triggeredBy": [
-        "http://127.0.0.1:46521/external.html"
+        "http://127.0.0.1:51862/external.html"
       ]
     },
     {
@@ -126,7 +126,7 @@
       "method": "POST",
       "urlPattern": "/api/login",
       "origins": [
-        "http://127.0.0.1:46521"
+        "http://127.0.0.1:51862"
       ],
       "category": "authentication",
       "count": 1,
@@ -141,7 +141,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Sun, 27 Sep 2026 14:29:56 GMT",
+        "date": "Mon, 28 Sep 2026 13:32:30 GMT",
         "keep-alive": "timeout=5",
         "set-cookie": "[REDACTED]",
         "transfer-encoding": "chunked",
@@ -199,7 +199,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:46521/login"
+        "http://127.0.0.1:51862/login"
       ]
     },
     {
@@ -207,7 +207,7 @@
       "method": "GET",
       "urlPattern": "/api/orders",
       "origins": [
-        "http://127.0.0.1:46521"
+        "http://127.0.0.1:51862"
       ],
       "category": "data-fetching",
       "count": 1,
@@ -222,7 +222,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Sun, 27 Sep 2026 14:29:56 GMT",
+        "date": "Mon, 28 Sep 2026 13:32:30 GMT",
         "keep-alive": "timeout=5",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
@@ -277,7 +277,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:46521/dashboard"
+        "http://127.0.0.1:51862/dashboard"
       ]
     },
     {
@@ -285,7 +285,7 @@
       "method": "GET",
       "urlPattern": "/api/orders/{id}",
       "origins": [
-        "http://127.0.0.1:46521"
+        "http://127.0.0.1:51862"
       ],
       "category": "data-fetching",
       "count": 1,
@@ -300,7 +300,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Sun, 27 Sep 2026 14:29:56 GMT",
+        "date": "Mon, 28 Sep 2026 13:32:30 GMT",
         "keep-alive": "timeout=5",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
@@ -358,7 +358,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:46521/dashboard"
+        "http://127.0.0.1:51862/dashboard"
       ]
     },
     {
@@ -366,7 +366,7 @@
       "method": "GET",
       "urlPattern": "/api/products",
       "origins": [
-        "http://127.0.0.1:46521"
+        "http://127.0.0.1:51862"
       ],
       "category": "data-fetching",
       "count": 2,
@@ -380,7 +380,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Sun, 27 Sep 2026 14:29:56 GMT",
+        "date": "Mon, 28 Sep 2026 13:32:30 GMT",
         "keep-alive": "timeout=5",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
@@ -450,7 +450,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:46521/products"
+        "http://127.0.0.1:51862/products"
       ]
     },
     {
@@ -458,7 +458,7 @@
       "method": "GET",
       "urlPattern": "/api/user",
       "origins": [
-        "http://127.0.0.1:46521"
+        "http://127.0.0.1:51862"
       ],
       "category": "data-fetching",
       "count": 1,
@@ -473,7 +473,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Sun, 27 Sep 2026 14:29:56 GMT",
+        "date": "Mon, 28 Sep 2026 13:32:30 GMT",
         "keep-alive": "timeout=5",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
@@ -521,7 +521,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:46521/dashboard"
+        "http://127.0.0.1:51862/dashboard"
       ]
     },
     {
@@ -529,7 +529,7 @@
       "method": "POST",
       "urlPattern": "/api/search",
       "origins": [
-        "http://127.0.0.1:46521"
+        "http://127.0.0.1:51862"
       ],
       "category": "mutations",
       "count": 1,
@@ -544,7 +544,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Sun, 27 Sep 2026 14:29:56 GMT",
+        "date": "Mon, 28 Sep 2026 13:32:30 GMT",
         "keep-alive": "timeout=5",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
@@ -606,7 +606,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:46521/products"
+        "http://127.0.0.1:51862/products"
       ]
     },
     {
@@ -614,7 +614,7 @@
       "method": "GET",
       "urlPattern": "/sdk/config.json",
       "origins": [
-        "http://127.0.0.1:34387"
+        "http://127.0.0.1:51863"
       ],
       "category": "third-party",
       "count": 1,
@@ -630,7 +630,7 @@
         "access-control-allow-origin": "*",
         "connection": "keep-alive",
         "content-type": "application/json",
-        "date": "Sun, 27 Sep 2026 14:29:56 GMT",
+        "date": "Mon, 28 Sep 2026 13:32:31 GMT",
         "keep-alive": "timeout=5",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
@@ -667,58 +667,58 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:46521/external.html"
+        "http://127.0.0.1:51862/external.html"
       ]
     }
   ],
   "pages": [
     {
-      "url": "http://127.0.0.1:46521/",
-      "normalizedUrl": "http://127.0.0.1:46521/",
+      "url": "http://127.0.0.1:51862/",
+      "normalizedUrl": "http://127.0.0.1:51862/",
       "depth": 0,
       "title": "Fixture Shop — Home",
-      "visitedAt": 1790519396864
+      "visitedAt": 1790602350902
     },
     {
-      "url": "http://127.0.0.1:46521/products",
-      "normalizedUrl": "http://127.0.0.1:46521/products",
+      "url": "http://127.0.0.1:51862/products",
+      "normalizedUrl": "http://127.0.0.1:51862/products",
       "depth": 1,
       "title": "Fixture Shop — Products",
-      "visitedAt": 1790519396868
+      "visitedAt": 1790602350917
     },
     {
-      "url": "http://127.0.0.1:46521/login",
-      "normalizedUrl": "http://127.0.0.1:46521/login",
+      "url": "http://127.0.0.1:51862/login",
+      "normalizedUrl": "http://127.0.0.1:51862/login",
       "depth": 1,
       "title": "Fixture Shop — Login",
-      "visitedAt": 1790519396878
+      "visitedAt": 1790602350921
     },
     {
-      "url": "http://127.0.0.1:46521/about.html",
-      "normalizedUrl": "http://127.0.0.1:46521/about.html",
+      "url": "http://127.0.0.1:51862/about.html",
+      "normalizedUrl": "http://127.0.0.1:51862/about.html",
       "depth": 1,
       "title": "Fixture Shop — About",
-      "visitedAt": 1790519396881
+      "visitedAt": 1790602350927
     },
     {
-      "url": "http://127.0.0.1:46521/external.html",
-      "normalizedUrl": "http://127.0.0.1:46521/external.html",
+      "url": "http://127.0.0.1:51862/external.html",
+      "normalizedUrl": "http://127.0.0.1:51862/external.html",
       "depth": 1,
       "title": "Fixture Shop — Partner widgets",
-      "visitedAt": 1790519396890
+      "visitedAt": 1790602350936
     },
     {
-      "url": "http://127.0.0.1:46521/dashboard",
-      "normalizedUrl": "http://127.0.0.1:46521/dashboard",
+      "url": "http://127.0.0.1:51862/dashboard",
+      "normalizedUrl": "http://127.0.0.1:51862/dashboard",
       "depth": 1,
       "title": "Fixture Shop — Dashboard",
-      "visitedAt": 1790519396907
+      "visitedAt": 1790602350947
     }
   ],
   "safety": {
     "robotsRespected": true,
     "robotsSkippedPaths": [
-      "http://127.0.0.1:46521/admin"
+      "http://127.0.0.1:51862/admin"
     ],
     "rateLimitMs": 100,
     "maxBodyBytes": 1048576,

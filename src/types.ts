@@ -3,9 +3,16 @@
  * every reporter (md/html/pdf/openapi) derives from it.
  */
 
-export type ReportFormat = 'json' | 'md' | 'html' | 'pdf' | 'openapi';
+export type ReportFormat = 'json' | 'md' | 'html' | 'pdf' | 'openapi' | 'dashboard';
 
-export const REPORT_FORMATS: readonly ReportFormat[] = ['json', 'md', 'html', 'pdf', 'openapi'];
+export const REPORT_FORMATS: readonly ReportFormat[] = [
+  'json',
+  'md',
+  'html',
+  'pdf',
+  'openapi',
+  'dashboard',
+];
 
 /** Playwright engines a scan can run in. Chromium is the default. */
 export type BrowserEngine = 'chromium' | 'firefox' | 'webkit';

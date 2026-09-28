@@ -178,7 +178,17 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
 }
 
 export function normalizeFormats(formats: readonly string[] | undefined): ReportFormat[] {
-  const aliases: Record<string, ReportFormat> = { markdown: 'md', yaml: 'openapi', json: 'json', md: 'md', html: 'html', pdf: 'pdf', openapi: 'openapi' };
+  const aliases: Record<string, ReportFormat> = {
+    markdown: 'md',
+    yaml: 'openapi',
+    json: 'json',
+    md: 'md',
+    html: 'html',
+    pdf: 'pdf',
+    openapi: 'openapi',
+    dashboard: 'dashboard',
+    dash: 'dashboard',
+  };
   if (!formats || formats.length === 0) return [...REPORT_FORMATS];
   const out: ReportFormat[] = [];
   for (const raw of formats) {

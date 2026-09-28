@@ -81,6 +81,10 @@ describe('api-recon CLI', () => {
     ]) {
       expect(stdout, `--help should mention ${flag}`).toContain(flag);
     }
+    // Every report format is advertised as a default, the dashboard included.
+    for (const format of ['json', 'md', 'html', 'pdf', 'openapi', 'dashboard']) {
+      expect(stdout, `--help should mention the ${format} format`).toContain(format);
+    }
   }, 60_000);
 
   it('refuses localhost without --allow-local', async () => {

@@ -217,12 +217,20 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   changed, for CI. The logic lives in `src/core/diff.ts` and is exported as
   `diffReports`, `loadBaseline`, and `formatDiffSummary`; the diff is also
   embedded in the report under `diff` and rendered by the Markdown reporter.
+- **Interactive HTML dashboard** — the `dashboard` format writes
+  `dashboard.html`, a single self-contained page (inline CSS, inline report
+  JSON, inline script) that renders the report as a searchable, filterable,
+  sortable table with expandable per-endpoint detail. It is part of the default
+  formats, so `api-recon <url>` produces it alongside the other reports, and it
+  opens straight from `file://`. When a baseline is present it also grows a
+  Change column and "Changed only"/"Breaking only" filters. The renderer lives in
+  `src/reporters/dashboard.ts`; `report.html` deliberately stays a printable
+  document, since PDF is rendered from it.
 
 **Ideas for follow-ups**
 
 - Add GraphQL detection (introspection query + operation names).
 - Add WebSocket capture.
-- Add an HTML dashboard with filtering and search.
 - Optional telemetry (opt-in) to improve categorization heuristics.
 - Record the engine used in the report, so a scan is reproducible from its own
   output.

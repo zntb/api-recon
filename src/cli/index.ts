@@ -39,7 +39,7 @@ const program = new Command();
 program
   .name('api-recon')
   .description(
-    'Discover a website\'s APIs by driving a headless browser, simulating user actions, and exporting a categorized report (JSON, Markdown, HTML, PDF, OpenAPI).',
+    'Discover a website\'s APIs by driving a headless browser, simulating user actions, and exporting a categorized report (JSON, Markdown, HTML, PDF, OpenAPI, interactive dashboard).',
   )
   .version(TOOL_VERSION)
   .argument('<seedUrl>', 'URL to start from, e.g. https://example.com')
@@ -48,8 +48,8 @@ program
   .option('-o, --out <dir>', 'output directory for reports', './api-recon-output')
   .option(
     '-f, --formats <list>',
-    'comma-separated report formats (json,md,html,pdf,openapi)',
-    'json,md,html,pdf,openapi',
+    'comma-separated report formats (json,md,html,pdf,openapi,dashboard)',
+    'json,md,html,pdf,openapi,dashboard',
   )
   .option(
     '-b, --browser <engine>',

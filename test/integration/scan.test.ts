@@ -222,7 +222,7 @@ describe('scripted actions', () => {
 });
 
 describe('report formats', () => {
-  it('writes json, md, html, pdf, and openapi with redaction intact', async () => {
+  it('writes json, md, html, pdf, openapi, and the dashboard with redaction intact', async () => {
     const dir = join(outDir, 'formats');
     const result = await scan({
       url: fixture.url,
@@ -233,14 +233,21 @@ describe('report formats', () => {
       // The login flow is what puts secrets in the capture (Set-Cookie plus a
       // password in a request body), so redaction is actually exercised.
       login: 'test/fixtures/login.yaml',
-      formats: ['json', 'md', 'html', 'pdf', 'openapi'],
+      formats: ['json', 'md', 'html', 'pdf', 'openapi', 'dashboard'],
       out: dir,
       logger: silent(),
     });
 
     const names = result.files.map((f) => basename(f));
     expect(names).toEqual(
-      expect.arrayContaining(['report.json', 'report.md', 'report.html', 'report.pdf', 'openapi.yaml']),
+      expect.arrayContaining([
+        'report.json',
+        'report.md',
+        'report.html',
+        'report.pdf',
+        'openapi.yaml',
+        'dashboard.html',
+      ]),
     );
 
     const md = await readFile(join(dir, 'report.md'), 'utf8');
@@ -272,6 +279,18 @@ describe('report formats', () => {
     expect(spec.openapi).toBe('3.0.3');
     expect(Object.keys(spec.paths)).toContain('/api/products');
     expect(spec.paths['/api/products']!['get']).toBeDefined();
+
+    // The dashboard embeds the report verbatim, so the same redaction promise
+    // has to hold for it — including for the JSON payload, not just the markup.
+    const dashboard = await readFile(join(dir, 'dashboard.html'), 'utf8');
+    expect(dashboard).toContain('API recon dashboard');
+    expect(dashboard).not.toContain(FIXTURE_PASS);
+    expect(dashboard).not.toContain('connect.sid=');
+    const payload = JSON.parse(
+      /<script type="application\/json" id="report-data">([\s\S]*?)<\/script>/.exec(dashboard)![1]!,
+    ) as ReconReport;
+    expect(payload.endpoints.map((e) => e.id)).toEqual(result.report.endpoints.map((e) => e.id));
+    expect(payload.endpoints.some((e) => e.id === 'GET /api/products')).toBe(true);
   }, 180_000);
 });
 

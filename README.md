@@ -77,7 +77,7 @@ api-recon https://example.com --browser firefox
 | `-d, --depth <n>` | `1` | Same-domain crawl depth (0 = seed page only) |
 | `-m, --max-pages <n>` | `25` | Hard cap on pages visited |
 | `-o, --out <dir>` | `./api-recon-output` | Output directory |
-| `-f, --formats <list>` | `json,md,html,pdf,openapi` | Report formats to write |
+| `-f, --formats <list>` | `json,md,html,pdf,openapi,dashboard` | Report formats to write |
 | `-b, --browser <engine>` | `chromium` | Playwright engine to drive (`chromium`, `firefox`, `webkit`) |
 | `-a, --auth <file>` | — | Playwright `storageState.json` session |
 | `-l, --login <file>` | — | Login-flow config (YAML/JSON) |
@@ -138,6 +138,7 @@ you only care about the API surface, Chromium is the safer default.
 | `report.html` | Styled standalone version of the Markdown |
 | `report.pdf` | Rendered from the HTML with Playwright's `page.pdf()` |
 | `openapi.yaml` | Best-effort OpenAPI 3.0 spec from inferred paths, methods, params, and schemas |
+| `dashboard.html` | Interactive dashboard: search, filter, sort, and expand endpoints |
 
 `report.json` shape:
 
@@ -173,6 +174,43 @@ you only care about the API surface, Chromium is the safer default.
 
 Look at [`examples/output/`](examples/output) for a real report generated from
 the bundled fixture site.
+
+## Dashboard
+
+`dashboard.html` is the report you actually work in. Open it in any browser —
+no server, no build step:
+
+```bash
+api-recon https://example.com --formats dashboard --out ./reports
+open ./reports/dashboard.html
+```
+
+- **Search** across paths, methods, categories, status codes, hosts, params,
+  MIME types, and the pages that triggered each call.
+- **Filter** by category, HTTP method, and status code.
+- **Sort** by any column; the default order is discovery order.
+- **Expand** a row for its headers, query and path params, and the inferred
+  request/response schemas — rendered from the sampled bodies.
+- **Diff** — with `--diff`, a Change column and "Changed only" / "Breaking only"
+  filters appear. Without a baseline they are omitted entirely rather than
+  shown empty.
+- **Removed endpoints stay visible** — an endpoint that existed in the baseline
+  and not in this scan has no row in the current report, so the dashboard
+  reconstructs one from the diff. It appears struck through on a red row, sorts
+  and searches like any other, and there is a `Removed (baseline)` filter to
+  isolate the endpoints that disappeared. Only such rows carry no request or
+  response detail, and they say so instead of showing empty sections.
+
+It is a single self-contained file: all CSS, the report JSON, and the rendering
+script are inlined, so nothing is fetched at open time and it works from
+`file://`, from a CI artifact, or on a machine with no network. Scanned values
+are written to the DOM as text, never as HTML, so a target site cannot inject
+markup into its own report — and the embedded payload is the same redacted
+report as `report.json`.
+
+Use `report.md` / `report.html` / `report.pdf` when you need something to send
+someone; use `dashboard.html` when you need to find something. Both a plain and
+a diffed dashboard are committed under [`examples/output/`](examples/output).
 
 ## Comparing scans
 

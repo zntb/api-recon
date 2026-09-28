@@ -10,6 +10,7 @@ export const FORMAT_FILENAMES: Record<ReportFormat, string> = {
   html: 'report.html',
   pdf: 'report.pdf',
   openapi: 'openapi.yaml',
+  dashboard: 'dashboard.html',
 };
 
 export async function writeJsonReport(report: ReconReport, outDir: string): Promise<string> {

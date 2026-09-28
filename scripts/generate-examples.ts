@@ -11,17 +11,27 @@
  *   npm run examples:generate
  */
 
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { startFixtureServer } from '../test/fixtures/server.js';
 import { analyzeCalls } from '../src/core/analyzer.js';
+import { diffReports } from '../src/core/diff.js';
 import { detectTechnologies, type TechEvidence } from '../src/core/techStack.js';
+import { renderDashboard } from '../src/reporters/dashboard.js';
 import { writeReports } from '../src/reporters/index.js';
 import { redactBody, redactHeaders } from '../src/utils/redact.js';
 import { normalizeUrl } from '../src/utils/url.js';
 import { TOOL_VERSION } from '../src/version.js';
-import type { CapturedCall, CapturedPage, ReconReport, ReportFormat } from '../src/types.js';
+import type { CapturedCall, CapturedPage, Endpoint, ReconReport, ReportFormat } from '../src/types.js';
 
 const OUT_DIR = 'examples/output';
-const FORMATS: ReportFormat[] = ['json', 'md', 'html', 'openapi'];
+const FORMATS: ReportFormat[] = ['json', 'md', 'html', 'openapi', 'dashboard'];
+
+// Ids the simulated previous scan is built around. Named rather than positional
+// so the diff example stays readable, and checked below so it cannot quietly
+// stop demonstrating one of the three change kinds.
+const PREVIOUS_NEW_ID = 'POST /api/search';
+const PREVIOUS_CHANGED_ID = 'GET /api/products';
 
 function headersOf(res: Response): Record<string, string> {
   return Object.fromEntries([...res.headers.entries()].map(([k, v]) => [k.toLowerCase(), v]));
@@ -33,6 +43,55 @@ function titleOf(html: string): string | null {
 
 function scriptSrcs(html: string): string[] {
   return [...html.matchAll(/<script[^>]+src=["']([^"']+)["']/gi)].map((m) => m[1]!);
+}
+
+/**
+ * A stand-in for the previous scan, so the diff-aware dashboard example has all
+ * three change kinds to show: an endpoint only the baseline had, one that is new
+ * here, and one whose response schema narrowed. Fabricating the baseline keeps
+ * the example to one crawl — the *current* half is still a real capture.
+ */
+function previousScan(report: ReconReport, baseUrl: string): ReconReport {
+  const endpoints: Endpoint[] = report.endpoints
+    .filter((e) => e.id !== PREVIOUS_NEW_ID)
+    .map((e) => {
+      if (e.id !== PREVIOUS_CHANGED_ID || !e.responseSchema?.properties) return e;
+      const properties = { ...e.responseSchema.properties };
+      delete properties['products'];
+      return { ...e, responseSchema: { ...e.responseSchema, properties } };
+    });
+
+  endpoints.push({
+    id: 'GET /api/legacy/orders',
+    method: 'GET',
+    urlPattern: '/api/legacy/orders',
+    origins: [baseUrl],
+    category: 'data-fetching',
+    count: 12,
+    statusCodes: [200],
+    requestHeaders: { accept: 'application/json' },
+    responseHeaders: { 'content-type': 'application/json' },
+    requestBodySample: null,
+    responseBodySample: '{"orders":[{"id":1042}]}',
+    pathParams: [],
+    queryParams: [],
+    requestBodySchema: null,
+    responseSchema: {
+      type: 'object',
+      properties: { orders: { type: 'array', items: { type: 'object' } } },
+    },
+    mimeTypes: ['application/json'],
+    triggeredBy: [`${baseUrl}/dashboard`],
+  });
+
+  return {
+    ...report,
+    meta: {
+      ...report.meta,
+      startedAt: new Date(Date.parse(report.meta.startedAt) - 86_400_000).toISOString(),
+    },
+    endpoints,
+  };
 }
 
 async function main(): Promise<void> {
@@ -167,6 +226,26 @@ async function main(): Promise<void> {
     console.log(`Wrote ${files.length} sample report(s):`);
     for (const file of files) console.log(`  • ${file}`);
     console.log('  (report.pdf is omitted — PDF rendering needs Chromium.)');
+
+    // A second dashboard, this time with a baseline to compare against, so the
+    // Change column and the highlighted removed endpoints are visible in the
+    // committed examples. Written by hand because it shares the format's
+    // filename with the plain dashboard above.
+    const diff = diffReports(previousScan(report, fixture.url), report);
+    for (const kind of ['added', 'removed', 'changed'] as const) {
+      if (diff.counts[kind] === 0) {
+        throw new Error(
+          `The diff example no longer demonstrates a ${kind} change — update previousScan().`,
+        );
+      }
+    }
+    const diffFile = join(OUT_DIR, 'dashboard-diff.html');
+    await writeFile(diffFile, renderDashboard({ ...report, diff }, 'API recon dashboard — with a baseline'), 'utf8');
+    console.log(`  • ${diffFile}`);
+    console.log(
+      `  (diff example: ${diff.counts.added} added, ${diff.counts.removed} removed, ` +
+        `${diff.counts.changed} changed, ${diff.counts.breaking} breaking)`,
+    );
   } finally {
     await fixture.close();
   }

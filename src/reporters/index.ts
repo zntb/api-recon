@@ -9,6 +9,7 @@ import { renderMarkdown, writeMarkdownReport } from './markdown.js';
 import { renderHtml } from './html.js';
 import { writePdfReport } from './pdf.js';
 import { writeOpenApiReport } from './openapi.js';
+import { writeDashboardReport } from './dashboard.js';
 
 export async function writeReports(
   report: ReconReport,
@@ -55,6 +56,12 @@ export async function writeReports(
 
   if (formats.includes('openapi')) {
     files.push(await writeOpenApiReport(report, outDir));
+  }
+
+  // Rendered from the report itself rather than from the Markdown: it is an
+  // interactive view, not a printable one.
+  if (formats.includes('dashboard')) {
+    files.push(await writeDashboardReport(report, outDir));
   }
 
   return files;

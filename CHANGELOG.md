@@ -5,6 +5,31 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-09-28
+
+Adds an interactive dashboard for reading a report, and makes removed endpoints
+visible when a scan is compared against a baseline. Existing flags, options, and
+the report schema are unchanged, but note that `dashboard.html` is now written by
+default — pass `--formats` to leave it out.
+
+### Added
+
+- **Interactive HTML dashboard** (`dashboard.html`, part of the default formats)
+  — a self-contained page that renders the report as a table you can search
+  (path, method, category, status, host, params, MIME type, triggering page),
+  filter by category / method / status, sort by any column, and expand row by
+  row for headers, params, and inferred request/response schemas. With `--diff`
+  it also grows a Change column and "Changed only" / "Breaking only" filters.
+  All CSS, the report JSON, and the rendering script are inlined — no CDN, no
+  fetch — so it opens straight from `file://`, and every scanned value reaches
+  the DOM as text rather than markup.
+- **Removed endpoints in the dashboard** — an endpoint that was in the baseline
+  and not in the current scan has no row of its own in the report, so the
+  dashboard rebuilds one from the diff. Removed endpoints now appear struck
+  through on a red row, sort and search like any other, and can be isolated with
+  a `Removed (baseline)` filter — previously they were only a number in the
+  summary. `examples/output/dashboard-diff.html` is a committed example.
+
 ## [0.1.2] - 2026-09-28
 
 Adds scan-to-scan comparison, so a report can be checked against a previously
@@ -111,6 +136,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[0.1.3]: https://github.com/zntb/api-recon/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/zntb/api-recon/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/zntb/api-recon/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/zntb/api-recon/releases/tag/v0.1.0
