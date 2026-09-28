@@ -11,3 +11,6 @@ test/output/
 # Sessions may contain auth tokens/cookies — never commit them
 session*.json
 *.storageState.json
+
+# Written by the release workflow / `npm run changelog:extract`
+release-notes.md

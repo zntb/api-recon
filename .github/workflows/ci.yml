@@ -25,6 +25,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Runs once, on Linux: it inspects the tracked blobs, so its verdict is
+      # the same on every OS. Place it before the browser download so a line
+      # ending mistake fails fast. See scripts/check-line-endings.ts.
+      - name: Check line endings
+        run: npm run check:line-endings
+        if: runner.os == 'Linux'
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:

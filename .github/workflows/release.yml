@@ -1,0 +1,118 @@
+name: Release
+
+# Creates a GitHub Release (auto-generated notes + the packed tarball) when a
+# version tag is pushed:
+#
+#   npm version patch          # bumps package.json, commits, tags vX.Y.Z
+#   git push && git push --tags
+#
+# Publishing to npm is deliberately a manual step and lives outside CI, so no
+# npm token is ever stored in this repository. See "Releasing" in
+# CONTRIBUTING.md for the exact commands.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re)release, e.g. v0.1.0'
+        required: true
+        type: string
+
+# Never let two releases race, and never cancel one midway through uploading.
+concurrency:
+  group: release-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Verify and release
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --- cheap fail-fast checks, before the ~1 minute browser download ------
+
+      # A tag that disagrees with package.json would publish the wrong version
+      # and poison the changelog, so refuse to continue.
+      - name: Verify the tag matches package.json
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::tag $TAG does not match package.json version v$version"
+            exit 1
+          fi
+          echo "Releasing $TAG"
+
+      # CHANGELOG.md is the source of truth for the release notes, so a tag
+      # without an entry fails here rather than after the test suite. The
+      # extracted body is reused by the release step below.
+      - name: Verify CHANGELOG.md and extract release notes
+        run: npm run changelog:extract -- --version "${TAG#v}" --out release-notes.md
+
+      # --- build and verify --------------------------------------------------
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+        env:
+          CI: 'true'
+
+      # `prepack` compiles dist/ before the tarball is written.
+      - name: Pack the tarball
+        run: npm pack
+
+      # Notes come from the CHANGELOG.md section extracted above, not from
+      # git commit subjects, so the release mirrors what users read in the repo.
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes-file release-notes.md \
+            --verify-tag \
+            api-recon-*.tgz
+
+      # ---------------------------------------------------------------------
+      # Publishing to npm runs locally, AFTER this release succeeds:
+      #
+      #   npm login
+      #   npm publish --access public
+      #
+      # `prepublishOnly` re-runs lint, typecheck, and the full test suite, and
+      # `prepack` builds dist/. Nothing here touches npm credentials.
+      # ---------------------------------------------------------------------

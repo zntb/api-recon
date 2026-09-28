@@ -1,0 +1,45 @@
+# Normalize line endings.
+#
+# Text files are stored with LF in the repository *and* on disk, so a file
+# committed from Windows, macOS, or Linux produces an identical blob and no
+# spurious line-ending diffs.
+* text=auto eol=lf
+
+# --- explicit text types (belt and braces for editors/gitattributes changes) --
+*.ts text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.jsonc text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.txt text eol=lf
+*.sh text eol=lf
+
+# --- Windows-only shells need CRLF ------------------------------------------
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# --- binaries: never touch, never diff --------------------------------------
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.tgz binary
+*.zip binary
+
+# --- generated/vendored files collapse in diffs and reviews -----------------
+package-lock.json -diff linguist-generated
+dist/** -diff linguist-generated
