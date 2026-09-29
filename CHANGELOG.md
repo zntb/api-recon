@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] - 2026-09-29
+
+Makes the committed sample reports reproducible. No user-facing behavior
+changes.
+
+### Internal
+
+- **Deterministic example generation** — `npm run examples:generate` bound
+  ephemeral ports and stamped `Date.now()` into the report, so every regeneration
+  rewrote every origin, timestamp, and response `date` header under
+  `examples/output/` and buried any real change in the diff. It now binds fixed
+  ports (4610/4611) and reads a fixed clock, so regenerating shows a diff only
+  when the report itself changed.
+
 ## [0.2.7] - 2026-09-29
 
 Endpoint schemas now describe every observed sample rather than a single body.
@@ -291,6 +305,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[0.2.8]: https://github.com/zntb/api-recon/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/zntb/api-recon/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/zntb/api-recon/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/zntb/api-recon/compare/v0.2.4...v0.2.5

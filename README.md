@@ -498,7 +498,7 @@ precisely because it cannot describe the target:
 ```jsonc
 {
   "version": 1,
-  "apiReconVersion": "0.2.7",
+  "apiReconVersion": "0.2.8",
   "generatedAt": "2026-09-29T…",
   "endpointCount": 2,
   "contains": "categorization decisions only: category, heuristic, HTTP method, and whether the response was JSON. No host, path, query values, headers, or bodies.",
@@ -526,12 +526,18 @@ npm run build       # tsc -> dist/
 npm test            # unit + integration (drives a real browser)
 
 npm run test:server # fixture site on http://127.0.0.1:4599
+npm run examples:generate  # regenerate examples/output
 ```
 
 The integration suite runs the whole pipeline against a local fixture site
 (`test/fixtures/`) covering data fetching, mutations, login + cookie-protected
 APIs, pagination via scripted actions, a same-origin analytics beacon, a
 cross-origin partner endpoint, and a robots-disallowed page.
+
+`npm run examples:generate` drives that fixture over plain HTTP and writes the
+committed reports in `examples/output/`. It binds fixed ports (4610/4611) and
+reads a fixed clock, so it is reproducible: regenerating produces a diff only
+when the report itself changed, not when it merely ran again.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for test expectations.
 

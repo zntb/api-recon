@@ -8,6 +8,11 @@
  * simulated. Regenerate a browser-captured report with the CLI command shown in
  * examples/README.md.
  *
+ * Because the output is committed, generation is deterministic: the servers
+ * bind fixed ports and every timestamp comes from a fixed clock. Regenerating
+ * therefore shows a diff only when the report itself changed, rather than
+ * rewriting every origin and timestamp on each run.
+ *
  *   npm run examples:generate
  */
 
@@ -36,6 +41,22 @@ import type {
 const OUT_DIR = 'examples/output';
 const FORMATS: ReportFormat[] = ['json', 'md', 'html', 'openapi', 'dashboard'];
 
+// Fixed ports and a fixed clock keep the committed examples reproducible. The
+// ephemeral ports the tests use, and the wall clock, would otherwise rewrite
+// every origin and timestamp on each run and bury a real change in the diff.
+const EXAMPLE_PORT = 4610;
+const EXAMPLE_THIRD_PARTY_PORT = 4611;
+const CLOCK_START = Date.parse('2026-01-01T00:00:00.000Z');
+const CLOCK_STEP_MS = 7;
+let clockMs = CLOCK_START;
+
+/** A deterministic stand-in for `Date.now()`: the same value on every run. */
+function now(): number {
+  const at = clockMs;
+  clockMs += CLOCK_STEP_MS;
+  return at;
+}
+
 // Ids the simulated previous scan is built around. Named rather than positional
 // so the diff example stays readable, and checked below so it cannot quietly
 // stop demonstrating one of the three change kinds.
@@ -43,7 +64,13 @@ const PREVIOUS_NEW_ID = 'POST /api/search';
 const PREVIOUS_CHANGED_ID = 'GET /api/products';
 
 function headersOf(res: Response): Record<string, string> {
-  return Object.fromEntries([...res.headers.entries()].map(([k, v]) => [k.toLowerCase(), v]));
+  const headers = Object.fromEntries(
+    [...res.headers.entries()].map(([k, v]) => [k.toLowerCase(), v]),
+  );
+  // The server stamps the current time on every response; pin it so the
+  // committed example stays reproducible.
+  if ('date' in headers) headers['date'] = new Date(CLOCK_START).toUTCString();
+  return headers;
 }
 
 /**
@@ -52,7 +79,7 @@ function headersOf(res: Response): Record<string, string> {
  * with Node's built-in WebSocket, so the frames are genuine too.
  */
 async function recordWebSocket(targetUrl: string, triggeredBy: string): Promise<CapturedWebSocket> {
-  const openedAt = Date.now();
+  const openedAt = now();
   const frames: WebSocketFrame[] = [];
 
   await new Promise<void>((resolve) => {
@@ -93,7 +120,7 @@ async function recordWebSocket(targetUrl: string, triggeredBy: string): Promise<
     origins: [new URL(targetUrl).origin],
     triggeredBy,
     openedAt,
-    closedAt: Date.now(),
+    closedAt: now(),
     frameCount: frames.length,
     sentCount: count('sent'),
     receivedCount: count('received'),
@@ -111,7 +138,7 @@ function socketFrame(direction: WebSocketFrame['direction'], payload: string): W
     payloadSample: redactBody(payload),
     size: Buffer.byteLength(payload),
     truncated: false,
-    at: Date.now(),
+    at: now(),
   };
 }
 
@@ -173,18 +200,21 @@ function previousScan(report: ReconReport, baseUrl: string): ReconReport {
 }
 
 async function main(): Promise<void> {
-  const fixture = await startFixtureServer({ port: 0, thirdPartyPort: 0 });
+  const fixture = await startFixtureServer({
+    port: EXAMPLE_PORT,
+    thirdPartyPort: EXAMPLE_THIRD_PARTY_PORT,
+  });
   const evidence: TechEvidence[] = [];
   const pages = new Map<string, CapturedPage>();
   const calls: CapturedCall[] = [];
-  const startedAt = Date.now();
+  const startedAt = now();
 
   const recordPage = async (path: string, depth: number, headers: Record<string, string> = {}): Promise<string> => {
     const url = `${fixture.url}${path}`;
     const res = await fetch(url, { headers, redirect: 'manual' });
     const html = await res.text();
     const normalized = normalizeUrl(url);
-    pages.set(normalized, { url, normalizedUrl: normalized, depth, title: titleOf(html), visitedAt: Date.now() });
+    pages.set(normalized, { url, normalizedUrl: normalized, depth, title: titleOf(html), visitedAt: now() });
     evidence.push({ url, headers: headersOf(res), html, cookies: [], scripts: scriptSrcs(html) });
     return html;
   };
@@ -194,7 +224,7 @@ async function main(): Promise<void> {
     targetUrl: string,
     options: { body?: string; headers?: Record<string, string>; triggeredBy: string },
   ): Promise<Response> => {
-    const t0 = Date.now();
+    const t0 = now();
     const requestHeaders: Record<string, string> = {
       accept: 'application/json',
       ...(options.headers ?? {}),
@@ -223,7 +253,7 @@ async function main(): Promise<void> {
       responseBodySample: text || null,
       responseBodyTruncated: false,
       startedAt: t0,
-      durationMs: Date.now() - t0,
+      durationMs: now() - t0,
       triggeredBy: options.triggeredBy,
     });
     return res;
@@ -306,7 +336,7 @@ async function main(): Promise<void> {
       meta: {
         seedUrl: fixture.url,
         startedAt: new Date(startedAt).toISOString(),
-        durationMs: Date.now() - startedAt,
+        durationMs: now() - startedAt,
         pagesVisited: pages.size,
         apiReconVersion: TOOL_VERSION,
         // This sample is generated without a browser, so it records the engine

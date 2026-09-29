@@ -276,6 +276,12 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   samples agreed on it. WebSocket frames and the `--diff` message comparison
   share the same merge, the OpenAPI reporter carries the union as `oneOf`, and
   `--diff` compares type *sets* so a gained or lost union member is reported.
+- **Deterministic example generation** — `scripts/generate-examples.ts` bound
+  ephemeral ports and stamped the wall clock into the report, so regenerating
+  `examples/output/` rewrote every origin, timestamp, and response `date` header
+  and buried any real change in the noise. It now binds fixed ports (4610/4611)
+  and reads a fixed clock, so regeneration is byte-reproducible: the committed
+  samples change only when the report does.
 
 **Proposed updates & features**
 
@@ -329,11 +335,9 @@ so it can be scoped without re-reading the source.
   a JSON Schema for it, and validate the fixture report against that schema in CI
   so a rename cannot slip out unnoticed — and so `loadBaseline` can reject an
   incompatible report with a clear message.
-- **Make example output deterministic.** `scripts/generate-examples.ts` stamps
-  live timestamps into `examples/output/`, so every regeneration churns the whole
-  diff and a real change is hard to spot in review. Accept an injected clock or
-  seed (or honour `SOURCE_DATE_EPOCH`) so examples are byte-reproducible, and add
-  a CI check that regeneration produces no diff.
+- **Check example freshness in CI.** Now that generation is deterministic, a CI
+  job can run `npm run examples:generate` and fail on `git diff --exit-code
+  examples/output`, so a report change that was never regenerated cannot merge.
 - **Timeouts, retries, and a checkpoint.** A page that never finishes loading can
   stall a crawl; add a per-navigation timeout with a `--timeout` flag, one retry
   for a flaky load, and a checkpoint written after each page so a crashed or
@@ -445,9 +449,9 @@ so it can be scoped without re-reading the source.
   entirely — keeping only patterns, categories, and schemas — and emits a
   one-page summary suitable for pasting into a ticket.
 
-If a few are picked first, the highest-leverage trio is making example
-generation deterministic (reviewable diffs), proving redaction before writing
-(security), and capturing error contracts (report accuracy).
+If a few are picked first, the highest-leverage trio is proving redaction before
+writing (security), capturing error contracts (report accuracy), and versioning
+the report schema with a published JSON Schema (stability).
 
 ---
 

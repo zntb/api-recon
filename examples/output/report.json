@@ -1,10 +1,10 @@
 {
   "meta": {
-    "seedUrl": "http://127.0.0.1:53729",
-    "startedAt": "2026-09-29T06:50:27.514Z",
-    "durationMs": 139,
+    "seedUrl": "http://127.0.0.1:4610",
+    "startedAt": "2026-01-01T00:00:00.000Z",
+    "durationMs": 266,
     "pagesVisited": 8,
-    "apiReconVersion": "0.2.6",
+    "apiReconVersion": "0.2.7",
     "engine": "chromium"
   },
   "technologies": [
@@ -30,7 +30,7 @@
       "method": "POST",
       "urlPattern": "/api/collect",
       "origins": [
-        "http://127.0.0.1:53729"
+        "http://127.0.0.1:4610"
       ],
       "category": "analytics",
       "count": 1,
@@ -45,7 +45,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Tue, 29 Sep 2026 06:50:27 GMT",
+        "date": "Thu, 01 Jan 2026 00:00:00 GMT",
         "keep-alive": "timeout=5",
         "x-powered-by": "Express"
       },
@@ -73,7 +73,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:53729/products"
+        "http://127.0.0.1:4610/products"
       ]
     },
     {
@@ -81,7 +81,7 @@
       "method": "POST",
       "urlPattern": "/collect",
       "origins": [
-        "http://127.0.0.1:53730"
+        "http://127.0.0.1:4611"
       ],
       "category": "analytics",
       "count": 1,
@@ -97,7 +97,7 @@
         "access-control-allow-methods": "POST, GET, OPTIONS",
         "access-control-allow-origin": "*",
         "connection": "keep-alive",
-        "date": "Tue, 29 Sep 2026 06:50:27 GMT",
+        "date": "Thu, 01 Jan 2026 00:00:00 GMT",
         "keep-alive": "timeout=5",
         "x-powered-by": "Express"
       },
@@ -119,7 +119,7 @@
       "responseSchema": null,
       "mimeTypes": [],
       "triggeredBy": [
-        "http://127.0.0.1:53729/external.html"
+        "http://127.0.0.1:4610/external.html"
       ]
     },
     {
@@ -127,7 +127,7 @@
       "method": "POST",
       "urlPattern": "/api/login",
       "origins": [
-        "http://127.0.0.1:53729"
+        "http://127.0.0.1:4610"
       ],
       "category": "authentication",
       "count": 1,
@@ -142,7 +142,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Tue, 29 Sep 2026 06:50:27 GMT",
+        "date": "Thu, 01 Jan 2026 00:00:00 GMT",
         "keep-alive": "timeout=5",
         "set-cookie": "[REDACTED]",
         "transfer-encoding": "chunked",
@@ -200,7 +200,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:53729/login"
+        "http://127.0.0.1:4610/login"
       ]
     },
     {
@@ -208,7 +208,7 @@
       "method": "GET",
       "urlPattern": "/api/orders",
       "origins": [
-        "http://127.0.0.1:53729"
+        "http://127.0.0.1:4610"
       ],
       "category": "data-fetching",
       "count": 1,
@@ -223,7 +223,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Tue, 29 Sep 2026 06:50:27 GMT",
+        "date": "Thu, 01 Jan 2026 00:00:00 GMT",
         "keep-alive": "timeout=5",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
@@ -278,7 +278,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:53729/dashboard"
+        "http://127.0.0.1:4610/dashboard"
       ]
     },
     {
@@ -286,7 +286,7 @@
       "method": "GET",
       "urlPattern": "/api/orders/{id}",
       "origins": [
-        "http://127.0.0.1:53729"
+        "http://127.0.0.1:4610"
       ],
       "category": "data-fetching",
       "count": 1,
@@ -301,7 +301,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Tue, 29 Sep 2026 06:50:27 GMT",
+        "date": "Thu, 01 Jan 2026 00:00:00 GMT",
         "keep-alive": "timeout=5",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
@@ -359,7 +359,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:53729/dashboard"
+        "http://127.0.0.1:4610/dashboard"
       ]
     },
     {
@@ -367,7 +367,7 @@
       "method": "GET",
       "urlPattern": "/api/products",
       "origins": [
-        "http://127.0.0.1:53729"
+        "http://127.0.0.1:4610"
       ],
       "category": "data-fetching",
       "count": 2,
@@ -381,7 +381,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Tue, 29 Sep 2026 06:50:27 GMT",
+        "date": "Thu, 01 Jan 2026 00:00:00 GMT",
         "keep-alive": "timeout=5",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
@@ -451,7 +451,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:53729/products"
+        "http://127.0.0.1:4610/products"
       ]
     },
     {
@@ -459,7 +459,7 @@
       "method": "GET",
       "urlPattern": "/api/user",
       "origins": [
-        "http://127.0.0.1:53729"
+        "http://127.0.0.1:4610"
       ],
       "category": "data-fetching",
       "count": 1,
@@ -474,7 +474,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Tue, 29 Sep 2026 06:50:27 GMT",
+        "date": "Thu, 01 Jan 2026 00:00:00 GMT",
         "keep-alive": "timeout=5",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
@@ -522,7 +522,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:53729/dashboard"
+        "http://127.0.0.1:4610/dashboard"
       ]
     },
     {
@@ -530,7 +530,7 @@
       "method": "POST",
       "urlPattern": "/api/graphql",
       "origins": [
-        "http://127.0.0.1:53729"
+        "http://127.0.0.1:4610"
       ],
       "category": "graphql",
       "count": 2,
@@ -545,7 +545,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Tue, 29 Sep 2026 06:50:27 GMT",
+        "date": "Thu, 01 Jan 2026 00:00:00 GMT",
         "keep-alive": "timeout=5",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
@@ -638,7 +638,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:53729/graphql"
+        "http://127.0.0.1:4610/graphql"
       ],
       "graphql": {
         "introspection": true,
@@ -659,7 +659,7 @@
       "method": "POST",
       "urlPattern": "/api/search",
       "origins": [
-        "http://127.0.0.1:53729"
+        "http://127.0.0.1:4610"
       ],
       "category": "mutations",
       "count": 1,
@@ -674,7 +674,7 @@
         "cache-control": "no-store",
         "connection": "keep-alive",
         "content-type": "application/json; charset=utf-8",
-        "date": "Tue, 29 Sep 2026 06:50:27 GMT",
+        "date": "Thu, 01 Jan 2026 00:00:00 GMT",
         "keep-alive": "timeout=5",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
@@ -736,7 +736,7 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:53729/products"
+        "http://127.0.0.1:4610/products"
       ]
     },
     {
@@ -744,7 +744,7 @@
       "method": "GET",
       "urlPattern": "/sdk/config.json",
       "origins": [
-        "http://127.0.0.1:53730"
+        "http://127.0.0.1:4611"
       ],
       "category": "third-party",
       "count": 1,
@@ -760,7 +760,7 @@
         "access-control-allow-origin": "*",
         "connection": "keep-alive",
         "content-type": "application/json",
-        "date": "Tue, 29 Sep 2026 06:50:27 GMT",
+        "date": "Thu, 01 Jan 2026 00:00:00 GMT",
         "keep-alive": "timeout=5",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
@@ -797,77 +797,77 @@
         "application/json"
       ],
       "triggeredBy": [
-        "http://127.0.0.1:53729/external.html"
+        "http://127.0.0.1:4610/external.html"
       ]
     }
   ],
   "pages": [
     {
-      "url": "http://127.0.0.1:53729/",
-      "normalizedUrl": "http://127.0.0.1:53729/",
+      "url": "http://127.0.0.1:4610/",
+      "normalizedUrl": "http://127.0.0.1:4610/",
       "depth": 0,
       "title": "Fixture Shop — Home",
-      "visitedAt": 1790664627558
+      "visitedAt": 1767225600007
     },
     {
-      "url": "http://127.0.0.1:53729/products",
-      "normalizedUrl": "http://127.0.0.1:53729/products",
+      "url": "http://127.0.0.1:4610/products",
+      "normalizedUrl": "http://127.0.0.1:4610/products",
       "depth": 1,
       "title": "Fixture Shop — Products",
-      "visitedAt": 1790664627571
+      "visitedAt": 1767225600014
     },
     {
-      "url": "http://127.0.0.1:53729/login",
-      "normalizedUrl": "http://127.0.0.1:53729/login",
+      "url": "http://127.0.0.1:4610/login",
+      "normalizedUrl": "http://127.0.0.1:4610/login",
       "depth": 1,
       "title": "Fixture Shop — Login",
-      "visitedAt": 1790664627574
+      "visitedAt": 1767225600021
     },
     {
-      "url": "http://127.0.0.1:53729/about.html",
-      "normalizedUrl": "http://127.0.0.1:53729/about.html",
+      "url": "http://127.0.0.1:4610/about.html",
+      "normalizedUrl": "http://127.0.0.1:4610/about.html",
       "depth": 1,
       "title": "Fixture Shop — About",
-      "visitedAt": 1790664627578
+      "visitedAt": 1767225600028
     },
     {
-      "url": "http://127.0.0.1:53729/graphql",
-      "normalizedUrl": "http://127.0.0.1:53729/graphql",
+      "url": "http://127.0.0.1:4610/graphql",
+      "normalizedUrl": "http://127.0.0.1:4610/graphql",
       "depth": 1,
       "title": "Fixture Shop — GraphQL",
-      "visitedAt": 1790664627581
+      "visitedAt": 1767225600035
     },
     {
-      "url": "http://127.0.0.1:53729/websocket",
-      "normalizedUrl": "http://127.0.0.1:53729/websocket",
+      "url": "http://127.0.0.1:4610/websocket",
+      "normalizedUrl": "http://127.0.0.1:4610/websocket",
       "depth": 1,
       "title": "Fixture Shop — Live prices",
-      "visitedAt": 1790664627583
+      "visitedAt": 1767225600042
     },
     {
-      "url": "http://127.0.0.1:53729/external.html",
-      "normalizedUrl": "http://127.0.0.1:53729/external.html",
+      "url": "http://127.0.0.1:4610/external.html",
+      "normalizedUrl": "http://127.0.0.1:4610/external.html",
       "depth": 1,
       "title": "Fixture Shop — Partner widgets",
-      "visitedAt": 1790664627587
+      "visitedAt": 1767225600049
     },
     {
-      "url": "http://127.0.0.1:53729/dashboard",
-      "normalizedUrl": "http://127.0.0.1:53729/dashboard",
+      "url": "http://127.0.0.1:4610/dashboard",
+      "normalizedUrl": "http://127.0.0.1:4610/dashboard",
       "depth": 1,
       "title": "Fixture Shop — Dashboard",
-      "visitedAt": 1790664627599
+      "visitedAt": 1767225600070
     }
   ],
   "webSockets": [
     {
-      "url": "ws://127.0.0.1:53729/ws",
+      "url": "ws://127.0.0.1:4610/ws",
       "origins": [
-        "ws://127.0.0.1:53729"
+        "ws://127.0.0.1:4610"
       ],
-      "triggeredBy": "http://127.0.0.1:53729/websocket",
-      "openedAt": 1790664627645,
-      "closedAt": 1790664627652,
+      "triggeredBy": "http://127.0.0.1:4610/websocket",
+      "openedAt": 1767225600231,
+      "closedAt": 1767225600259,
       "frameCount": 3,
       "sentCount": 1,
       "receivedCount": 2,
@@ -879,7 +879,7 @@
           "payloadSample": "{\"type\":\"subscribe\",\"channel\":\"prices\",\"token\":\"[REDACTED]\"}",
           "size": 65,
           "truncated": false,
-          "at": 1790664627649
+          "at": 1767225600238
         },
         {
           "direction": "received",
@@ -887,7 +887,7 @@
           "payloadSample": "{\"type\":\"welcome\",\"channel\":\"prices\"}",
           "size": 37,
           "truncated": false,
-          "at": 1790664627650
+          "at": 1767225600245
         },
         {
           "direction": "received",
@@ -895,7 +895,7 @@
           "payloadSample": "{\"type\":\"ack\",\"channel\":\"prices\",\"token\":\"[REDACTED]\"}",
           "size": 59,
           "truncated": false,
-          "at": 1790664627651
+          "at": 1767225600252
         }
       ],
       "sentSchema": {
@@ -940,7 +940,7 @@
   "safety": {
     "robotsRespected": true,
     "robotsSkippedPaths": [
-      "http://127.0.0.1:53729/admin"
+      "http://127.0.0.1:4610/admin"
     ],
     "rateLimitMs": 100,
     "maxBodyBytes": 1048576,
