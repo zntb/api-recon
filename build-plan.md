@@ -266,6 +266,186 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   mode prints that payload to stdout without writing a file, so the boundary can
   be checked before opting in.
 
+**Proposed updates & features**
+
+The list below is neither a commitment nor an order — each item is meant to be
+liftable on its own, and the phase work above still takes precedence. Items are
+grouped by the quality they improve, and each one names the code it would touch
+so it can be scoped without re-reading the source.
+
+**Report accuracy & detail**
+
+- **Merge every sample into an endpoint's schema, not just one body.**
+  `buildEndpoint` derives `requestBodySchema` / `responseSchema` from a single
+  representative body (`firstNonNull` over the samples), so a field that only
+  appears on page 2 is invisible and a field observed as both `integer` and
+  `string` silently takes whichever body came first. Union the shapes across all
+  samples, mark a field `required` only when it was present in every sample, and
+  emit `oneOf`/nullable when types genuinely disagree. This is the single
+  biggest accuracy lever the report has.
+- **Distinguish "not observed" from "absent".** A `null` schema today means both
+  "no body was captured" and "the body was not JSON". Record an explicit reason
+  (`no-body`, `not-json`, `truncated`, `binary`) so a reader can tell a contract
+  from a gap — and so `--diff` stops reporting a removed field when the sample
+  was merely truncated.
+- **Capture error contracts.** Non-2xx responses land in `statusCodes` but their
+  bodies and schemas are dropped, so a report documents only the happy path.
+  Keep 4xx/5xx bodies (same redaction and caps) and emit them as OpenAPI
+  `responses` entries, which is where a client author actually needs them.
+- **Richer value hints.** `stringFormatHint` already tags `uuid`, `email`, and
+  `uri`; extend it to ISO-8601 timestamps, durations, currencies, small closed
+  sets (enums), and numeric bounds from the observed range, then carry them into
+  `openapi.yaml` as `format`, `enum`, and `minimum`/`maximum`.
+- **GraphQL: record what each operation selects.** `analyzeGraphQL` reads
+  operation names and types; extend the tokenizer to keep each operation's
+  top-level selection set and argument names, so the report shows the fields a
+  client depends on and `--diff` can flag a removed one as breaking, the way it
+  already does for a REST response field.
+- **Group endpoints into resources.** Cluster `/api/orders`, `/api/orders/{id}`,
+  and `/api/orders/{id}/items` into one resource with the verbs observed, and
+  surface the missing ones (say, no `DELETE`). That turns a flat endpoint list
+  into a coverage view where gaps are obvious.
+- **Attribute third-party and analytics traffic to a vendor.** Those categories
+  key off host and path heuristics; join them to the `techStack` fingerprints so
+  the report says "Stripe" or "Segment" rather than a hostname, and lists the
+  payload keys each vendor receives.
+- **Roll up latency and size.** The interceptor already records `durationMs` per
+  call; aggregate per endpoint (count, p50, p95, max) and include payload sizes
+  and cache headers. The report then doubles as a performance overview, and
+  `--diff` gains a way to flag a response that grew sharply.
+- **Close with findings and next steps.** End the report with what a reader
+  should act on: endpoints reached without auth, PII-shaped fields in samples,
+  missing security headers, verbose error bodies, and endpoints whose shape was
+  inconsistent within a single run. This is what turns a capture into a review
+  artifact.
+
+**Stability & performance**
+
+- **Version the report schema and ship a JSON Schema.** `meta.apiReconVersion`
+  names the tool, not the shape. Add a `schemaVersion` to `report.json`, publish
+  a JSON Schema for it, and validate the fixture report against that schema in CI
+  so a rename cannot slip out unnoticed — and so `loadBaseline` can reject an
+  incompatible report with a clear message.
+- **Make example output deterministic.** `scripts/generate-examples.ts` stamps
+  live timestamps into `examples/output/`, so every regeneration churns the whole
+  diff and a real change is hard to spot in review. Accept an injected clock or
+  seed (or honour `SOURCE_DATE_EPOCH`) so examples are byte-reproducible, and add
+  a CI check that regeneration produces no diff.
+- **Timeouts, retries, and a checkpoint.** A page that never finishes loading can
+  stall a crawl; add a per-navigation timeout with a `--timeout` flag, one retry
+  for a flaky load, and a checkpoint written after each page so a crashed or
+  cancelled run can `--resume` instead of starting over.
+- **Guaranteed teardown.** Handle `SIGINT`/`SIGTERM` so the browser context is
+  always closed and a partial `report.json` is still flushed; today a Ctrl+C
+  during a long crawl can leave a Chromium process behind.
+- **Bound memory on every axis.** The capture budget is global, but frames,
+  endpoints, pages, and error bodies can each grow without limit. Cap each
+  explicitly, and stream oversized payloads to a side file rather than holding
+  them in memory.
+- **Give the browser suite a flake budget.** Mark the browser-driven integration
+  tests as a separate job, record a Playwright trace on failure for triage, and
+  allow a single retry on the known-flaky assertions instead of re-running the
+  whole suite.
+- **Validate `--login` / `--actions` input up front.** A malformed step currently
+  fails — or is skipped — deep inside a run; validate the YAML against a schema
+  first and report the offending path and line.
+
+**Aesthetics**
+
+- **A dashboard design pass.** Severity-coloured summary tiles, a sticky header
+  and first column, keyboard navigation (arrow keys, `/` to focus search),
+  `prefers-color-scheme` dark mode, and a print stylesheet so the dashboard
+  prints as well as `report.html` does.
+- **Group and navigate the dashboard.** Collapsible groups by category, resource,
+  or change kind, with a left-hand nav and per-group counts, so a report with a
+  hundred endpoints stays legible instead of becoming one long table.
+- **One shared theme for every HTML artifact.** `report.html` and
+  `dashboard.html` each carry their own CSS; extract a single token set (colours,
+  spacing, typography, code blocks) so the two look like one product and a
+  restyle happens in one place.
+- **Polish the Markdown/HTML report.** A table of contents with anchors, a
+  one-line scorecard summary, category badges, and tables that scroll
+  horizontally instead of overflowing the page.
+- **Polish the PDF.** A cover page, running headers/footers with page numbers
+  and the seed host, and page-break control so an endpoint's detail is never
+  split across two pages.
+- **Draw the graph the crawler already knows.** Render the page → request
+  relationships as Mermaid in Markdown and inline SVG in HTML/dashboard, so a
+  reader can see which page produced which call without scanning the tables.
+- **A consistent identity.** An embedded logo/favicon and a documented colour
+  ramp, so a shared report looks deliberate rather than default-`<table>`.
+
+**Security & privacy**
+
+- **Redact by value, not only by key.** The rules match key names and a few
+  shapes today; add high-entropy detection (JWT-, base64-, hex-shaped values) and
+  the obvious PII patterns (email, phone, national ID) so a secret that is not in
+  the key list is still masked.
+- **Mask query values for sensitive parameter names.** `queryParams` keeps
+  `sampleValues`, which is genuinely useful but leaks values for names like
+  `token`, `key`, `code`, and `email`. Mask the value for flagged names while
+  keeping the parameter name and its presence.
+- **Verify redaction before writing.** Assemble the report, scan it for the
+  original secret values gathered during capture, and refuse to write — or warn
+  loudly under `--strict-redaction` — if any is found. Redaction is currently
+  assumed rather than proved.
+- **Scope the scan explicitly.** Add `--include-host` / `--exclude-path`, and
+  refuse to follow cross-origin redirects by default, so a scan cannot wander
+  outside the agreed scope on a large or hostile site.
+- **Safer credential handling.** Write a saved `storageState` with owner-only
+  permissions, warn when an `--auth` file is group- or world-readable, and never
+  persist a session unless `saveStateTo` asks for it.
+- **Integrity for shared reports.** Offer an optional checksum (or HMAC) over the
+  report so a recipient can confirm it was not edited, aligned with the npm
+  provenance attestation the release already publishes.
+- **Supply-chain hygiene.** Pin GitHub Actions by commit SHA, enable Dependabot,
+  and add an `npm audit` gate to CI. The published `files` list is already tight
+  (`dist`, `README`, `LICENSE`, `CHANGELOG`); keep it that way with an
+  `npm pack --dry-run` assertion in CI.
+- **Pin the telemetry boundary as a contract.** The payload is local and
+  key-free by construction, but nothing stops a future field from being added to
+  it; assert the exact key set in a test so widening the boundary cannot happen
+  by accident.
+
+**User experience**
+
+- **Progress that is actually live.** Print a running table of pages visited and
+  endpoints found on a TTY (and `--json-progress` for machines), rather than a
+  start line and an end line.
+- **A project config file.** `.api-reconrc` (or `api-recon.config.ts`) so a team
+  can commit the flags and login/action paths it always uses, with a documented
+  precedence of CLI > env > config > defaults.
+- **Presets.** `--preset quick|deep|ci` bundling the flags people otherwise piece
+  together by hand, so the common cases become one word.
+- **A first-class diff workflow.** `api-recon baseline <url>` to write a known
+  baseline path and `--diff latest` to compare against it, so the CI-gate use
+  case stops requiring the user to manage file paths.
+- **Better failure output.** Typed error classes (a safety refusal vs. a runtime
+  failure), a short "what to try next" hint on every error, and a `--debug` flag
+  that writes a bundle (logs, trace, and the partial report) for a bug report.
+- **Open or print the result.** `--open` to launch the dashboard in a browser and
+  `--print` to send the Markdown report to stdout, so a scan can end in the
+  artifact the user actually wanted.
+- **Shell completion.** Generated `bash`/`zsh`/`fish` completions, which
+  `commander` makes cheap now that the flag set is large.
+- **An events API for the library.** Expose the scan as an async iterator
+  (`for await (const event of scan(...))`) so an embedding application can show
+  its own progress and stream endpoints as they are discovered.
+- **A docs site and cookbook.** Recipes for an authenticated SPA, a GraphQL
+  endpoint, a WebSocket app, and a CI gate, plus a troubleshooting FAQ; the
+  README is already long enough that the detailed material deserves its own
+  space.
+- **Accessibility of the dashboard.** Keyboard-reachable controls, ARIA labels
+  on the table and tiles, a sane focus order, and WCAG AA contrast, so the
+  artifact is usable with a screen reader rather than only a mouse.
+- **A share-safe mode.** `--share` that strips bodies, samples, and headers
+  entirely — keeping only patterns, categories, and schemas — and emits a
+  one-page summary suitable for pasting into a ticket.
+
+If a few are picked first, the highest-leverage trio is merging samples into
+endpoint schemas (accuracy), making example generation deterministic
+(reviewable diffs), and proving redaction before writing (security).
+
 ---
 
 ### Timeline Summary
