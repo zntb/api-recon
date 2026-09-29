@@ -137,6 +137,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   }
 
   const captures: CapturedCall[] = interceptor.calls.slice();
+  const webSockets = interceptor.webSockets.slice();
   const endpoints = analyzeCalls(captures, { seedUrl });
   const technologies = detectTechnologies(evidence);
 
@@ -151,6 +152,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     technologies,
     endpoints,
     pages,
+    webSockets,
     safety: {
       robotsRespected: respectRobots && !force,
       robotsSkippedPaths: blockedByRobots,
@@ -213,6 +215,7 @@ export type {
   EndpointChange,
   CapturedPage,
   Category,
+  CapturedWebSocket,
   Endpoint,
   GraphQLInfo,
   GraphQLOperation,
@@ -226,6 +229,8 @@ export type {
   ScanResult,
   ScanRef,
   Technology,
+  WebSocketDirection,
+  WebSocketFrame,
 } from './types.js';
 export { diffReports, loadBaseline, formatDiffSummary } from './core/diff.js';
 export { REPORT_FORMATS, CATEGORIES, BROWSER_ENGINES } from './types.js';

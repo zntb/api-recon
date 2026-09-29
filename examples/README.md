@@ -41,5 +41,7 @@ node dist/cli/index.js http://127.0.0.1:4599 \
 
 The fixture exposes `/api/products` (data fetching), `/api/search` (mutations),
 `/api/login` + `/api/user` + `/api/orders` (authentication), a same-origin
-`/api/collect` beacon (analytics), and a cross-origin partner endpoint
-(third-party, only captured with `--include-third-party`).
+`/api/collect` beacon (analytics), a cross-origin partner endpoint (third-party,
+only captured with `--include-third-party`), and `/api/graphql` (GraphQL). The
+`/websocket` page opens a live `/ws` socket, so the sample report includes
+WebSocket traffic too.

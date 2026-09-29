@@ -236,10 +236,16 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   strings, comments, nested selection sets, and fragments. The detection lives
   in `src/core/graphql.ts`, runs inside the analyzer, and is surfaced by the
   Markdown/HTML/PDF, dashboard, and OpenAPI reporters.
+- **WebSocket capture** — the interceptor also listens for `websocket` events
+  and records each connection's frames, with the same origin filtering,
+  capture-time redaction, per-payload cap, and shared size budget as HTTP
+  bodies. A per-connection frame cap bounds chatty streams while `frameCount`
+  still reports what was seen. The report gains a `webSockets` array, the
+  Markdown reporter a "WebSocket Traffic" section, and the dashboard a row per
+  connection whose expanded view is its frames.
 
 **Ideas for follow-ups**
 
-- Add WebSocket capture.
 - Optional telemetry (opt-in) to improve categorization heuristics.
 - Record the engine used in the report, so a scan is reproducible from its own
   output.

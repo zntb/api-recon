@@ -43,6 +43,7 @@ function report(endpoints: Endpoint[], overrides: Partial<ReconReport> = {}): Re
     pages: [
       { url: 'https://example.com/', normalizedUrl: 'https://example.com/', depth: 0, title: 'Home', visitedAt: 0 },
     ],
+    webSockets: [],
     safety: {
       robotsRespected: true,
       robotsSkippedPaths: [],

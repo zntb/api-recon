@@ -33,7 +33,9 @@ api-recon https://example.com --out ./later --diff ./now/report.json --formats d
 `npm run examples:generate` drives the fixture server over plain HTTP and feeds
 the **real** responses through the same analyzer and reporters the tool uses, so
 the endpoints, status codes, headers, inferred schemas, categorization, and
-redaction are genuine. Only the browser interception layer is simulated.
+redaction are genuine. Only the browser interception layer is simulated — the
+WebSocket capture comes from a real connection, opened with Node's built-in
+client rather than through Playwright.
 
 To capture the same surface with the real browser pipeline:
 

@@ -71,7 +71,7 @@ program
   .option('--no-redact', 'disable header redaction (not recommended)')
   .option('--force', 'bypass robots.txt restrictions (only for systems you are allowed to test)', false)
   .option('--allow-local', 'allow scanning localhost and private network ranges', false)
-  .option('--max-body-mb <n>', 'maximum response body size to keep, in MB', numberArg, 1)
+  .option('--max-body-mb <n>', 'maximum response body / WebSocket frame size to keep, in MB', numberArg, 1)
   .option('-q, --quiet', 'suppress progress output (errors only)', false)
   .option('-v, --verbose', 'verbose progress output', false)
   .action(async (seedUrl: string, opts: CliOptions) => {
@@ -123,7 +123,11 @@ program
       logger.always('');
       logger.success(
         `Scan complete in ${formatDuration(Date.now() - started)} — ` +
-          `${report.meta.pagesVisited} page(s) visited, ${report.endpoints.length} endpoint pattern(s) found.`,
+          `${report.meta.pagesVisited} page(s) visited, ${report.endpoints.length} endpoint pattern(s) found` +
+          (report.webSockets.length > 0
+            ? `, ${report.webSockets.length} WebSocket connection(s)`
+            : '') +
+          '.',
       );
       if (report.technologies.length > 0) {
         logger.always(`  Technologies: ${report.technologies.map((t) => t.name).join(', ')}`);

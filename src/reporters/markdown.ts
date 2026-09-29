@@ -2,7 +2,7 @@
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Endpoint, ReconReport, ReportDiff } from '../types.js';
+import type { CapturedWebSocket, Endpoint, ReconReport, ReportDiff } from '../types.js';
 import { CATEGORIES } from '../types.js';
 import { formatDuration, truncate } from '../utils/misc.js';
 import { FORMAT_FILENAMES } from './json.js';
@@ -135,7 +135,10 @@ export function renderMarkdown(report: ReconReport): string {
   out.push(`- Local/private targets allowed: **${report.safety.allowLocal ? 'yes' : 'no'}**`);
   out.push('');
 
-  // ---- 8. Changes since baseline (diff mode only) -----------------------
+  // ---- 8. WebSocket traffic (only when something was captured) ----------
+  if (report.webSockets.length > 0) out.push(...webSocketSection(report.webSockets));
+
+  // ---- 9. Changes since baseline (diff mode only) -----------------------
   // Appended rather than inserted so the documented numbering of sections
   // 1–7 never shifts; it is absent unless a baseline was supplied.
   if (report.diff) out.push(...diffSection(report.diff));
@@ -146,9 +149,51 @@ export function renderMarkdown(report: ReconReport): string {
   return out.join('\n');
 }
 
+function webSocketSection(webSockets: CapturedWebSocket[]): string[] {
+  const out: string[] = [];
+  out.push('## 8. WebSocket Traffic');
+  out.push('');
+  out.push(
+    `_${webSockets.length} connection(s) observed. Frames are redacted and size-capped like request and response bodies._`,
+  );
+  out.push('');
+
+  for (const ws of webSockets) {
+    out.push(`### \`${cell(ws.url)}\``);
+    out.push('');
+    out.push('| Field | Value |');
+    out.push('| --- | --- |');
+    out.push(`| Triggered by | ${cell(ws.triggeredBy)} |`);
+    out.push(`| Frames | ${ws.frameCount} (${ws.sentCount} sent, ${ws.receivedCount} received) |`);
+    if (ws.framesTruncated) {
+      out.push(`| Note | only the first ${ws.frames.length} frame(s) were stored |`);
+    }
+    out.push('');
+
+    if (ws.frames.length === 0) {
+      out.push('_No frames were captured on this connection._');
+      out.push('');
+      continue;
+    }
+
+    out.push('| Direction | Type | Size | Payload sample |');
+    out.push('| --- | --- | --- | --- |');
+    for (const frame of ws.frames) {
+      const direction = frame.direction === 'sent' ? 'sent' : 'received';
+      const payload = frame.payloadSample
+        ? cell(truncate(frame.payloadSample, MAX_SAMPLE_CHARS / 8)) + (frame.truncated ? ' …' : '')
+        : '_not stored_ (capture budget exhausted)';
+      out.push(`| ${direction} | ${frame.type} | ${frame.size} B | ${payload} |`);
+    }
+    out.push('');
+  }
+
+  return out;
+}
+
 function diffSection(diff: ReportDiff): string[] {
   const out: string[] = [];
-  out.push('## 8. Changes Since Baseline');
+  out.push('## 9. Changes Since Baseline');
   out.push('');
   out.push(
     `Compared with a scan of \`${cell(diff.baseline.seedUrl)}\` from ${cell(diff.baseline.startedAt)} ` +

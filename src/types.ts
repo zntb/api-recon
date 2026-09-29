@@ -118,6 +118,39 @@ export interface JsonSchemaLike {
   example?: unknown;
 }
 
+/** Direction of a WebSocket frame relative to the page. */
+export type WebSocketDirection = 'sent' | 'received';
+
+export interface WebSocketFrame {
+  direction: WebSocketDirection;
+  /** Text frames keep their text; binary frames are stored base64-encoded. */
+  type: 'text' | 'binary';
+  /** Redacted, size-capped payload; `null` when the capture budget was exhausted. */
+  payloadSample: string | null;
+  /** Payload size in bytes, as observed. */
+  size: number;
+  truncated: boolean;
+  /** When the frame was seen (epoch ms). */
+  at: number;
+}
+
+/** One captured WebSocket connection and the frames exchanged on it. */
+export interface CapturedWebSocket {
+  url: string;
+  origins: string[];
+  /** The page URL that opened the socket. */
+  triggeredBy: string;
+  openedAt: number;
+  closedAt: number | null;
+  /** Total frames observed, including any past the per-connection storage cap. */
+  frameCount: number;
+  sentCount: number;
+  receivedCount: number;
+  /** True when frames past the storage cap were observed but not stored. */
+  framesTruncated: boolean;
+  frames: WebSocketFrame[];
+}
+
 export interface CapturedPage {
   url: string;
   /** Normalized route (fragment stripped, query sorted) used for dedup. */
@@ -191,6 +224,8 @@ export interface ReconReport {
   technologies: Technology[];
   endpoints: Endpoint[];
   pages: CapturedPage[];
+  /** WebSocket connections observed during the scan, with their frames. */
+  webSockets: CapturedWebSocket[];
   safety: SafetyInfo;
   /** Present only when the scan was run with a baseline to compare against. */
   diff?: ReportDiff;

@@ -22,7 +22,15 @@ import { writeReports } from '../src/reporters/index.js';
 import { redactBody, redactHeaders } from '../src/utils/redact.js';
 import { normalizeUrl } from '../src/utils/url.js';
 import { TOOL_VERSION } from '../src/version.js';
-import type { CapturedCall, CapturedPage, Endpoint, ReconReport, ReportFormat } from '../src/types.js';
+import type {
+  CapturedCall,
+  CapturedPage,
+  CapturedWebSocket,
+  Endpoint,
+  ReconReport,
+  ReportFormat,
+  WebSocketFrame,
+} from '../src/types.js';
 
 const OUT_DIR = 'examples/output';
 const FORMATS: ReportFormat[] = ['json', 'md', 'html', 'openapi', 'dashboard'];
@@ -35,6 +43,73 @@ const PREVIOUS_CHANGED_ID = 'GET /api/products';
 
 function headersOf(res: Response): Record<string, string> {
   return Object.fromEntries([...res.headers.entries()].map(([k, v]) => [k.toLowerCase(), v]));
+}
+
+/**
+ * Connect to the fixture's socket and keep the frames it exchanges. The real
+ * capture engine records these through Playwright; here the connection is made
+ * with Node's built-in WebSocket, so the frames are genuine too.
+ */
+async function recordWebSocket(targetUrl: string, triggeredBy: string): Promise<CapturedWebSocket> {
+  const openedAt = Date.now();
+  const frames: WebSocketFrame[] = [];
+
+  await new Promise<void>((resolve) => {
+    const socket = new WebSocket(targetUrl);
+    socket.addEventListener('open', () => {
+      const payload = JSON.stringify({
+        type: 'subscribe',
+        channel: 'prices',
+        token: 'ws-secret-token',
+      });
+      frames.push(socketFrame('sent', payload));
+      socket.send(payload);
+    });
+    let received = 0;
+    socket.addEventListener('message', (event) => {
+      if (typeof event.data === 'string') frames.push(socketFrame('received', event.data));
+      // The fixture greets and then acknowledges the subscribe; wait for both.
+      received += 1;
+      if (received >= 2) socket.close();
+    });
+    socket.addEventListener('close', () => resolve());
+    socket.addEventListener('error', () => resolve());
+    // Never let a silent server hang the example run.
+    setTimeout(() => {
+      try {
+        socket.close();
+      } catch {
+        /* already closed */
+      }
+    }, 2000);
+  });
+
+  const count = (direction: WebSocketFrame['direction']): number =>
+    frames.filter((f) => f.direction === direction).length;
+
+  return {
+    url: normalizeUrl(targetUrl),
+    origins: [new URL(targetUrl).origin],
+    triggeredBy,
+    openedAt,
+    closedAt: Date.now(),
+    frameCount: frames.length,
+    sentCount: count('sent'),
+    receivedCount: count('received'),
+    framesTruncated: false,
+    frames,
+  };
+}
+
+function socketFrame(direction: WebSocketFrame['direction'], payload: string): WebSocketFrame {
+  return {
+    direction,
+    type: 'text',
+    payloadSample: redactBody(payload),
+    size: Buffer.byteLength(payload),
+    truncated: false,
+    at: Date.now(),
+  };
 }
 
 function titleOf(html: string): string | null {
@@ -158,6 +233,7 @@ async function main(): Promise<void> {
     await recordPage('/login', 1);
     await recordPage('/about.html', 1);
     await recordPage('/graphql', 1);
+    await recordPage('/websocket', 1);
     await recordPage('/external.html', 1);
 
     // --- login flow: real POST, real Set-Cookie ----------------------------
@@ -219,6 +295,10 @@ async function main(): Promise<void> {
       triggeredBy: `${fixture.url}/external.html`,
     });
 
+    const webSockets = [
+      await recordWebSocket(`${fixture.url.replace(/^http/, 'ws')}/ws`, `${fixture.url}/websocket`),
+    ];
+
     const report: ReconReport = {
       meta: {
         seedUrl: fixture.url,
@@ -230,6 +310,7 @@ async function main(): Promise<void> {
       technologies: detectTechnologies(evidence),
       endpoints: analyzeCalls(calls, { seedUrl: fixture.url }),
       pages: [...pages.values()],
+      webSockets,
       safety: {
         robotsRespected: true,
         robotsSkippedPaths: [`${fixture.url}/admin`],

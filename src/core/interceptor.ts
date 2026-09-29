@@ -9,8 +9,8 @@
  * event still stamps start time and the triggering page.
  */
 
-import type { Page, Request, Response } from 'playwright';
-import type { CapturedCall } from '../types.js';
+import type { Page, Request, Response, WebSocket } from 'playwright';
+import type { CapturedCall, CapturedWebSocket, WebSocketDirection } from '../types.js';
 import { redactBody, redactHeaders } from '../utils/redact.js';
 import { isSameDomain, normalizeUrl } from '../utils/url.js';
 
@@ -18,24 +18,30 @@ export interface InterceptorOptions {
   redact: boolean;
   /** Per-body cap in bytes. */
   maxBodyBytes: number;
-  /** Total bytes of bodies to keep across the whole scan. */
+  /** Total bytes of bodies and frames to keep across the whole scan. */
   totalBodyBytes?: number;
   includeThirdParty: boolean;
   seedUrl: string;
+  /** Frames stored per WebSocket connection; later frames are counted but not kept. */
+  maxWebSocketFrames?: number;
   onCapture?: (call: CapturedCall) => void;
 }
 
 const DEFAULT_TOTAL_BODY_BYTES = 25 * 1024 * 1024;
+const DEFAULT_MAX_WEBSOCKET_FRAMES = 200;
 
 export class TrafficInterceptor {
   readonly calls: CapturedCall[] = [];
+  readonly webSockets: CapturedWebSocket[] = [];
   private readonly pending = new Map<Request, { t0: number; pageUrl: string }>();
   private readonly totalBodyBytes: number;
+  private readonly maxWebSocketFrames: number;
   private bytesStored = 0;
   private bodiesSuppressed = false;
 
   constructor(private readonly options: InterceptorOptions) {
     this.totalBodyBytes = options.totalBodyBytes ?? DEFAULT_TOTAL_BODY_BYTES;
+    this.maxWebSocketFrames = options.maxWebSocketFrames ?? DEFAULT_MAX_WEBSOCKET_FRAMES;
   }
 
   attach(page: Page): void {
@@ -44,6 +50,7 @@ export class TrafficInterceptor {
       void this.onResponse(res).catch(() => {});
     });
     page.on('requestfailed', (req) => this.onFailed(req));
+    page.on('websocket', (ws) => this.onWebSocket(ws, page));
   }
 
   /** Number of API calls captured so far. */
@@ -149,15 +156,92 @@ export class TrafficInterceptor {
     });
   }
 
+  /**
+   * Record a WebSocket connection and subscribe to its frames. Filtering and
+   * redaction match the HTTP path, so a socket is only kept when it is
+   * same-origin (or `--include-third-party` is on) and its payloads are redacted
+   * at capture time — frames often carry the same tokens as request bodies.
+   */
+  private onWebSocket(ws: WebSocket, page: Page): void {
+    const url = normalizeUrl(ws.url());
+    if (!this.shouldCapture(url)) return;
+
+    const connection: CapturedWebSocket = {
+      url,
+      origins: [safeOrigin(url)],
+      triggeredBy: page.url(),
+      openedAt: Date.now(),
+      closedAt: null,
+      frameCount: 0,
+      sentCount: 0,
+      receivedCount: 0,
+      framesTruncated: false,
+      frames: [],
+    };
+    this.webSockets.push(connection);
+
+    ws.on('framesent', (frame) => this.onFrame(connection, 'sent', frame.payload));
+    ws.on('framereceived', (frame) => this.onFrame(connection, 'received', frame.payload));
+    ws.on('close', () => {
+      connection.closedAt = Date.now();
+    });
+  }
+
+  private onFrame(
+    connection: CapturedWebSocket,
+    direction: WebSocketDirection,
+    payload: string | Buffer,
+  ): void {
+    connection.frameCount += 1;
+    if (direction === 'sent') connection.sentCount += 1;
+    else connection.receivedCount += 1;
+
+    // Heartbeats and chatty streams should not grow a report without bound;
+    // keep counting, but stop storing once the cap is reached.
+    if (connection.frames.length >= this.maxWebSocketFrames) {
+      connection.framesTruncated = true;
+      return;
+    }
+
+    const isText = typeof payload === 'string';
+    const raw = isText ? payload : payload.toString('base64');
+    const stored = this.storePayload(raw);
+    connection.frames.push({
+      direction,
+      type: isText ? 'text' : 'binary',
+      payloadSample: stored.value,
+      size: isText ? Buffer.byteLength(payload) : payload.length,
+      truncated: stored.truncated,
+      at: Date.now(),
+    });
+  }
+
   /** Truncate + redact a body, respecting the total-size budget. */
   private storeBody(body: string): string | null {
-    if (this.bodiesSuppressed) return null;
-    if (this.bytesStored + body.length > this.totalBodyBytes) {
+    return this.storePayload(body).value;
+  }
+
+  /**
+   * Truncate + redact a payload (an HTTP body or a WebSocket frame) against the
+   * per-payload cap and the shared total budget. Reports whether it was cut.
+   */
+  private storePayload(payload: string): { value: string | null; truncated: boolean } {
+    if (this.bodiesSuppressed) return { value: null, truncated: false };
+    const truncated = payload.length > this.options.maxBodyBytes;
+    const capped = truncated ? payload.slice(0, this.options.maxBodyBytes) : payload;
+    if (this.bytesStored + capped.length > this.totalBodyBytes) {
       this.bodiesSuppressed = true;
-      return null;
+      return { value: null, truncated: false };
     }
-    this.bytesStored += body.length;
-    const capped = body.length > this.options.maxBodyBytes ? body.slice(0, this.options.maxBodyBytes) : body;
-    return this.options.redact ? redactBody(capped) : capped;
+    this.bytesStored += capped.length;
+    return { value: this.options.redact ? redactBody(capped) : capped, truncated };
+  }
+}
+
+function safeOrigin(url: string): string {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return url;
   }
 }

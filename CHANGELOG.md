@@ -5,6 +5,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-09-29
+
+Adds WebSocket capture. A page's WebSocket connections and their frames are now
+recorded alongside XHR/fetch traffic, subject to the same redaction and size
+limits. The report gains a `webSockets` array; existing fields are unchanged.
+
+### Added
+
+- **WebSocket frame capture** — every socket a page opens is recorded with the
+  frames sent and received on it: direction, text or binary, size, and a
+  redacted payload sample. Frames are redacted at capture time exactly like
+  request bodies (a `token`-shaped field in a frame is masked), capped per frame
+  by `--max-body-mb`, and drawn from the same total-size budget as bodies; a
+  per-connection cap of 200 frames keeps a chatty stream from filling a report,
+  while `frameCount` still reports what was seen. Cross-origin sockets follow
+  `--include-third-party`, and binary frames are stored base64-encoded. The
+  Markdown/HTML/PDF reports gain a **WebSocket Traffic** section (now section 8;
+  "Changes Since Baseline" moves to 9), and the dashboard lists each connection
+  as a searchable, sortable row whose expanded view is its frames.
+
 ## [0.2.0] - 2026-09-29
 
 Adds GraphQL detection. A request carrying a GraphQL operation is now
@@ -169,6 +189,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[0.2.1]: https://github.com/zntb/api-recon/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/zntb/api-recon/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/zntb/api-recon/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/zntb/api-recon/compare/v0.1.1...v0.1.2

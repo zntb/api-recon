@@ -188,7 +188,7 @@ describe('api-recon CLI', () => {
     expect(changed!.details.join(' ')).toContain('legacyField');
 
     const md = await readFile(join(diffDir, 'report.md'), 'utf8');
-    expect(md).toContain('## 8. Changes Since Baseline');
+    expect(md).toContain('## 9. Changes Since Baseline');
     expect(md).toContain('legacyField');
   }, 240_000);
 

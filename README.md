@@ -87,11 +87,11 @@ api-recon https://example.com --browser firefox
 | `--fail-on-diff` | off | With `--diff`, exit `3` when any endpoint changed (CI gating) |
 | `-r, --rate <ms>` | `500` | Minimum delay between requests to the same origin |
 | `--respect-robots` / `--no-respect-robots` | on | robots.txt compliance (`--no-…` requires `--force`) |
-| `--include-third-party` | off | Also capture cross-origin XHR/fetch calls |
-| `--redact` / `--no-redact` | on | Redact sensitive headers and secret-shaped body fields |
+| `--include-third-party` | off | Also capture cross-origin XHR/fetch calls and WebSockets |
+| `--redact` / `--no-redact` | on | Redact sensitive headers, secret-shaped body fields, and WebSocket frames |
 | `--force` | off | Bypass robots.txt restrictions (only for systems you may test) |
 | `--allow-local` | off | Allow scanning localhost/private network ranges |
-| `--max-body-mb <n>` | `1` | Maximum response body size kept per response |
+| `--max-body-mb <n>` | `1` | Maximum response body / WebSocket frame size kept, in MB |
 | `-q, --quiet` / `-v, --verbose` | — | Reduce / increase progress output |
 
 Exit codes: `0` success, `1` runtime failure, `2` refused by a safety guard (`--force`,
@@ -104,6 +104,9 @@ MIME type, redacted request/response headers, request body, JSON response body
 (size-capped), timing, and the page that triggered it. Calls are deduplicated
 by `(method, URL pattern, status)` and grouped into endpoints such as
 `GET /api/orders/{id}`.
+
+WebSocket connections opened by a page are captured too, with the frames sent
+and received on each one (see below).
 
 Endpoints are categorized with heuristics:
 
@@ -150,6 +153,36 @@ text is only scanned. The report's Markdown, HTML, dashboard, and OpenAPI
 output surface the same information, with the OpenAPI spec carrying it as
 `x-graphql-operations` / `x-graphql-introspection` extensions.
 
+### WebSocket capture
+
+Every WebSocket a page opens is recorded, with the frames sent and received on
+it. Frames are subject to the same rules as HTTP bodies: payloads are redacted
+at capture time (a `token`-shaped field in a frame is masked exactly like one in
+a request body), capped per frame by `--max-body-mb`, and drawn from the same
+total-size budget. A per-connection frame cap keeps a chatty stream — heartbeats,
+for example — from filling a report; the connection still reports how many
+frames were seen, and says so when some were not stored. `--include-third-party`
+controls cross-origin sockets the same way it controls cross-origin fetches.
+
+```jsonc
+{
+  "url": "wss://example.com/live",
+  "origins": ["wss://example.com"],
+  "triggeredBy": "https://example.com/dashboard",
+  "frameCount": 3,
+  "sentCount": 1,
+  "receivedCount": 2,
+  "framesTruncated": false,
+  "frames": [
+    { "direction": "sent", "type": "text", "payloadSample": "{\"subscribe\":true}", "size": 17, "truncated": false, "at": 1699999999999 }
+  ]
+}
+```
+
+Binary frames are stored base64-encoded. The Markdown/HTML/PDF reports gain a
+**WebSocket Traffic** section, and the dashboard lists each connection as a row
+whose expanded view is its frames.
+
 The capture layer is engine-independent: `--browser` swaps the Playwright
 driver, and interception, categorization, technology detection, and schema
 inference all behave the same.
@@ -163,7 +196,7 @@ you only care about the API surface, Chromium is the safer default.
 | File | Contents |
 | --- | --- |
 | `report.json` | Machine-readable source of truth |
-| `report.md` | Overview, technologies, endpoint tables, detailed endpoints, auth flows, third-party calls, safety notes |
+| `report.md` | Overview, technologies, endpoint tables, detailed endpoints, auth flows, third-party calls, safety notes, WebSocket traffic |
 | `report.html` | Styled standalone version of the Markdown |
 | `report.pdf` | Rendered from the HTML with Playwright's `page.pdf()` |
 | `openapi.yaml` | Best-effort OpenAPI 3.0 spec from inferred paths, methods, params, and schemas |
@@ -197,6 +230,20 @@ you only care about the API surface, Chromium is the safer default.
     }
   ],
   "pages": [{ "url": "…", "normalizedUrl": "…", "depth": 0, "title": "…", "visitedAt": 0 }],
+  "webSockets": [
+    {
+      "url": "wss://example.com/live",
+      "origins": ["wss://example.com"],
+      "triggeredBy": "https://example.com/dashboard",
+      "openedAt": 1699999999900,
+      "closedAt": 1699999999999,
+      "frameCount": 3,
+      "sentCount": 1,
+      "receivedCount": 2,
+      "framesTruncated": false,
+      "frames": [{ "direction": "sent", "type": "text", "payloadSample": "{\"subscribe\":true}", "size": 17, "truncated": false, "at": 1699999999920 }]
+    }
+  ],
   "safety": { "robotsRespected": true, "robotsSkippedPaths": [], "rateLimitMs": 500, "maxBodyBytes": 1048576, "allowLocal": false, "redact": true }
 }
 ```
@@ -387,8 +434,8 @@ import type { ReconReport, Endpoint, ScanOptions, ScanResult } from 'api-recon';
 - **Redaction is on by default** and runs at capture time, so secrets never
   reach any report: `Authorization`, `Proxy-Authorization`, `Cookie`,
   `Set-Cookie`, `X-Api-Key`, `X-Auth-Token`, `X-Csrf-Token`, `X-Xsrf-Token`,
-  plus JSON body fields such as `password`, `token`, `secret`, `apiKey`,
-  `creditCard`, `cvv`.
+  plus JSON body fields and WebSocket frames with keys such as `password`,
+  `token`, `secret`, `apiKey`, `creditCard`, `cvv`.
 - **Local/private targets are refused** unless `--allow-local` is passed.
 - **Size caps**: 1 MB per response body (`--max-body-mb`) and a global capture
   budget, plus `--max-pages` and `--depth` bounds.
@@ -424,8 +471,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for test expectations.
   installed — even when the scan itself ran in Firefox or WebKit. If it is
   missing, the other formats are still written and a warning is logged.
 - GraphQL requests are detected and their operation names read, but query
-  variables and returned fields are not analyzed; WebSocket frames are not
-  captured.
+  variables and returned fields are not analyzed.
+- WebSocket frames are captured but not parsed: a binary frame is stored
+  base64-encoded, and a frame cap (200 per connection) bounds a chatty stream.
+  WebSocket traffic is not compared by `--diff`.
 - Heuristic categorization and schema inference are best-effort starting
   points — review reports before publishing them.
 

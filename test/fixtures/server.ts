@@ -14,6 +14,7 @@ import type { AddressInfo } from 'node:net';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { attachWebSocketServer } from './websocket.js';
 
 const SITE_DIR = join(dirname(fileURLToPath(import.meta.url)), 'site');
 
@@ -226,6 +227,8 @@ export async function startFixtureServer(options: FixtureServerOptions = {}): Pr
         return page(res, html.replaceAll('__THIRD_PARTY_BASE__', thirdPartyOrigin));
       }
 
+      if (path === '/websocket') return serveSiteFile(res, 'websocket.html');
+
       const staticMap: Record<string, string> = {
         '/': 'index.html',
         '/index.html': 'index.html',
@@ -236,6 +239,7 @@ export async function startFixtureServer(options: FixtureServerOptions = {}): Pr
         '/about.html': 'about.html',
         '/graphql': 'graphql.html',
         '/graphql.html': 'graphql.html',
+        '/websocket.html': 'websocket.html',
         '/admin': 'admin.html',
         '/admin.html': 'admin.html',
       };
@@ -246,6 +250,22 @@ export async function startFixtureServer(options: FixtureServerOptions = {}): Pr
     } catch (err) {
       return json(res, 500, { error: 'fixture_error', detail: String(err) });
     }
+  });
+
+  // A live socket the page opens on load: the server greets, echoes a frame
+  // that carries a secret-shaped field, then closes so the crawl can settle.
+  attachWebSocketServer(siteServer, {
+    onOpen: (send) => {
+      send(JSON.stringify({ type: 'welcome', channel: 'prices' }));
+    },
+    onMessage: (_text, send, close) => {
+      // Deliberately carries a secret-shaped field, so a test can prove frame
+      // payloads are redacted before they reach a report. The incoming text is
+      // not echoed: redaction masks sensitive *keys*, and a secret copied into
+      // an ordinary string value would rightly fail the test.
+      send(JSON.stringify({ type: 'ack', channel: 'prices', token: 'ws-secret-token' }));
+      setTimeout(close, 50);
+    },
   });
 
   const thirdPartyServer = createServer(async (req, res) => {

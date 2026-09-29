@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture Shop — Live prices</title>
+    <meta name="generator" content="FixtureKit 1.0" />
+  </head>
+  <body>
+    <h1>Live prices</h1>
+    <pre id="ws-log"></pre>
+    <script>
+      // A real socket: the frame capture has something to record, including a
+      // token-shaped field that must be redacted before it reaches a report.
+      const socket = new WebSocket('ws://' + location.host + '/ws');
+      socket.addEventListener('open', () => {
+        socket.send(
+          JSON.stringify({ type: 'subscribe', channel: 'prices', token: 'ws-secret-token' }),
+        );
+      });
+      socket.addEventListener('message', (event) => {
+        document.querySelector('#ws-log').textContent += event.data + '\n';
+      });
+    </script>
+  </body>
+</html>

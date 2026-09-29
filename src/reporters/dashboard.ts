@@ -155,7 +155,33 @@ const SCRIPT = `
       });
     });
   }
-  var allRows = endpoints.concat(removed);
+  // WebSocket connections are not endpoints, but they belong in the same
+  // searchable, sortable table, so each one becomes a pseudo-row: the URL is
+  // the path, the frame count is the call count, and the frames replace the
+  // request/response detail.
+  var sockets = (data.webSockets || []).map(function (ws) {
+    return {
+      id: 'WS ' + ws.url,
+      method: 'WS',
+      urlPattern: ws.url,
+      category: 'websocket',
+      count: ws.frameCount,
+      statusCodes: [],
+      origins: ws.origins || [],
+      mimeTypes: [],
+      pathParams: [],
+      queryParams: [],
+      triggeredBy: ws.triggeredBy ? [ws.triggeredBy] : [],
+      requestHeaders: {},
+      responseHeaders: {},
+      frames: ws.frames || [],
+      sentCount: ws.sentCount,
+      receivedCount: ws.receivedCount,
+      framesTruncated: ws.framesTruncated,
+      websocket: true
+    };
+  });
+  var allRows = endpoints.concat(removed).concat(sockets);
 
   var state = { q: '', category: 'all', method: 'all', status: 'all', breaking: false, changed: false, sort: null, dir: 1 };
   var expanded = {};
@@ -206,11 +232,12 @@ const SCRIPT = `
 
   function renderStats() {
     statsEl.textContent = '';
-    var categories = unique(endpoints.map(function (e) { return e.category; }));
+    var categories = unique(endpoints.concat(sockets).map(function (e) { return e.category; }));
     statsEl.appendChild(tile('Endpoints', endpoints.length));
     statsEl.appendChild(tile('Pages', (data.pages || []).length));
     statsEl.appendChild(tile('Technologies', (data.technologies || []).length));
     statsEl.appendChild(tile('Categories', categories.length));
+    if (sockets.length) statsEl.appendChild(tile('WebSockets', sockets.length));
     if (diff) {
       statsEl.appendChild(tile('Added', diff.counts.added, diff.counts.added ? 'good' : ''));
       statsEl.appendChild(tile('Removed', diff.counts.removed, diff.counts.removed ? 'warn' : ''));
@@ -221,7 +248,7 @@ const SCRIPT = `
 
   // ---- filter controls -----------------------------------------------------
   function buildControls() {
-    var categories = unique(endpoints.map(function (e) { return e.category; }));
+    var categories = unique(endpoints.concat(sockets).map(function (e) { return e.category; }));
     var methods = unique(allRows.map(function (e) { return e.method; }));
     var statuses = unique(endpoints.reduce(function (all, e) {
       return all.concat(e.statusCodes || []);
@@ -259,7 +286,8 @@ const SCRIPT = `
       (e.queryParams || []).map(function (p) { return p.name; }).join(' '),
       e.graphql ? 'graphql ' + (e.graphql.introspection ? 'introspection ' : '') + (e.graphql.operations || []).map(function (o) {
         return (o.name || 'anonymous') + ' ' + o.type;
-      }).join(' ') : ''
+      }).join(' ') : '',
+      e.websocket ? 'websocket' : ''
     ].join(' ').toLowerCase();
   }
 
@@ -368,6 +396,30 @@ const SCRIPT = `
       missing.appendChild(el('h4', null, 'Detail'));
       missing.appendChild(el('p', 'hint', 'This endpoint was captured by the baseline scan and not by this one, so there are no request or response samples to show.'));
       blocks.appendChild(missing);
+      cell.appendChild(blocks);
+      row.appendChild(cell);
+      return row;
+    }
+
+    if (e.websocket) {
+      blocks.appendChild(kv('Triggered by', e.triggeredBy || []));
+      blocks.appendChild(kv('Frames', [e.count + ' total — ' + e.sentCount + ' sent, ' + e.receivedCount +
+        ' received' + (e.framesTruncated ? ' (earlier frames not stored)' : '')]));
+      var frameBlock = el('section', 'block full');
+      frameBlock.appendChild(el('h4', null, 'Frames'));
+      if (!(e.frames || []).length) {
+        frameBlock.appendChild(el('p', 'hint', 'no frames were stored'));
+      } else {
+        var frameList = el('ul');
+        (e.frames || []).forEach(function (frame) {
+          frameList.appendChild(el('li', null,
+            (frame.direction === 'sent' ? 'sent' : 'received') + ' · ' + frame.type + ' · ' + frame.size + ' B' +
+            (frame.payloadSample ? ': ' + frame.payloadSample : ' (payload not stored)') +
+            (frame.truncated ? ' …' : '')));
+        });
+        frameBlock.appendChild(frameList);
+      }
+      blocks.appendChild(frameBlock);
       cell.appendChild(blocks);
       row.appendChild(cell);
       return row;

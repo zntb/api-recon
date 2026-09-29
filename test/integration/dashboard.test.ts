@@ -81,6 +81,7 @@ const REPORT: ReconReport = {
     { url: 'https://example.com/', normalizedUrl: 'https://example.com/', depth: 0, title: 'Home', visitedAt: 0 },
     { url: 'https://example.com/dashboard', normalizedUrl: 'https://example.com/dashboard', depth: 1, title: 'Dash', visitedAt: 1 },
   ],
+  webSockets: [],
   safety: {
     robotsRespected: true,
     robotsSkippedPaths: [],
@@ -220,6 +221,54 @@ describe('dashboard', () => {
     expect(await page.locator('#rows tr.details').count()).toBe(0);
 
     // A broken client script would surface here, not in a string assertion.
+    expect(pageErrors).toEqual([]);
+  }, 90_000);
+
+  it('lists WebSocket connections and their frames', async () => {
+    const withSockets: ReconReport = {
+      ...REPORT,
+      diff: undefined,
+      webSockets: [
+        {
+          url: 'wss://example.com/live',
+          origins: ['wss://example.com'],
+          triggeredBy: 'https://example.com/',
+          openedAt: 0,
+          closedAt: 10,
+          frameCount: 2,
+          sentCount: 1,
+          receivedCount: 1,
+          framesTruncated: false,
+          frames: [
+            { direction: 'sent', type: 'text', payloadSample: '{"subscribe":true}', size: 17, truncated: false, at: 1 },
+            { direction: 'received', type: 'text', payloadSample: '{"ok":true}', size: 11, truncated: false, at: 2 },
+          ],
+        },
+      ],
+    };
+    const file = await writeDashboardReport(withSockets, join(outDir, 'sockets'));
+    page = await browser!.newPage();
+    pageErrors = [];
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+
+    await page.goto(pathToFileURL(file).href);
+
+    // Three endpoints plus the WebSocket connection, which has no baseline here.
+    expect(await rows()).toHaveLength(4);
+    const socketRow = (await rows()).find((row) => row.includes('/live'));
+    expect(socketRow, 'the socket should have a row').toBeDefined();
+    expect(socketRow).toContain('WS');
+    expect(socketRow).toContain('websocket');
+    expect((await page.textContent('#stats')) ?? '').toContain('WebSockets');
+
+    await page.selectOption('#category', 'websocket');
+    expect(await rows()).toHaveLength(1);
+    await page.click('#rows tr.row');
+    const details = (await page.textContent('#rows tr.details')) ?? '';
+    expect(details).toContain('Frames');
+    expect(details).toContain('sent · text');
+    expect(details).toContain('{"subscribe":true}');
+    expect(details).not.toContain('Request headers');
     expect(pageErrors).toEqual([]);
   }, 90_000);
 

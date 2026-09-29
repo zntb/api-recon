@@ -84,6 +84,17 @@ describe('capture and categorization', () => {
     expect(operationNames).toContain('IntrospectionQuery');
     expect(operationNames).toContain('GetProducts');
 
+    const socket = report.webSockets.find((ws) => ws.url.includes('/ws'));
+    expect(socket, 'the fixture page opens a WebSocket').toBeDefined();
+    expect(socket!.sentCount).toBeGreaterThanOrEqual(1);
+    expect(socket!.receivedCount).toBeGreaterThanOrEqual(1);
+    expect(socket!.frameCount).toBeGreaterThanOrEqual(2);
+    expect(socket!.triggeredBy).toContain('/websocket');
+    // Frame payloads are redacted exactly like request bodies.
+    const framePayloads = socket!.frames.map((f) => f.payloadSample ?? '').join(' ');
+    expect(framePayloads).toContain('[REDACTED]');
+    expect(framePayloads).not.toContain('ws-secret-token');
+
     expect(findEndpoint(report, 'POST /api/login')).toBeUndefined();
 
     for (const endpoint of report.endpoints) {
@@ -99,6 +110,7 @@ describe('capture and categorization', () => {
 
     const written = await readJsonReport(dir);
     expect(written.endpoints.length).toBe(report.endpoints.length);
+    expect(written.webSockets.length).toBe(report.webSockets.length);
     expect(result.files.some((f) => f.endsWith('report.json'))).toBe(true);
   }, 120_000);
 
@@ -262,9 +274,11 @@ describe('report formats', () => {
     expect(md).toContain('## 1. Overview');
     expect(md).toContain('## 3. Endpoint Summary by Category');
     expect(md).toContain('## 7. Safety Notes');
+    expect(md).toContain('## 8. WebSocket Traffic');
     expect(md).toContain('[REDACTED]');
     expect(md).not.toContain(FIXTURE_PASS);
     expect(md).not.toContain('connect.sid=');
+    expect(md).not.toContain('ws-secret-token');
 
     const html = await readFile(join(dir, 'report.html'), 'utf8');
     expect(html).toContain('<style>');

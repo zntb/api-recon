@@ -41,6 +41,7 @@ function report(endpoints: Endpoint[], overrides: Partial<ReconReport> = {}): Re
     technologies: [],
     endpoints,
     pages: [],
+    webSockets: [],
     safety: {
       robotsRespected: true,
       robotsSkippedPaths: [],
