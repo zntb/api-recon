@@ -78,7 +78,7 @@ api-recon https://example.com --browser firefox
 | `-m, --max-pages <n>` | `25` | Hard cap on pages visited |
 | `-o, --out <dir>` | `./api-recon-output` | Output directory |
 | `-f, --formats <list>` | `json,md,html,pdf,openapi,dashboard` | Report formats to write |
-| `-b, --browser <engine>` | `chromium` | Playwright engine to drive (`chromium`, `firefox`, `webkit`) |
+| `-b, --browser <engine>` | `chromium` | Playwright engine to drive (`chromium`, `firefox`, `webkit`), recorded in the report |
 | `-a, --auth <file>` | — | Playwright `storageState.json` session |
 | `-l, --login <file>` | — | Login-flow config (YAML/JSON) |
 | `--record` | off | Interactive recording mode (headed browser) |
@@ -185,7 +185,8 @@ whose expanded view is its frames.
 
 The capture layer is engine-independent: `--browser` swaps the Playwright
 driver, and interception, categorization, technology detection, and schema
-inference all behave the same.
+inference all behave the same. The report records the engine it ran in
+(`meta.engine`), so a scan is reproducible from its own output.
 
 > Firefox and WebKit send different `User-Agent` and `Accept` headers than
 > Chromium, and sites sometimes serve different responses per engine — so if
@@ -206,7 +207,7 @@ you only care about the API surface, Chromium is the safer default.
 
 ```jsonc
 {
-  "meta": { "seedUrl": "…", "startedAt": "…", "durationMs": 1234, "pagesVisited": 6, "apiReconVersion": "0.1.1" },
+  "meta": { "seedUrl": "…", "startedAt": "…", "durationMs": 1234, "pagesVisited": 6, "apiReconVersion": "0.2.2", "engine": "chromium" },
   "technologies": [{ "name": "Express", "category": "framework", "evidence": "x-powered-by: Express" }],
   "endpoints": [
     {
@@ -319,6 +320,12 @@ WebSocket connections are matched by URL and reported the same way, under a
 fields of the sent and received JSON frames are diffed, so a field dropping out
 of a received message is flagged breaking —
 `WebSocket received message field removed: value`.
+
+Run both scans in the same engine where you can. When the baseline's
+`meta.engine` differs from the current scan's, the CLI summary, the Markdown
+"Changes Since Baseline" section, and the dashboard all flag it — a site can
+serve different responses per engine, and a difference may not be an API change
+at all.
 
 Classification is heuristic and deliberately under-reports. A scan samples
 whatever traffic the crawl happened to trigger, so an endpoint listed as removed

@@ -65,6 +65,7 @@ describe('capture and categorization', () => {
 
     const report = result.report;
     expect(report.meta.pagesVisited).toBeGreaterThan(1);
+    expect(report.meta.engine).toBe('chromium');
 
     const products = findEndpoint(report, 'GET /api/products');
     expect(products, 'GET /api/products should be captured').toBeDefined();
@@ -272,6 +273,7 @@ describe('report formats', () => {
 
     const md = await readFile(join(dir, 'report.md'), 'utf8');
     expect(md).toContain('## 1. Overview');
+    expect(md).toContain('| Browser engine | chromium |');
     expect(md).toContain('## 3. Endpoint Summary by Category');
     expect(md).toContain('## 7. Safety Notes');
     expect(md).toContain('## 8. WebSocket Traffic');

@@ -606,6 +606,10 @@ export function renderDashboard(report: ReconReport, title?: string): string {
   const heading = title ?? `API recon dashboard — ${report.meta.seedUrl}`;
   const hasDiff = report.diff !== undefined;
   const seed = escapeHtml(report.meta.seedUrl);
+  // A change between scans can be the engine rather than the API, so call it
+  // out next to the engine the current scan used.
+  const baselineEngine = report.diff?.baseline.engine;
+  const engineMismatch = baselineEngine !== undefined && baselineEngine !== report.meta.engine;
 
   const columns = [
     { key: 'method', label: 'Method' },
@@ -643,6 +647,7 @@ export function renderDashboard(report: ReconReport, title?: string): string {
     <dl class="meta">
       <div><dt>Scanned</dt><dd>${escapeHtml(report.meta.startedAt)}</dd></div>
       <div><dt>api-recon</dt><dd>v${escapeHtml(report.meta.apiReconVersion)}</dd></div>
+      <div><dt>Engine</dt><dd>${escapeHtml(report.meta.engine)}${engineMismatch ? ` <span class="badge breaking">baseline: ${escapeHtml(baselineEngine!)}</span>` : ''}</dd></div>
       <div><dt>Robots</dt><dd>${report.safety.robotsRespected ? 'respected' : 'ignored'}</dd></div>
       <div><dt>Redaction</dt><dd>${report.safety.redact ? 'on' : 'off'}</dd></div>
     </dl>

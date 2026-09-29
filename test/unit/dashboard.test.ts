@@ -37,6 +37,7 @@ function report(endpoints: Endpoint[], overrides: Partial<ReconReport> = {}): Re
       durationMs: 1234,
       pagesVisited: 2,
       apiReconVersion: '0.1.2',
+      engine: 'chromium',
     },
     technologies: [{ name: 'Express', category: 'framework', evidence: 'x-powered-by: Express' }],
     endpoints,

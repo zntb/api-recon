@@ -148,6 +148,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
       durationMs: Date.now() - startedAt,
       pagesVisited: pages.length,
       apiReconVersion: TOOL_VERSION,
+      engine,
     },
     technologies,
     endpoints,

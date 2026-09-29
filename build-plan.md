@@ -214,9 +214,11 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   schema changes, query-param drift, GraphQL operation drift, where a removed
   operation is treated as breaking, and WebSocket connection drift, where
   connections are matched by URL and the shape of their sent/received JSON
-  frames is compared). Changes that can break a client (an
-  endpoint disappearing, losing all 2xx responses, a response field or its type
-  going away) are flagged `breaking`. `--fail-on-diff` exits `3` when anything
+  frames is compared). When the two scans ran in different engines the
+  comparison says so, since a difference may be engine-specific rather than an
+  API change. Changes that can break a client (an endpoint disappearing, losing
+  all 2xx responses, a response field or its type going away) are flagged
+  `breaking`. `--fail-on-diff` exits `3` when anything
   changed, for CI. The logic lives in `src/core/diff.ts` and is exported as
   `diffReports`, `loadBaseline`, and `formatDiffSummary`; the diff is also
   embedded in the report under `diff` and rendered by the Markdown reporter.
@@ -246,11 +248,14 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   Markdown reporter a "WebSocket Traffic" section, and the dashboard a row per
   connection whose expanded view is its frames.
 
+- **Engine recorded in the report** — `meta.engine` names the Playwright engine
+  a scan ran in, so the report is reproducible from its own output via
+  `--browser <engine>`. The Markdown/HTML/PDF Overview table and the dashboard
+  header surface it, and the multi-engine integration suite asserts it.
+
 **Ideas for follow-ups**
 
 - Optional telemetry (opt-in) to improve categorization heuristics.
-- Record the engine used in the report, so a scan is reproducible from its own
-  output.
 
 ---
 

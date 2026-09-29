@@ -52,6 +52,8 @@ describe('browser engines', () => {
       expect(products!.responseSchema?.properties).toHaveProperty('products');
 
       expect(result.report.meta.pagesVisited).toBeGreaterThan(1);
+      // The report names the engine it ran in, so the scan is reproducible.
+      expect(result.report.meta.engine).toBe(engine);
       expect(result.report.technologies.map((t) => t.name)).toContain('Express');
     }, 180_000);
   }

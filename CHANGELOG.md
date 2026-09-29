@@ -5,6 +5,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-09-29
+
+Records the browser engine in the report. Existing flags, options, and report
+fields are unchanged apart from the new `meta.engine`.
+
+### Added
+
+- **Engine recorded in the report** — `meta.engine` names the Playwright engine
+  the scan ran in, so a scan is reproducible from its own output by re-running
+  with `--browser <engine>`. Sites sometimes serve different responses per
+  engine, which is exactly why the engine belongs next to the data it produced.
+  The Markdown/HTML/PDF Overview table and the dashboard header show it.
+- **Engine differences flagged in `--diff`** — the comparison carries each
+  scan's engine under `diff.baseline.engine` / `diff.current.engine`. When they
+  differ, the CLI summary, the Markdown "Changes Since Baseline" section, and
+  the dashboard note that some differences may be engine-specific rather than
+  API changes, since a site can serve different responses per engine.
+
 ## [0.2.2] - 2026-09-29
 
 Extends `--diff` to WebSocket connections. Existing flags, options, and report
@@ -206,6 +224,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[0.2.3]: https://github.com/zntb/api-recon/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/zntb/api-recon/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/zntb/api-recon/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/zntb/api-recon/compare/v0.1.3...v0.2.0

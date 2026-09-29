@@ -376,8 +376,13 @@ export async function loadBaseline(filePath: string): Promise<ReconReport> {
 
 /** Console-friendly summary of a diff, one line per change. */
 export function formatDiffSummary(diff: ReportDiff, maxItems = 25): string[] {
+  const engineNote = engineDifferenceNote(diff);
+
   if (!diff.hasChanges) {
-    return ['No endpoint changes since the baseline.'];
+    return [
+      'No endpoint changes since the baseline.',
+      ...(engineNote ? [engineNote] : []),
+    ];
   }
 
   const { added, removed, changed, breaking } = diff.counts;
@@ -385,6 +390,10 @@ export function formatDiffSummary(diff: ReportDiff, maxItems = 25): string[] {
     `API changes since baseline: ${added} added, ${removed} removed, ${changed} changed` +
       ` (${breaking} breaking).`,
   ];
+
+  // Say so before the change list: an engine difference can explain changes
+  // that have nothing to do with the API.
+  if (engineNote) lines.push(engineNote);
 
   for (const change of diff.changes.slice(0, maxItems)) {
     const marker = change.kind === 'added' ? '+' : change.kind === 'removed' ? '-' : '~';
@@ -399,11 +408,28 @@ export function formatDiffSummary(diff: ReportDiff, maxItems = 25): string[] {
   return lines;
 }
 
+/**
+ * A caution for when the two scans did not run in the same engine — sites can
+ * serve different responses per engine, so a change may not be an API change.
+ * Returns null when the engines match or either scan predates the field.
+ */
+function engineDifferenceNote(diff: ReportDiff): string | null {
+  const before = diff.baseline.engine;
+  const after = diff.current.engine;
+  if (!before || !after || before === after) return null;
+  return (
+    `Note: the baseline ran in ${before} and this scan in ${after} — ` +
+    'some differences may be engine-specific.'
+  );
+}
+
 function scanRef(report: ReconReport): ScanRef {
   return {
     seedUrl: report.meta.seedUrl,
     startedAt: report.meta.startedAt,
     apiReconVersion: report.meta.apiReconVersion,
+    // Absent on reports written before the engine was recorded.
+    ...(report.meta.engine ? { engine: report.meta.engine } : {}),
   };
 }
 

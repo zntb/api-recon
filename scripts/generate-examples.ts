@@ -306,6 +306,9 @@ async function main(): Promise<void> {
         durationMs: Date.now() - startedAt,
         pagesVisited: pages.size,
         apiReconVersion: TOOL_VERSION,
+        // This sample is generated without a browser, so it records the engine
+        // the real browser pipeline would use by default.
+        engine: 'chromium',
       },
       technologies: detectTechnologies(evidence),
       endpoints: analyzeCalls(calls, { seedUrl: fixture.url }),

@@ -182,6 +182,12 @@ export interface ReportMeta {
   durationMs: number;
   pagesVisited: number;
   apiReconVersion: string;
+  /**
+   * Playwright engine the scan ran in. Sites sometimes serve different
+   * responses per engine, so recording it keeps a scan reproducible from its
+   * own report — re-run with `--browser <engine>`.
+   */
+  engine: BrowserEngine;
 }
 
 /** How an endpoint differs between two scans. */
@@ -207,6 +213,12 @@ export interface ScanRef {
   seedUrl: string;
   startedAt: string;
   apiReconVersion: string;
+  /**
+   * Engine the scan ran in. Absent on reports written before the engine was
+   * recorded; a difference between the two scans is worth flagging, since a
+   * site may serve different responses per engine.
+   */
+  engine?: BrowserEngine;
 }
 
 /** Endpoint-level comparison of a scan against an earlier baseline report. */

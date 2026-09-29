@@ -48,6 +48,7 @@ export function renderMarkdown(report: ReconReport): string {
   out.push(`| Started at | ${cell(meta.startedAt)} |`);
   out.push(`| Duration | ${formatDuration(meta.durationMs)} |`);
   out.push(`| Pages visited | ${meta.pagesVisited} |`);
+  out.push(`| Browser engine | ${cell(meta.engine)} |`);
   out.push(`| Endpoints discovered | ${report.endpoints.length} |`);
   out.push(`| Redaction | ${report.safety.redact ? 'enabled' : 'disabled'} |`);
   out.push('');
@@ -200,6 +201,16 @@ function diffSection(diff: ReportDiff): string[] {
       `(api-recon v${cell(diff.baseline.apiReconVersion)}).`,
   );
   out.push('');
+
+  const baselineEngine = diff.baseline.engine;
+  const currentEngine = diff.current.engine;
+  if (baselineEngine && currentEngine && baselineEngine !== currentEngine) {
+    out.push(
+      `> **Warning:** the baseline ran in **${cell(baselineEngine)}** and this scan in ` +
+        `**${cell(currentEngine)}**; some differences may be engine-specific rather than API changes.`,
+    );
+    out.push('');
+  }
 
   if (!diff.hasChanges) {
     out.push('_No endpoint changes were detected._');

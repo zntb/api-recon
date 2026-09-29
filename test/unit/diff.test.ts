@@ -43,6 +43,7 @@ function report(endpoints: Endpoint[], overrides: Partial<ReconReport> = {}): Re
       durationMs: 1000,
       pagesVisited: 2,
       apiReconVersion: '0.1.1',
+      engine: 'chromium',
     },
     technologies: [],
     endpoints,
@@ -110,6 +111,16 @@ describe('diffReports', () => {
     expect(diff.hasChanges).toBe(false);
     expect(diff.changes).toEqual([]);
     expect(diff.counts).toEqual({ added: 0, removed: 0, changed: 0, breaking: 0 });
+  });
+
+  it('records the engine each scan ran in', () => {
+    const baseline = report([]);
+    const current = report([], { meta: { ...report([]).meta, engine: 'firefox' } });
+
+    const diff = diffReports(baseline, current);
+
+    expect(diff.baseline.engine).toBe('chromium');
+    expect(diff.current.engine).toBe('firefox');
   });
 
   it('records the scans it compared', () => {
@@ -390,6 +401,20 @@ describe('formatDiffSummary', () => {
   it('says so plainly when nothing changed', () => {
     const diff = diffReports(report([]), report([]));
     expect(formatDiffSummary(diff)).toEqual(['No endpoint changes since the baseline.']);
+  });
+
+  it('notes an engine difference between the two scans', () => {
+    const current = report([], { meta: { ...report([]).meta, engine: 'firefox' } });
+
+    const lines = formatDiffSummary(diffReports(report([]), current)).join('\n');
+
+    expect(lines).toContain('the baseline ran in chromium and this scan in firefox');
+    expect(lines).toContain('engine-specific');
+  });
+
+  it('stays quiet when both scans used the same engine', () => {
+    const lines = formatDiffSummary(diffReports(report([]), report([]))).join('\n');
+    expect(lines).not.toContain('engine-specific');
   });
 
   it('summarises counts and marks breaking changes', () => {
