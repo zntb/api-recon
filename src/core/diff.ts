@@ -12,6 +12,8 @@ import { readFile } from 'node:fs/promises';
 import type {
   Endpoint,
   EndpointChange,
+  GraphQLInfo,
+  GraphQLOperation,
   JsonSchemaLike,
   ReconReport,
   ReportDiff,
@@ -120,7 +122,71 @@ function compareEndpoints(before: Endpoint, after: Endpoint): Detail[] {
     });
   }
 
+  details.push(...diffGraphQL(before.graphql, after.graphql));
+
   return details;
+}
+
+/**
+ * Compare the GraphQL operations observed on an endpoint.
+ *
+ * An operation that is new or whose introspection status flipped is additive;
+ * an operation that is no longer seen is treated like a removed response field
+ * or endpoint — the crawl may simply not have exercised it, but a client that
+ * calls it would break, so it is flagged breaking and the evidence is spelled
+ * out.
+ */
+function diffGraphQL(before: GraphQLInfo | undefined, after: GraphQLInfo | undefined): Detail[] {
+  if (!before && !after) return [];
+
+  if (before && !after) {
+    return [{ text: 'GraphQL requests no longer observed on this endpoint', breaking: false }];
+  }
+
+  if (!before && after) {
+    const details: Detail[] = [];
+    const operations = describeOperations(after.operations);
+    if (operations) {
+      details.push({ text: `GraphQL operations newly observed: ${operations}`, breaking: false });
+    }
+    if (after.introspection) {
+      details.push({ text: 'GraphQL introspection newly observed', breaking: false });
+    }
+    return details;
+  }
+
+  const beforeOps = before!.operations;
+  const afterOps = after!.operations;
+  const beforeKeys = new Set(beforeOps.map(operationKey));
+  const afterKeys = new Set(afterOps.map(operationKey));
+  const added = afterOps.filter((op) => !beforeKeys.has(operationKey(op)));
+  const removed = beforeOps.filter((op) => !afterKeys.has(operationKey(op)));
+
+  const details: Detail[] = [];
+  if (added.length > 0) {
+    details.push({ text: `new GraphQL operations: ${describeOperations(added)}`, breaking: false });
+  }
+  if (removed.length > 0) {
+    details.push({
+      text: `GraphQL operations not observed this time: ${describeOperations(removed)}`,
+      breaking: true,
+    });
+  }
+  if (!before!.introspection && after!.introspection) {
+    details.push({ text: 'GraphQL introspection newly observed', breaking: false });
+  } else if (before!.introspection && !after!.introspection) {
+    details.push({ text: 'GraphQL introspection no longer observed', breaking: false });
+  }
+
+  return details;
+}
+
+function operationKey(operation: GraphQLOperation): string {
+  return `${operation.type}:${operation.name ?? ''}`;
+}
+
+function describeOperations(operations: GraphQLOperation[]): string {
+  return operations.map((op) => `${op.name ?? 'anonymous'} (${op.type})`).join(', ');
 }
 
 function diffSchema(

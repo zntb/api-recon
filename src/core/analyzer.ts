@@ -2,11 +2,12 @@
  * Turn raw captured calls into deduplicated, categorized endpoints.
  *
  * Category precedence (first match wins):
- *   authentication -> analytics -> third-party -> mutations -> data-fetching
- *   -> uncategorized
+ *   authentication -> analytics -> third-party -> graphql -> mutations
+ *   -> data-fetching -> uncategorized
  */
 
 import type { CapturedCall, Category, Endpoint, QueryParam } from '../types.js';
+import { analyzeGraphQL, mergeGraphQL } from './graphql.js';
 import { inferSchemaFromBody } from './schemaInference.js';
 import { isSameDomain, toUrlPattern } from '../utils/url.js';
 
@@ -60,13 +61,14 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
   const first = samples[0]!;
   const representative = samples[samples.length - 1]!;
   const pattern = id.slice(id.indexOf(' ') + 1);
+  const graphql = mergeGraphQL(samples.map((s) => analyzeGraphQL(s)));
 
   return {
     id,
     method: first.method,
     urlPattern: pattern,
     origins: unique(samples.map((s) => safeOrigin(s.url))),
-    category: categorize(first, seedUrl),
+    category: categorize(first, seedUrl, graphql !== null),
     count: samples.length,
     statusCodes: unique(samples.map((s) => s.status)).sort((a, b) => a - b),
     requestHeaders: representative.requestHeaders,
@@ -82,10 +84,11 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
     ),
     mimeTypes: unique(samples.map((s) => s.mimeType).filter(Boolean)),
     triggeredBy: unique(samples.map((s) => s.triggeredBy)),
+    ...(graphql ? { graphql } : {}),
   };
 }
 
-export function categorize(call: CapturedCall, seedUrl: string): Category {
+export function categorize(call: CapturedCall, seedUrl: string, isGraphQL = false): Category {
   let parsed: URL;
   try {
     parsed = new URL(call.url);
@@ -98,6 +101,9 @@ export function categorize(call: CapturedCall, seedUrl: string): Category {
   if (AUTH_PATH_RE.test(path)) return 'authentication';
   if (ANALYTICS_HOSTS.some((h) => host.includes(h)) || ANALYTICS_PATH_RE.test(path)) return 'analytics';
   if (!isSameDomain(call.url, seedUrl)) return 'third-party';
+  // A GraphQL endpoint is recognized by its request, not its path, so it wins
+  // over the method-based buckets below.
+  if (isGraphQL) return 'graphql';
   if (call.method !== 'GET' && call.method !== 'HEAD' && call.method !== 'OPTIONS') return 'mutations';
   if ((call.mimeType ?? '').toLowerCase().includes('json')) return 'data-fetching';
   return 'uncategorized';

@@ -112,6 +112,7 @@ Endpoints are categorized with heuristics:
 | `authentication` | paths like `/login`, `/oauth`, `/token`, `/session`, `/sso` |
 | `analytics` | analytics hosts (`google-analytics.com`, `segment.io`, …) or paths like `/track`, `/collect`, `/beacon` |
 | `third-party` | anything cross-origin (only reported with `--include-third-party`) |
+| `graphql` | the request carried a GraphQL operation (see below) |
 | `mutations` | POST/PUT/PATCH/DELETE |
 | `data-fetching` | GET/HEAD returning JSON |
 | `uncategorized` | everything else |
@@ -120,6 +121,34 @@ The analyzer also infers **path parameters** (id-like segments), **query
 parameters** with sample values, and **JSON schemas** (depth 4) for request and
 response bodies. Where possible it fingerprints the stack (frameworks, CMS,
 CDN, analytics) from headers, cookies, HTML, and script paths.
+
+### GraphQL detection
+
+GraphQL rides on ordinary HTTP, so it is recognized by what a request carries
+rather than by its URL: a JSON body with a `query` document (POST), an
+`application/graphql` body, a `query` search parameter (GET), or the
+`operationName` of an automatic persisted query. Such endpoints are categorized
+as `graphql` and gain a `graphql` object:
+
+```jsonc
+"graphql": {
+  "introspection": true,          // a `__schema` / `__type` query was observed
+  "operations": [                 // operation definitions seen across samples
+    { "name": "IntrospectionQuery", "type": "query" },
+    { "name": "GetProducts", "type": "query" }
+  ]
+}
+```
+
+Operation names are read from the document itself with a small tokenizer that
+ignores keywords inside strings, comments, nested selection sets, and
+fragments, so a field named `mutation` is not mistaken for an operation.
+Anonymous operations are kept with a `null` name, and a request that names an
+operation the document does not declare (a persisted query, for example) is
+recorded with the `unknown` type. Nothing is executed or replayed — the document
+text is only scanned. The report's Markdown, HTML, dashboard, and OpenAPI
+output surface the same information, with the OpenAPI spec carrying it as
+`x-graphql-operations` / `x-graphql-introspection` extensions.
 
 The capture layer is engine-independent: `--browser` swaps the Playwright
 driver, and interception, categorization, technology detection, and schema
@@ -232,6 +261,11 @@ per-field detail for schemas, e.g. `response field removed: products[].id`.
 Changes that could break an existing client are marked **breaking**: a removed
 endpoint, a response that no longer returns 2xx, or a removed or retyped
 response field. Additions never are.
+
+GraphQL endpoints are compared by operation too: a new operation or a change in
+whether the schema is introspectable is additive, while an operation that is no
+longer observed is flagged breaking — `GraphQL operations not observed this
+time: DeleteProduct (mutation)`.
 
 Classification is heuristic and deliberately under-reports. A scan samples
 whatever traffic the crawl happened to trigger, so an endpoint listed as removed
@@ -389,7 +423,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for test expectations.
 - `page.pdf()` only exists in Chromium, so PDF reports always need Chromium
   installed — even when the scan itself ran in Firefox or WebKit. If it is
   missing, the other formats are still written and a warning is logged.
-- GraphQL bodies and WebSocket frames are not analyzed.
+- GraphQL requests are detected and their operation names read, but query
+  variables and returned fields are not analyzed; WebSocket frames are not
+  captured.
 - Heuristic categorization and schema inference are best-effort starting
   points — review reports before publishing them.
 

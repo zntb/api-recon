@@ -25,6 +25,7 @@ export type Category =
   | 'mutations'
   | 'analytics'
   | 'third-party'
+  | 'graphql'
   | 'uncategorized';
 
 export const CATEGORIES: readonly Category[] = [
@@ -33,6 +34,7 @@ export const CATEGORIES: readonly Category[] = [
   'mutations',
   'analytics',
   'third-party',
+  'graphql',
   'uncategorized',
 ];
 
@@ -76,11 +78,34 @@ export interface Endpoint {
   /** MIME types observed across samples. */
   mimeTypes: string[];
   triggeredBy: string[];
+  /** GraphQL detection; omitted when this endpoint is not GraphQL. */
+  graphql?: GraphQLInfo;
 }
 
 export interface QueryParam {
   name: string;
   sampleValues: string[];
+}
+
+/** The kind of a GraphQL operation definition. */
+export type GraphQLOperationType = 'query' | 'mutation' | 'subscription' | 'unknown';
+
+/** One operation observed on a GraphQL endpoint. */
+export interface GraphQLOperation {
+  /** The operation's name, or `null` for an anonymous operation. */
+  name: string | null;
+  type: GraphQLOperationType;
+}
+
+/**
+ * GraphQL detection for an endpoint. Present only on endpoints whose captured
+ * traffic carried a GraphQL request, so its absence means "not GraphQL".
+ */
+export interface GraphQLInfo {
+  /** True when a schema introspection query (`__schema` / `__type`) was seen. */
+  introspection: boolean;
+  /** Operation definitions observed across the endpoint's samples. */
+  operations: GraphQLOperation[];
 }
 
 /** Minimal JSON-Schema-like object produced by the inference engine. */

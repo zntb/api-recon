@@ -196,6 +196,91 @@ describe('diffReports', () => {
     expect(change.details).toContain('category mutations → analytics');
   });
 
+  it('reports a new GraphQL operation as non-breaking', () => {
+    const baseline = report([
+      endpoint({
+        id: 'POST /graphql',
+        category: 'graphql',
+        graphql: { introspection: false, operations: [{ name: 'GetProducts', type: 'query' }] },
+      }),
+    ]);
+    const current = report([
+      endpoint({
+        id: 'POST /graphql',
+        category: 'graphql',
+        graphql: {
+          introspection: false,
+          operations: [
+            { name: 'GetProducts', type: 'query' },
+            { name: 'CreateOrder', type: 'mutation' },
+          ],
+        },
+      }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'POST /graphql');
+    expect(change.breaking).toBe(false);
+    expect(change.details.join(' ')).toContain('new GraphQL operations: CreateOrder (mutation)');
+  });
+
+  it('flags a GraphQL operation that is no longer observed as breaking', () => {
+    const baseline = report([
+      endpoint({
+        id: 'POST /graphql',
+        category: 'graphql',
+        graphql: {
+          introspection: false,
+          operations: [
+            { name: 'GetProducts', type: 'query' },
+            { name: 'DeleteProduct', type: 'mutation' },
+          ],
+        },
+      }),
+    ]);
+    const current = report([
+      endpoint({
+        id: 'POST /graphql',
+        category: 'graphql',
+        graphql: { introspection: false, operations: [{ name: 'GetProducts', type: 'query' }] },
+      }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'POST /graphql');
+    expect(change.breaking).toBe(true);
+    expect(change.details.join(' ')).toContain(
+      'GraphQL operations not observed this time: DeleteProduct (mutation)',
+    );
+  });
+
+  it('reports GraphQL introspection being newly observed without calling it breaking', () => {
+    const baseline = report([
+      endpoint({
+        id: 'POST /graphql',
+        category: 'graphql',
+        graphql: { introspection: false, operations: [{ name: 'GetProducts', type: 'query' }] },
+      }),
+    ]);
+    const current = report([
+      endpoint({
+        id: 'POST /graphql',
+        category: 'graphql',
+        graphql: {
+          introspection: true,
+          operations: [
+            { name: 'GetProducts', type: 'query' },
+            { name: 'IntrospectionQuery', type: 'query' },
+          ],
+        },
+      }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'POST /graphql');
+    expect(change.breaking).toBe(false);
+    const text = change.details.join(' ');
+    expect(text).toContain('new GraphQL operations: IntrospectionQuery (query)');
+    expect(text).toContain('GraphQL introspection newly observed');
+  });
+
   it('counts each kind separately and sorts changes by id', () => {
     const baseline = report([endpoint({ id: 'GET /b' }), endpoint({ id: 'GET /gone' })]);
     const current = report([endpoint({ id: 'GET /a' }), endpoint({ id: 'GET /b', statusCodes: [500] })]);

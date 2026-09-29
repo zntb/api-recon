@@ -196,6 +196,15 @@ function detailedEndpoint(endpoint: Endpoint): string[] {
   lines.push(`| MIME types | ${cell(endpoint.mimeTypes.join(', ') || 'unknown')} |`);
   lines.push(`| Origins | ${cell(endpoint.origins.join(', '))} |`);
   lines.push(`| Triggered by | ${cell(endpoint.triggeredBy.join(', '))} |`);
+  if (endpoint.graphql) {
+    const operations = endpoint.graphql.operations.map(
+      (op) => `${op.name ? `\`${op.name}\`` : 'anonymous'} (${op.type})`,
+    );
+    lines.push(
+      `| GraphQL introspection | ${endpoint.graphql.introspection ? 'yes — the schema is exposed' : 'no'} |`,
+    );
+    lines.push(`| GraphQL operations | ${operations.join(', ') || '—'} |`);
+  }
   if (endpoint.pathParams.length > 0) {
     lines.push(`| Path parameters | ${endpoint.pathParams.map((p) => `\`${p}\``).join(', ')} |`);
   }

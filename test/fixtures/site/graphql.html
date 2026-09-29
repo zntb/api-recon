@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture Shop — GraphQL</title>
+    <meta name="generator" content="FixtureKit 1.0" />
+  </head>
+  <body>
+    <h1>GraphQL</h1>
+    <pre id="schema"></pre>
+    <pre id="products"></pre>
+    <script>
+      // A schema introspection query and a named operation, both over POST, so
+      // GraphQL detection has a real target.
+      fetch('/api/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          operationName: 'IntrospectionQuery',
+          query: 'query IntrospectionQuery { __schema { queryType { name } } }',
+        }),
+      })
+        .then((r) => r.json())
+        .then((data) => (document.querySelector('#schema').textContent = JSON.stringify(data)));
+
+      fetch('/api/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          operationName: 'GetProducts',
+          query: 'query GetProducts($first: Int) { products { id name price } }',
+          variables: { first: 3 },
+        }),
+      })
+        .then((r) => r.json())
+        .then((data) => (document.querySelector('#products').textContent = JSON.stringify(data)));
+    </script>
+  </body>
+</html>

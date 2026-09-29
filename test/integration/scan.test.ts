@@ -76,6 +76,14 @@ describe('capture and categorization', () => {
     expect(beacon, 'POST /api/collect should be captured').toBeDefined();
     expect(beacon!.category).toBe('analytics');
 
+    const graphql = findEndpoint(report, 'POST /api/graphql');
+    expect(graphql, 'POST /api/graphql should be captured').toBeDefined();
+    expect(graphql!.category).toBe('graphql');
+    expect(graphql!.graphql?.introspection).toBe(true);
+    const operationNames = graphql!.graphql!.operations.map((op) => op.name);
+    expect(operationNames).toContain('IntrospectionQuery');
+    expect(operationNames).toContain('GetProducts');
+
     expect(findEndpoint(report, 'POST /api/login')).toBeUndefined();
 
     for (const endpoint of report.endpoints) {

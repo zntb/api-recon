@@ -5,6 +5,39 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-09-29
+
+Adds GraphQL detection. A request carrying a GraphQL operation is now
+recognized, categorized, and summarized by operation name — including whether
+the schema introspection query was observed. Existing flags and options are
+unchanged; the report gains an optional `graphql` field on endpoints and a
+`graphql` category.
+
+### Added
+
+- **GraphQL detection** — a captured call is recognized as GraphQL by its
+  request rather than its URL: a JSON body with a `query` document (POST), an
+  `application/graphql` body, a `query` search parameter (GET), or the
+  `operationName` of an automatic persisted query. Such endpoints are
+  categorized as `graphql` and gain a `graphql` object listing the operation
+  names and types observed, plus an `introspection` flag that is true when a
+  `__schema` / `__type` schema query was seen. Operation names are read from the
+  document with a small tokenizer that ignores keywords inside strings,
+  comments, nested selection sets, and fragments; anonymous operations keep a
+  `null` name, and a named-but-undeclared operation (a persisted query, for
+  example) is recorded as type `unknown`. Nothing is executed or replayed. The
+  detection is engine-independent, like the rest of the analyzer.
+- **GraphQL in every report** — the Markdown/HTML/PDF detailed endpoint sections
+  list the operations and the introspection result; the dashboard shows them in
+  the expanded row and indexes them for search and the category filter; and
+  `openapi.yaml` carries them as `x-graphql-operations` and
+  `x-graphql-introspection` extensions on the operation.
+- **GraphQL operation diffing** — `--diff` now compares GraphQL endpoints by
+  operation. A new operation, or introspection appearing, is reported as
+  additive; an operation that is no longer observed is flagged breaking, the
+  same as a removed endpoint or response field, since a client that calls it
+  would break.
+
 ## [0.1.3] - 2026-09-28
 
 Adds an interactive dashboard for reading a report, and makes removed endpoints
@@ -136,6 +169,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[0.2.0]: https://github.com/zntb/api-recon/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/zntb/api-recon/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/zntb/api-recon/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/zntb/api-recon/compare/v0.1.0...v0.1.1

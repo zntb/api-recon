@@ -84,6 +84,14 @@ function buildOperation(endpoint: Endpoint): Json {
     responses,
     'x-observed-count': endpoint.count,
     'x-observed-origins': endpoint.origins,
+    ...(endpoint.graphql
+      ? {
+          'x-graphql-operations': endpoint.graphql.operations.map((op) =>
+            op.name ? `${op.type} ${op.name}` : `${op.type} (anonymous)`,
+          ),
+          ...(endpoint.graphql.introspection ? { 'x-graphql-introspection': true } : {}),
+        }
+      : {}),
   };
 }
 

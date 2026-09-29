@@ -256,7 +256,10 @@ const SCRIPT = `
       (e.mimeTypes || []).join(' '),
       (e.pathParams || []).join(' '),
       (e.triggeredBy || []).join(' '),
-      (e.queryParams || []).map(function (p) { return p.name; }).join(' ')
+      (e.queryParams || []).map(function (p) { return p.name; }).join(' '),
+      e.graphql ? 'graphql ' + (e.graphql.introspection ? 'introspection ' : '') + (e.graphql.operations || []).map(function (o) {
+        return (o.name || 'anonymous') + ' ' + o.type;
+      }).join(' ') : ''
     ].join(' ').toLowerCase();
   }
 
@@ -377,6 +380,12 @@ const SCRIPT = `
       return p.name + ' = ' + (p.sampleValues || []).join(', ');
     })));
     blocks.appendChild(kv('MIME types', e.mimeTypes || []));
+    if (e.graphql) {
+      blocks.appendChild(kv('GraphQL introspection', [e.graphql.introspection ? 'observed' : 'not observed']));
+      blocks.appendChild(kv('GraphQL operations', (e.graphql.operations || []).map(function (o) {
+        return (o.name || 'anonymous') + ' (' + o.type + ')';
+      })));
+    }
     blocks.appendChild(kv('Request headers', headerList(e.requestHeaders)));
     blocks.appendChild(kv('Response headers', headerList(e.responseHeaders)));
     if (e.requestBodySample) blocks.appendChild(codeBlock('Request body', pretty(e.requestBodySample), true));

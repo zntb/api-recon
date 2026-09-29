@@ -211,7 +211,8 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
 - **Scan diffing** — `--diff <baseline.json>` compares the current scan against an
   earlier report and marks each endpoint as added, removed, or changed, with
   per-endpoint details (status-code drift, category change, request/response
-  schema changes, query-param drift). Changes that can break a client (an
+  schema changes, query-param drift, and GraphQL operation drift, where a
+  removed operation is treated as breaking). Changes that can break a client (an
   endpoint disappearing, losing all 2xx responses, a response field or its type
   going away) are flagged `breaking`. `--fail-on-diff` exits `3` when anything
   changed, for CI. The logic lives in `src/core/diff.ts` and is exported as
@@ -226,10 +227,18 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   Change column and "Changed only"/"Breaking only" filters. The renderer lives in
   `src/reporters/dashboard.ts`; `report.html` deliberately stays a printable
   document, since PDF is rendered from it.
+- **GraphQL detection** — a captured request carrying a GraphQL operation is
+  recognized (JSON body document, `application/graphql` body, `query` search
+  parameter, or a persisted query's operation name) and categorized as
+  `graphql`. The endpoint gains a `graphql` object with the operation names and
+  types observed and an `introspection` flag for `__schema` / `__type` queries;
+  operation names are parsed from the document with a tokenizer that ignores
+  strings, comments, nested selection sets, and fragments. The detection lives
+  in `src/core/graphql.ts`, runs inside the analyzer, and is surfaced by the
+  Markdown/HTML/PDF, dashboard, and OpenAPI reporters.
 
 **Ideas for follow-ups**
 
-- Add GraphQL detection (introspection query + operation names).
 - Add WebSocket capture.
 - Optional telemetry (opt-in) to improve categorization heuristics.
 - Record the engine used in the report, so a scan is reproducible from its own

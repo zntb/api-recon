@@ -157,6 +157,7 @@ async function main(): Promise<void> {
     await recordPage('/products', 1);
     await recordPage('/login', 1);
     await recordPage('/about.html', 1);
+    await recordPage('/graphql', 1);
     await recordPage('/external.html', 1);
 
     // --- login flow: real POST, real Set-Cookie ----------------------------
@@ -190,6 +191,23 @@ async function main(): Promise<void> {
     await recordCall('POST', `${fixture.url}/api/collect`, {
       body: JSON.stringify({ event: 'pageview', path: '/products' }),
       triggeredBy: `${fixture.url}/products`,
+    });
+
+    // --- GraphQL: an introspection query and a named operation ---------------
+    await recordCall('POST', `${fixture.url}/api/graphql`, {
+      body: JSON.stringify({
+        operationName: 'IntrospectionQuery',
+        query: 'query IntrospectionQuery { __schema { queryType { name } } }',
+      }),
+      triggeredBy: `${fixture.url}/graphql`,
+    });
+    await recordCall('POST', `${fixture.url}/api/graphql`, {
+      body: JSON.stringify({
+        operationName: 'GetProducts',
+        query: 'query GetProducts($first: Int) { products { id name price } }',
+        variables: { first: 3 },
+      }),
+      triggeredBy: `${fixture.url}/graphql`,
     });
 
     // --- third-party calls ---------------------------------------------------

@@ -197,6 +197,21 @@ export async function startFixtureServer(options: FixtureServerOptions = {}): Pr
         return json(res, 204, null);
       }
 
+      if (path === '/api/graphql' && req.method === 'POST') {
+        const body = JSON.parse((await readBody(req)) || '{}') as {
+          query?: string;
+          operationName?: string;
+        };
+        const query = body.query ?? '';
+        if (query.includes('__schema')) {
+          return json(res, 200, { data: { __schema: { queryType: { name: 'Query' } } } });
+        }
+        if (query.includes('products')) {
+          return json(res, 200, { data: { products: [{ id: 1, name: 'Widget 1', price: 9.99 }] } });
+        }
+        return json(res, 200, { data: { viewer: { id: 'user-1', name: 'Demo' } } });
+      }
+
       // --- Pages ------------------------------------------------------------
       if (path === '/dashboard') {
         if (!userId) {
@@ -219,6 +234,8 @@ export async function startFixtureServer(options: FixtureServerOptions = {}): Pr
         '/login': 'login.html',
         '/login.html': 'login.html',
         '/about.html': 'about.html',
+        '/graphql': 'graphql.html',
+        '/graphql.html': 'graphql.html',
         '/admin': 'admin.html',
         '/admin.html': 'admin.html',
       };
