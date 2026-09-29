@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import { Command, InvalidArgumentError } from 'commander';
 import { BROWSER_ENGINES, formatDiffSummary, normalizeFormats, scan } from '../index.js';
 import { resolveEngine } from '../core/browser.js';
+import { formatTelemetry, resolveTelemetryPlan } from '../core/telemetry.js';
 import type { BrowserEngine } from '../types.js';
 import { showBannerOnce } from '../utils/banner.js';
 import { Logger } from '../utils/logger.js';
@@ -104,6 +105,12 @@ program
 
     try {
       const formats = normalizeFormats(opts.formats.split(','));
+      // Off unless asked for on the command line or in the environment.
+      const telemetry = opts.telemetry || process.env.API_RECON_TELEMETRY === '1';
+      const telemetryPlan = resolveTelemetryPlan({
+        telemetry,
+        telemetryPreview: opts.telemetryPreview,
+      });
       const started = Date.now();
       logger.info(`Scanning ${chalk.bold(seedUrl)} (depth ${opts.depth}, max ${opts.maxPages} pages)`);
 
@@ -125,8 +132,7 @@ program
         includeThirdParty: opts.includeThirdParty,
         redact: opts.redact,
         allowLocal: opts.allowLocal,
-        // Off unless asked for on the command line or in the environment.
-        telemetry: opts.telemetry || process.env.API_RECON_TELEMETRY === '1',
+        telemetry,
         telemetryPreview: opts.telemetryPreview,
         maxBodyBytes: Math.round(opts.maxBodyMb * 1024 * 1024),
         logger,
@@ -150,10 +156,10 @@ program
         for (const file of files) logger.always(`   ${chalk.cyan('•')} ${file}`);
       }
 
-      if (opts.telemetryPreview && result.telemetry) {
+      if (telemetryPlan.print && result.telemetry) {
         logger.always('');
         logger.always('Telemetry preview (not written to disk):');
-        logger.always(JSON.stringify(result.telemetry, null, 2));
+        logger.always(formatTelemetry(result.telemetry));
       }
 
       if (diff) {

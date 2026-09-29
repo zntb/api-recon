@@ -1,5 +1,13 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildTelemetry } from '../../src/core/telemetry.js';
+import {
+  buildTelemetry,
+  formatTelemetry,
+  resolveTelemetryPlan,
+  writeTelemetryFile,
+} from '../../src/core/telemetry.js';
 import type { CapturedCall, Endpoint, ReconReport } from '../../src/types.js';
 
 const SEED = 'https://example.com';
@@ -146,5 +154,70 @@ describe('buildTelemetry', () => {
       'authentication',
       'uncategorized',
     ]);
+  });
+});
+
+describe('resolveTelemetryPlan', () => {
+  it('does nothing when telemetry is neither enabled nor previewed', () => {
+    expect(resolveTelemetryPlan({})).toEqual({ build: false, write: false, print: false });
+    expect(resolveTelemetryPlan({ telemetry: false, telemetryPreview: false })).toEqual({
+      build: false,
+      write: false,
+      print: false,
+    });
+  });
+
+  it('writes but does not print when telemetry is enabled', () => {
+    expect(resolveTelemetryPlan({ telemetry: true })).toEqual({
+      build: true,
+      write: true,
+      print: false,
+    });
+  });
+
+  it('builds and prints but never writes when only previewing', () => {
+    expect(resolveTelemetryPlan({ telemetryPreview: true })).toEqual({
+      build: true,
+      write: false,
+      print: true,
+    });
+  });
+
+  it('does all three when the file is enabled and previewed together', () => {
+    expect(resolveTelemetryPlan({ telemetry: true, telemetryPreview: true })).toEqual({
+      build: true,
+      write: true,
+      print: true,
+    });
+  });
+});
+
+describe('telemetry output', () => {
+  it('formats the payload as two-space JSON', () => {
+    const payload = buildTelemetry(
+      report([endpoint({ id: 'GET /api/orders' })]),
+      [call({ url: `${SEED}/api/orders` })],
+    );
+
+    const text = formatTelemetry(payload);
+    expect(text).toBe(JSON.stringify(payload, null, 2));
+    expect(text.split('\n')[0]).toBe('{');
+    expect(text).toContain('\n  "version": 1,');
+  });
+
+  it('previews the exact bytes that would be written to disk', async () => {
+    const payload = buildTelemetry(
+      report([endpoint({ id: 'GET /api/orders' })]),
+      [call({ url: `${SEED}/api/orders` })],
+    );
+    const dir = await mkdtemp(join(tmpdir(), 'api-recon-telemetry-'));
+
+    try {
+      const file = await writeTelemetryFile(payload, dir);
+      // A preview prints formatTelemetry(); the file must match it exactly.
+      expect(await readFile(file, 'utf8')).toBe(formatTelemetry(payload));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

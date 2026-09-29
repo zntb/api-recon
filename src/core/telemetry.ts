@@ -73,10 +73,39 @@ export function buildTelemetry(report: ReconReport, calls: CapturedCall[]): Tele
   };
 }
 
+/** The exact text written to `telemetry.json` and shown by a preview. */
+export function formatTelemetry(payload: TelemetryPayload): string {
+  return JSON.stringify(payload, null, 2);
+}
+
 /** Write a telemetry payload to `<outDir>/telemetry.json`. */
 export async function writeTelemetryFile(payload: TelemetryPayload, outDir: string): Promise<string> {
   await mkdir(outDir, { recursive: true });
   const file = join(outDir, TELEMETRY_FILENAME);
-  await writeFile(file, JSON.stringify(payload, null, 2), 'utf8');
+  await writeFile(file, formatTelemetry(payload), 'utf8');
   return file;
+}
+
+/** What a scan should do with telemetry: build it, write it, and/or show it. */
+export interface TelemetryPlan {
+  /** Build the payload at all — true when telemetry is enabled or previewed. */
+  build: boolean;
+  /** Write `telemetry.json` to disk — only on an explicit opt-in. */
+  write: boolean;
+  /** Print the payload to stdout (preview). */
+  print: boolean;
+}
+
+/**
+ * Resolve the telemetry options to the actions a scan takes. A preview builds
+ * the payload so it can be shown, but never writes a file: the disk write is
+ * reserved for an explicit opt-in, which is the whole point of previewing.
+ */
+export function resolveTelemetryPlan(opts: {
+  telemetry?: boolean;
+  telemetryPreview?: boolean;
+}): TelemetryPlan {
+  const write = opts.telemetry ?? false;
+  const print = opts.telemetryPreview ?? false;
+  return { build: write || print, write, print };
 }
