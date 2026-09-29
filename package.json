@@ -1,6 +1,6 @@
 {
   "name": "api-recon",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Discover a website's APIs by driving a headless browser and export categorized reports (JSON, Markdown, HTML, PDF, OpenAPI, interactive dashboard).",
   "type": "module",
   "license": "MIT",
