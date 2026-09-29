@@ -262,12 +262,9 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   method, and whether the response was JSON, with no host, path, query, header,
   or body. It is inert by default and never touches the network. Categorization
   yields the matched heuristic alongside the category, which is what lets a
-  signal explain *why* an endpoint landed in its bucket.
-
-**Ideas for follow-ups**
-
-- Add a `--telemetry-preview` mode that prints the anonymized payload to stdout
-  without writing a file.
+  signal explain *why* an endpoint landed in its bucket. A `--telemetry-preview`
+  mode prints that payload to stdout without writing a file, so the boundary can
+  be checked before opting in.
 
 ---
 

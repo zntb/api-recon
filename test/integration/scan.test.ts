@@ -282,7 +282,24 @@ describe('opt-in telemetry', () => {
 
     const parsed = JSON.parse(raw) as { endpointCount: number; signals: unknown[] };
     expect(parsed.signals).toHaveLength(parsed.endpointCount);
-  }, 120_000);
+
+    // A preview exposes the payload on the result but writes no file, so it can
+    // be inspected before opting in.
+    const previewDir = join(outDir, 'telemetry-preview');
+    const preview = await scan({
+      url: fixture.url,
+      depth: 1,
+      allowLocal: true,
+      rate: 0,
+      formats: ['json'],
+      out: previewDir,
+      telemetryPreview: true,
+      logger: silent(),
+    });
+    expect(preview.telemetry?.endpointCount).toBeGreaterThan(0);
+    expect(preview.files.some((f) => f.endsWith('telemetry.json'))).toBe(false);
+    await expect(readFile(join(previewDir, 'telemetry.json'), 'utf8')).rejects.toThrow();
+  }, 180_000);
 });
 
 describe('report formats', () => {

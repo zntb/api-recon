@@ -77,6 +77,7 @@ describe('api-recon CLI', () => {
       '--force',
       '--allow-local',
       '--telemetry',
+      '--telemetry-preview',
       '--quiet',
       '--verbose',
     ]) {
@@ -155,7 +156,17 @@ describe('api-recon CLI', () => {
     const viaEnv = await runCli([...base, '--out', envDir], { API_RECON_TELEMETRY: '1' });
     expect(viaEnv.code).toBe(0);
     await expect(readFile(join(envDir, 'telemetry.json'), 'utf8')).resolves.toContain('"version": 1');
-  }, 240_000);
+
+    // --telemetry-preview prints the payload to stdout and writes no file.
+    const previewDir = join(outDir, 'cli-telemetry-preview');
+    const preview = await runCli([...base, '--telemetry-preview', '--out', previewDir]);
+    expect(preview.code).toBe(0);
+    expect(preview.stdout).toContain('Telemetry preview (not written to disk):');
+    expect(preview.stdout).toContain('"signals"');
+    expect(preview.stdout).toContain('No host, path, query values, headers, or bodies');
+    expect(preview.stdout).not.toContain(host);
+    await expect(readFile(join(previewDir, 'telemetry.json'), 'utf8')).rejects.toThrow();
+  }, 300_000);
 
   it('diffs a scan against a baseline and exits 3 on changes with --fail-on-diff', async () => {
     const dir = join(outDir, 'cli-diff');

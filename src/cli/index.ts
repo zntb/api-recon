@@ -76,6 +76,11 @@ program
     'write anonymized categorization signals to telemetry.json (off by default; no host, path, or body data)',
     false,
   )
+  .option(
+    '--telemetry-preview',
+    'print the anonymized telemetry payload to stdout instead of writing telemetry.json',
+    false,
+  )
   .option('--max-body-mb <n>', 'maximum response body / WebSocket frame size to keep, in MB', numberArg, 1)
   .option('-q, --quiet', 'suppress progress output (errors only)', false)
   .option('-v, --verbose', 'verbose progress output', false)
@@ -122,6 +127,7 @@ program
         allowLocal: opts.allowLocal,
         // Off unless asked for on the command line or in the environment.
         telemetry: opts.telemetry || process.env.API_RECON_TELEMETRY === '1',
+        telemetryPreview: opts.telemetryPreview,
         maxBodyBytes: Math.round(opts.maxBodyMb * 1024 * 1024),
         logger,
       });
@@ -142,6 +148,12 @@ program
       if (files.length > 0) {
         logger.always('  Reports written:');
         for (const file of files) logger.always(`   ${chalk.cyan('•')} ${file}`);
+      }
+
+      if (opts.telemetryPreview && result.telemetry) {
+        logger.always('');
+        logger.always('Telemetry preview (not written to disk):');
+        logger.always(JSON.stringify(result.telemetry, null, 2));
       }
 
       if (diff) {
@@ -186,6 +198,7 @@ interface CliOptions {
   force: boolean;
   allowLocal: boolean;
   telemetry: boolean;
+  telemetryPreview: boolean;
   maxBodyMb: number;
   quiet: boolean;
   verbose: boolean;

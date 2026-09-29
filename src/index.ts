@@ -39,6 +39,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const includeThirdParty = options.includeThirdParty ?? false;
   const redact = options.redact ?? true;
   const telemetryEnabled = options.telemetry ?? false;
+  const telemetryPreview = options.telemetryPreview ?? false;
   const maxBodyBytes = options.maxBodyBytes ?? 1024 * 1024;
   const formats = normalizeFormats(options.formats);
   // Validated up front so a typo fails before any network or browser work.
@@ -168,17 +169,22 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
 
   if (baseline) report.diff = diffReports(baseline, report);
 
-  const telemetry = telemetryEnabled ? buildTelemetry(report, captures) : undefined;
+  // A preview builds the payload so the caller can inspect it, but only an
+  // explicit opt-in writes it to disk.
+  const telemetry =
+    telemetryEnabled || telemetryPreview ? buildTelemetry(report, captures) : undefined;
   if (telemetry) {
     logger.info(
-      'Telemetry enabled: writing anonymized categorization signals only — ' +
+      (telemetryEnabled
+        ? 'Telemetry enabled: writing anonymized categorization signals only — '
+        : 'Telemetry preview: building anonymized categorization signals only — ') +
         'no host, path, query, header, or body data.',
     );
   }
 
   const writeReportsTo = async (outDir: string): Promise<string[]> => {
     const written = await writeReports(report, formats, outDir, logger);
-    if (telemetry) written.push(await writeTelemetryFile(telemetry, outDir));
+    if (telemetry && telemetryEnabled) written.push(await writeTelemetryFile(telemetry, outDir));
     return written;
   };
 

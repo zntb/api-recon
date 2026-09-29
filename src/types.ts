@@ -324,6 +324,13 @@ export interface ScanOptions {
    * network.
    */
   telemetry?: boolean;
+  /**
+   * Build the anonymized payload and expose it as `ScanResult.telemetry`, but
+   * never write `telemetry.json`. Off by default; use it to inspect exactly
+   * what telemetry would contain before opting in. Combine with `telemetry` to
+   * also write the file.
+   */
+  telemetryPreview?: boolean;
   /** Injectable logger (used by the CLI for progress output and tests). */
   logger?: Logger;
 }
@@ -337,6 +344,6 @@ export interface ScanResult {
   files: string[];
   /** Convenience alias for `report.diff`, when a baseline was supplied. */
   diff?: ReportDiff;
-  /** The anonymized payload, present only when telemetry was enabled. */
+  /** The anonymized payload, present when telemetry was enabled or previewed. */
   telemetry?: TelemetryPayload;
 }

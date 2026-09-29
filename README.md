@@ -93,6 +93,7 @@ api-recon https://example.com --browser firefox
 | `--allow-local` | off | Allow scanning localhost/private network ranges |
 | `--max-body-mb <n>` | `1` | Maximum response body / WebSocket frame size kept, in MB |
 | `--telemetry` | off | Write anonymized categorization signals to `telemetry.json` (no host, path, or body data) |
+| `--telemetry-preview` | off | Print that payload to stdout without writing `telemetry.json` |
 | `-q, --quiet` / `-v, --verbose` | — | Reduce / increase progress output |
 
 Exit codes: `0` success, `1` runtime failure, `2` refused by a safety guard (`--force`,
@@ -462,8 +463,10 @@ import type { ReconReport, Endpoint, ScanOptions, ScanResult } from 'api-recon';
 - **Size caps**: 1 MB per response body (`--max-body-mb`) and a global capture
   budget, plus `--max-pages` and `--depth` bounds.
 - **Telemetry is opt-in and local**: `--telemetry` (or `API_RECON_TELEMETRY=1`)
-  writes an anonymized `telemetry.json` beside the reports. It contains no host,
-  path, query value, header, or body, and nothing is ever sent over the network.
+  writes an anonymized `telemetry.json` beside the reports, and
+  `--telemetry-preview` prints the same payload to stdout without writing it. It
+  contains no host, path, query value, header, or body, and nothing is ever sent
+  over the network.
 - The tool **never** bypasses authentication, CAPTCHAs, or bot protections, and
   never fuzzes or brute-forces endpoints.
 
@@ -474,6 +477,11 @@ to a **local** `telemetry.json` in the output directory, and only when you ask
 for them — `--telemetry`, `API_RECON_TELEMETRY=1`, or `telemetry: true` from the
 library. Nothing is ever sent over the network.
 
+To read the payload before you commit to it, `--telemetry-preview` (or
+`telemetryPreview: true` for the library) builds the same data but prints it to
+stdout instead, and never creates `telemetry.json`. That makes it easy to
+confirm for yourself that the payload describes nothing about your target.
+
 A scan usually targets a private system, so the payload deliberately holds only
 the *categorization decisions*: for each endpoint, the category, the heuristic
 that produced it, the HTTP method, and whether the response was JSON. No host,
@@ -483,7 +491,7 @@ precisely because it cannot describe the target:
 ```jsonc
 {
   "version": 1,
-  "apiReconVersion": "0.2.5",
+  "apiReconVersion": "0.2.6",
   "generatedAt": "2026-09-29T…",
   "endpointCount": 2,
   "contains": "categorization decisions only: category, heuristic, HTTP method, and whether the response was JSON. No host, path, query values, headers, or bodies.",
