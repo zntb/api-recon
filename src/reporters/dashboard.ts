@@ -448,6 +448,12 @@ const SCRIPT = `
     if (e.requestBodySchema) blocks.appendChild(codeBlock('Request schema', JSON.stringify(e.requestBodySchema, null, 2), true));
     if (e.responseBodySample) blocks.appendChild(codeBlock('Response body', pretty(e.responseBodySample), true));
     if (e.responseSchema) blocks.appendChild(codeBlock('Response schema', JSON.stringify(e.responseSchema, null, 2), true));
+    (e.errorResponses || []).forEach(function (error) {
+      var label = 'Error ' + error.status;
+      blocks.appendChild(kv(label, [error.count + ' occurrence(s)'].concat(error.mimeTypes || [])));
+      if (error.bodySample) blocks.appendChild(codeBlock(label + ' body', pretty(error.bodySample), true));
+      if (error.schema) blocks.appendChild(codeBlock(label + ' schema', JSON.stringify(error.schema, null, 2), true));
+    });
 
     cell.appendChild(blocks);
     row.appendChild(cell);

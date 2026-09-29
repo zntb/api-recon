@@ -240,6 +240,7 @@ export async function startFixtureServer(options: FixtureServerOptions = {}): Pr
         '/graphql': 'graphql.html',
         '/graphql.html': 'graphql.html',
         '/websocket.html': 'websocket.html',
+        '/errors.html': 'errors.html',
         '/admin': 'admin.html',
         '/admin.html': 'admin.html',
       };

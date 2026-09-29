@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderMarkdown } from '../../src/reporters/markdown.js';
 import { diffReports } from '../../src/core/diff.js';
-import type { ReconReport } from '../../src/types.js';
+import type { Endpoint, ReconReport } from '../../src/types.js';
 
 function report(overrides: Partial<ReconReport> = {}): ReconReport {
   return {
@@ -41,6 +41,46 @@ describe('renderMarkdown', () => {
   it('does not warn when both scans used the same engine', () => {
     const md = renderMarkdown(report({ diff: diffReports(report(), report()) }));
     expect(md).not.toContain('engine-specific');
+  });
+
+  it('lists each error status with its own body and schema', () => {
+    const endpoint: Endpoint = {
+      id: 'POST /api/login',
+      method: 'POST',
+      urlPattern: '/api/login',
+      origins: ['https://example.com'],
+      category: 'authentication',
+      count: 2,
+      statusCodes: [200, 401],
+      requestHeaders: {},
+      responseHeaders: {},
+      requestBodySample: null,
+      responseBodySample: '{"ok":true}',
+      pathParams: [],
+      queryParams: [],
+      requestBodySchema: null,
+      responseSchema: { type: 'object', properties: { ok: { type: 'boolean' } } },
+      errorResponses: [
+        {
+          status: 401,
+          count: 1,
+          bodySample: '{"error":"invalid_credentials"}',
+          schema: { type: 'object', properties: { error: { type: 'string' } } },
+          mimeTypes: ['application/json'],
+        },
+      ],
+      mimeTypes: ['application/json'],
+      triggeredBy: ['https://example.com/login'],
+    };
+
+    const md = renderMarkdown(report({ endpoints: [endpoint] }));
+
+    expect(md).toContain('**Error responses**');
+    expect(md).toContain('**`401`** — 1 occurrence(s), application/json');
+    expect(md).toContain('invalid_credentials');
+    expect(md).toContain('"error"');
+    // The success shape stays separate from the failure shape.
+    expect(md).toContain('**Inferred response schema**');
   });
 
   it('renders captured WebSocket frames as their own section', () => {

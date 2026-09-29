@@ -12,6 +12,7 @@ import type {
   CategorizationHeuristic,
   Category,
   Endpoint,
+  ErrorResponse,
   QueryParam,
 } from '../types.js';
 import { analyzeGraphQL, mergeGraphQL } from './graphql.js';
@@ -82,6 +83,7 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
   const representative = samples[samples.length - 1]!;
   const pattern = id.slice(id.indexOf(' ') + 1);
   const graphql = mergeGraphQL(samples.map((s) => analyzeGraphQL(s)));
+  const errors = collectErrorResponses(samples);
 
   return {
     id,
@@ -99,6 +101,7 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
     queryParams: collectQueryParams(samples),
     requestBodySchema: inferSchemaFromBodies(samples.map((s) => s.requestBodySample)),
     responseSchema: inferSchemaFromBodies(responseBodies(samples)),
+    ...(errors.length ? { errorResponses: errors } : {}),
     mimeTypes: unique(samples.map((s) => s.mimeType).filter(Boolean)),
     triggeredBy: unique(samples.map((s) => s.triggeredBy)),
     ...(graphql ? { graphql } : {}),
@@ -189,6 +192,30 @@ function responseBodies(samples: CapturedCall[]): (string | null)[] {
     .filter((s) => s.status >= 200 && s.status < 300)
     .map((s) => s.responseBodySample);
   return ok.some((body) => body !== null) ? ok : samples.map((s) => s.responseBodySample);
+}
+
+/**
+ * Group the failed samples by status so each error the endpoint can return is
+ * described by its own body and shape, rather than borrowing the success schema.
+ */
+function collectErrorResponses(samples: CapturedCall[]): ErrorResponse[] {
+  const byStatus = new Map<number, CapturedCall[]>();
+  for (const sample of samples) {
+    if (sample.status < 400) continue;
+    const bucket = byStatus.get(sample.status);
+    if (bucket) bucket.push(sample);
+    else byStatus.set(sample.status, [sample]);
+  }
+
+  return [...byStatus.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([status, group]) => ({
+      status,
+      count: group.length,
+      bodySample: firstNonNull(group.map((s) => s.responseBodySample)),
+      schema: inferSchemaFromBodies(group.map((s) => s.responseBodySample)),
+      mimeTypes: unique(group.map((s) => s.mimeType).filter(Boolean)),
+    }));
 }
 
 function firstNonNull(values: (string | null)[]): string | null {

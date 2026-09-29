@@ -245,6 +245,37 @@ describe('scripted actions', () => {
   }, 120_000);
 });
 
+describe('error contracts', () => {
+  it('captures 4xx bodies and schemas instead of folding them into the success shape', async () => {
+    const result = await scan({
+      url: `${fixture.url}/errors.html`,
+      depth: 0,
+      allowLocal: true,
+      rate: 0,
+      formats: ['json'],
+      logger: silent(),
+    });
+
+    const report = result.report;
+
+    const login = findEndpoint(report, 'POST /api/login');
+    expect(login, 'the failed login should be captured').toBeDefined();
+    expect(login!.statusCodes).toEqual([401]);
+    const unauthorized = login!.errorResponses?.find((error) => error.status === 401);
+    expect(unauthorized, 'the 401 should be recorded as an error contract').toBeDefined();
+    expect(unauthorized!.count).toBe(1);
+    expect(unauthorized!.mimeTypes).toContain('application/json');
+    expect(unauthorized!.schema?.properties).toHaveProperty('error');
+    expect(unauthorized!.bodySample).toContain('invalid_credentials');
+
+    const missing = findEndpoint(report, 'GET /api/does-not-exist');
+    expect(missing, 'the unknown path should be captured').toBeDefined();
+    const notFound = missing!.errorResponses?.find((error) => error.status === 404);
+    expect(notFound, 'the 404 should be recorded as an error contract').toBeDefined();
+    expect(notFound!.schema?.properties).toHaveProperty('path');
+  }, 120_000);
+});
+
 describe('opt-in telemetry', () => {
   it('is off by default and, when enabled, writes anonymized signals only', async () => {
     const off = await scan({

@@ -313,6 +313,23 @@ function detailedEndpoint(endpoint: Endpoint): string[] {
     lines.push(code(JSON.stringify(endpoint.responseSchema, null, 2)));
     lines.push('');
   }
+  if (endpoint.errorResponses?.length) {
+    lines.push('**Error responses**');
+    lines.push('');
+    for (const error of endpoint.errorResponses) {
+      const mime = error.mimeTypes.length ? `, ${cell(error.mimeTypes.join(', '))}` : '';
+      lines.push(`**\`${error.status}\`** — ${error.count} occurrence(s)${mime}`);
+      lines.push('');
+      if (error.bodySample) {
+        lines.push(code(truncate(error.bodySample, MAX_SAMPLE_CHARS)));
+        lines.push('');
+      }
+      if (error.schema) {
+        lines.push(code(JSON.stringify(error.schema, null, 2)));
+        lines.push('');
+      }
+    }
+  }
   return lines;
 }
 

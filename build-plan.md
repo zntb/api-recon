@@ -282,6 +282,14 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   and buried any real change in the noise. It now binds fixed ports (4610/4611)
   and reads a fixed clock, so regeneration is byte-reproducible: the committed
   samples change only when the report does.
+- **Error contracts captured** — a 4xx/5xx response was only a number in
+  `statusCodes`; its body and shape were dropped, so a report documented the
+  happy path and nothing about failure. Each failed status is now kept on the
+  endpoint as an `errorResponses` entry (`status`, `count`, `bodySample`,
+  `schema`, `mimeTypes`), merged across samples like any other body. The
+  Markdown sections and the dashboard show a block per status, `openapi.yaml`
+  gives each error status its own schema instead of repeating the success one,
+  and `--diff` compares error bodies so a removed field in a `422` is breaking.
 
 **Proposed updates & features**
 
@@ -297,10 +305,6 @@ so it can be scoped without re-reading the source.
   (`no-body`, `not-json`, `truncated`, `binary`) so a reader can tell a contract
   from a gap — and so `--diff` stops reporting a removed field when the sample
   was merely truncated.
-- **Capture error contracts.** Non-2xx responses land in `statusCodes` but their
-  bodies and schemas are dropped, so a report documents only the happy path.
-  Keep 4xx/5xx bodies (same redaction and caps) and emit them as OpenAPI
-  `responses` entries, which is where a client author actually needs them.
 - **Richer value hints.** `stringFormatHint` already tags `uuid`, `email`, and
   `uri`; extend it to ISO-8601 timestamps, durations, currencies, small closed
   sets (enums), and numeric bounds from the observed range, then carry them into
@@ -450,8 +454,8 @@ so it can be scoped without re-reading the source.
   one-page summary suitable for pasting into a ticket.
 
 If a few are picked first, the highest-leverage trio is proving redaction before
-writing (security), capturing error contracts (report accuracy), and versioning
-the report schema with a published JSON Schema (stability).
+writing (security), versioning the report schema with a published JSON Schema
+(stability), and distinguishing "not observed" from "absent" (report accuracy).
 
 ---
 

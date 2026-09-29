@@ -91,6 +91,12 @@ export interface Endpoint {
   queryParams: QueryParam[];
   requestBodySchema: JsonSchemaLike | null;
   responseSchema: JsonSchemaLike | null;
+  /**
+   * One entry per error status (4xx/5xx) observed, so the failure contract is
+   * documented rather than folded into the success shape. Omitted entirely when
+   * every sample succeeded.
+   */
+  errorResponses?: ErrorResponse[];
   /** MIME types observed across samples. */
   mimeTypes: string[];
   triggeredBy: string[];
@@ -101,6 +107,20 @@ export interface Endpoint {
 export interface QueryParam {
   name: string;
   sampleValues: string[];
+}
+
+/** The response contract observed for one error status (4xx or 5xx). */
+export interface ErrorResponse {
+  /** The HTTP status this contract belongs to. */
+  status: number;
+  /** How many samples returned this status. */
+  count: number;
+  /** A redacted, size-capped body sample; `null` when the response had no body. */
+  bodySample: string | null;
+  /** Inferred shape of the bodies seen with this status, merged across them. */
+  schema: JsonSchemaLike | null;
+  /** MIME types observed with this status. */
+  mimeTypes: string[];
 }
 
 /** The kind of a GraphQL operation definition. */

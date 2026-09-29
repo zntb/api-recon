@@ -274,6 +274,12 @@ async function main(): Promise<void> {
       body: JSON.stringify({ username: 'demo@example.com', password: 'hunter2' }),
       triggeredBy: `${fixture.url}/login`,
     });
+    // A failed login, so the committed report shows an error contract beside the
+    // success shape it belongs to.
+    await recordCall('POST', `${fixture.url}/api/login`, {
+      body: JSON.stringify({ username: 'demo@example.com', password: 'wrong' }),
+      triggeredBy: `${fixture.url}/login`,
+    });
     const setCookies = loginRes.headers.getSetCookie?.() ?? [loginRes.headers.get('set-cookie') ?? ''];
     // Used only for the follow-up authenticated requests; the report stores
     // the redacted header, never these values.

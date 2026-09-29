@@ -63,7 +63,10 @@ function buildOperation(endpoint: Endpoint): Json {
   for (const status of endpoint.statusCodes.length ? endpoint.statusCodes : [0]) {
     const key = status === 0 ? 'default' : String(status);
     const description = status === 0 ? 'Request failed (no response)' : `${status} response`;
-    const schema = toOpenApiSchema(endpoint.responseSchema);
+    // Each error status carries its own contract when one was observed; the
+    // success schema is only a fallback for a status with no captured body.
+    const contract = endpoint.errorResponses?.find((error) => error.status === status);
+    const schema = toOpenApiSchema(contract ? contract.schema : endpoint.responseSchema);
     responses[key] = {
       description,
       ...(Object.keys(schema).length ? { content: { 'application/json': { schema } } } : {}),

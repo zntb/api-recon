@@ -264,6 +264,10 @@ sample carried it, `integer` and `number` widen to `number`, and a field whose
 samples genuinely disagree on the type becomes a `oneOf` union. A format hint
 such as `description: "uuid"` is kept only when every sample agreed on it.
 
+An endpoint that was seen failing also carries `errorResponses`, one entry per
+4xx/5xx status with that status's own `bodySample` and `schema`, so the failure
+contract is documented rather than repeated from the success shape.
+
 Look at [`examples/output/`](examples/output) for a real report generated from
 the bundled fixture site.
 
@@ -330,6 +334,11 @@ GraphQL endpoints are compared by operation too: a new operation or a change in
 whether the schema is introspectable is additive, while an operation that is no
 longer observed is flagged breaking — `GraphQL operations not observed this
 time: DeleteProduct (mutation)`.
+
+Error bodies are compared per status too: a field removed from a `422` body is
+breaking, the same as any other removed field, while an endpoint that simply
+started (or stopped) returning an error status is left to the status-code
+comparison.
 
 WebSocket connections are matched by URL and reported the same way, under a
 `WS `-prefixed id. They also carry a message-shape comparison: the top-level
@@ -498,7 +507,7 @@ precisely because it cannot describe the target:
 ```jsonc
 {
   "version": 1,
-  "apiReconVersion": "0.2.8",
+  "apiReconVersion": "0.2.9",
   "generatedAt": "2026-09-29T…",
   "endpointCount": 2,
   "contains": "categorization decisions only: category, heuristic, HTTP method, and whether the response was JSON. No host, path, query values, headers, or bodies.",

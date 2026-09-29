@@ -2,9 +2,9 @@
   "meta": {
     "seedUrl": "http://127.0.0.1:4610",
     "startedAt": "2026-01-01T00:00:00.000Z",
-    "durationMs": 266,
+    "durationMs": 280,
     "pagesVisited": 8,
-    "apiReconVersion": "0.2.7",
+    "apiReconVersion": "0.2.8",
     "engine": "chromium"
   },
   "technologies": [
@@ -130,9 +130,10 @@
         "http://127.0.0.1:4610"
       ],
       "category": "authentication",
-      "count": 1,
+      "count": 2,
       "statusCodes": [
-        200
+        200,
+        401
       ],
       "requestHeaders": {
         "accept": "application/json",
@@ -144,7 +145,6 @@
         "content-type": "application/json; charset=utf-8",
         "date": "Thu, 01 Jan 2026 00:00:00 GMT",
         "keep-alive": "timeout=5",
-        "set-cookie": "[REDACTED]",
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
       },
@@ -196,6 +196,27 @@
           "user"
         ]
       },
+      "errorResponses": [
+        {
+          "status": 401,
+          "count": 1,
+          "bodySample": "{\"error\":\"invalid_credentials\"}",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "error"
+            ]
+          },
+          "mimeTypes": [
+            "application/json"
+          ]
+        }
+      ],
       "mimeTypes": [
         "application/json"
       ],
@@ -856,7 +877,7 @@
       "normalizedUrl": "http://127.0.0.1:4610/dashboard",
       "depth": 1,
       "title": "Fixture Shop — Dashboard",
-      "visitedAt": 1767225600070
+      "visitedAt": 1767225600084
     }
   ],
   "webSockets": [
@@ -866,8 +887,8 @@
         "ws://127.0.0.1:4610"
       ],
       "triggeredBy": "http://127.0.0.1:4610/websocket",
-      "openedAt": 1767225600231,
-      "closedAt": 1767225600259,
+      "openedAt": 1767225600245,
+      "closedAt": 1767225600273,
       "frameCount": 3,
       "sentCount": 1,
       "receivedCount": 2,
@@ -879,7 +900,7 @@
           "payloadSample": "{\"type\":\"subscribe\",\"channel\":\"prices\",\"token\":\"[REDACTED]\"}",
           "size": 65,
           "truncated": false,
-          "at": 1767225600238
+          "at": 1767225600252
         },
         {
           "direction": "received",
@@ -887,7 +908,7 @@
           "payloadSample": "{\"type\":\"welcome\",\"channel\":\"prices\"}",
           "size": 37,
           "truncated": false,
-          "at": 1767225600245
+          "at": 1767225600259
         },
         {
           "direction": "received",
@@ -895,7 +916,7 @@
           "payloadSample": "{\"type\":\"ack\",\"channel\":\"prices\",\"token\":\"[REDACTED]\"}",
           "size": 59,
           "truncated": false,
-          "at": 1767225600252
+          "at": 1767225600266
         }
       ],
       "sentSchema": {

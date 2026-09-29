@@ -5,6 +5,30 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.9] - 2026-09-29
+
+Captures the response contract of each failed status, so a report documents what
+an API returns on failure and not only on success. Existing flags and options
+are unchanged; an endpoint gains an `errorResponses` field when it was observed
+failing.
+
+### Added
+
+- **Error contracts** — a 4xx or 5xx response is no longer just a number in
+  `statusCodes`. Its body and inferred schema are kept per status in a new
+  `errorResponses` array on the endpoint (`status`, `count`, `bodySample`,
+  `schema`, `mimeTypes`), so the failure shape is documented beside the success
+  one instead of being dropped. Bodies get the same capture-time redaction and
+  size caps as any other response, and several samples of one status are merged
+  the same way. The Markdown/HTML/PDF detailed endpoint sections gain an
+  **Error responses** block, the dashboard's expanded row gains a block per
+  status, and `openapi.yaml` now gives each error status its own schema rather
+  than repeating the success schema for every status.
+- **Error-body diffing** — `--diff` compares the error bodies of statuses seen on
+  both scans, so a field removed from a `422` body is flagged breaking like any
+  other removed field. A status that merely appeared or disappeared stays with
+  the existing status-code comparison and is not treated as breaking.
+
 ## [0.2.8] - 2026-09-29
 
 Makes the committed sample reports reproducible. No user-facing behavior
@@ -305,6 +329,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[0.2.9]: https://github.com/zntb/api-recon/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/zntb/api-recon/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/zntb/api-recon/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/zntb/api-recon/compare/v0.2.5...v0.2.6

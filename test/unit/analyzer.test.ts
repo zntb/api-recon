@@ -91,3 +91,70 @@ describe('analyzeCalls schema merging', () => {
     });
   });
 });
+
+describe('analyzeCalls error contracts', () => {
+  it('records one contract per error status, with its own body and schema', () => {
+    const endpoint = endpointOf([
+      call({ url: `${SEED}/api/orders`, responseBodySample: '{"orders":[]}' }),
+      call({
+        url: `${SEED}/api/orders`,
+        status: 401,
+        responseBodySample: '{"error":"unauthorized"}',
+      }),
+      call({
+        url: `${SEED}/api/orders`,
+        status: 404,
+        responseBodySample: '{"error":"not_found","path":"/api/orders"}',
+      }),
+      call({
+        url: `${SEED}/api/orders`,
+        status: 401,
+        responseBodySample: '{"error":"unauthorized","realm":"api"}',
+      }),
+    ]);
+
+    const errors = endpoint.errorResponses ?? [];
+    expect(errors.map((e) => e.status)).toEqual([401, 404]);
+
+    const unauthorized = errors.find((e) => e.status === 401)!;
+    expect(unauthorized.count).toBe(2);
+    expect(unauthorized.mimeTypes).toEqual(['application/json']);
+    // Bodies of one status are merged like any other sample set.
+    expect(Object.keys(unauthorized.schema?.properties ?? {}).sort()).toEqual(['error', 'realm']);
+    expect(unauthorized.bodySample).toContain('unauthorized');
+
+    expect(errors.find((e) => e.status === 404)?.schema?.properties).toHaveProperty('path');
+  });
+
+  it('keeps error bodies out of the success response schema', () => {
+    const endpoint = endpointOf([
+      call({ url: `${SEED}/api/orders`, responseBodySample: '{"orders":[]}' }),
+      call({ url: `${SEED}/api/orders`, status: 500, responseBodySample: '{"error":"boom"}' }),
+    ]);
+
+    expect(Object.keys(endpoint.responseSchema?.properties ?? {})).toEqual(['orders']);
+    expect(endpoint.statusCodes).toEqual([200, 500]);
+  });
+
+  it('omits errorResponses entirely when every sample succeeded', () => {
+    const endpoint = endpointOf([
+      call({ url: `${SEED}/api/orders`, responseBodySample: '{"ok":true}' }),
+    ]);
+
+    expect(endpoint.errorResponses).toBeUndefined();
+  });
+
+  it('records a contract for an endpoint that only ever failed', () => {
+    const endpoint = endpointOf([
+      call({
+        url: `${SEED}/api/orders`,
+        status: 503,
+        responseBodySample: '{"error":"unavailable"}',
+      }),
+    ]);
+
+    expect(endpoint.errorResponses?.map((e) => e.status)).toEqual([503]);
+    // With no successful sample, the error body stays the only shape available.
+    expect(Object.keys(endpoint.responseSchema?.properties ?? {})).toEqual(['error']);
+  });
+});

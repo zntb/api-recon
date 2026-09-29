@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture Shop — Error paths</title>
+    <meta name="generator" content="FixtureKit 1.0" />
+  </head>
+  <body>
+    <h1>Error paths</h1>
+    <pre id="login"></pre>
+    <pre id="missing"></pre>
+    <script>
+      // A failed login: the API answers 401 with a JSON error body, so a scan
+      // can be checked for capturing the failure contract, not just the happy path.
+      fetch('/api/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'demo@example.com', password: 'wrong' }),
+      })
+        .then((r) => r.json())
+        .then((data) => (document.querySelector('#login').textContent = JSON.stringify(data)));
+
+      // An unknown API path: the server answers 404 with a JSON error body.
+      fetch('/api/does-not-exist')
+        .then((r) => r.json())
+        .then((data) => (document.querySelector('#missing').textContent = JSON.stringify(data)));
+    </script>
+  </body>
+</html>

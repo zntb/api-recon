@@ -7,10 +7,22 @@ import { SafetyError } from '../../src/utils/safety.js';
 import type {
   CapturedWebSocket,
   Endpoint,
+  ErrorResponse,
   JsonSchemaLike,
   ReconReport,
   WebSocketFrame,
 } from '../../src/types.js';
+
+/** An error contract with sensible defaults, for the error-diff tests. */
+function errorContract(overrides: Partial<ErrorResponse> & { status: number }): ErrorResponse {
+  return {
+    count: 1,
+    bodySample: null,
+    schema: null,
+    mimeTypes: ['application/json'],
+    ...overrides,
+  };
+}
 
 function endpoint(overrides: Partial<Endpoint> & { id: string }): Endpoint {
   const [method, ...rest] = overrides.id.split(' ');
@@ -215,6 +227,60 @@ describe('diffReports', () => {
     const change = changeFor(diffReports(baseline, current), 'GET /api/x');
     expect(change.breaking).toBe(true);
     expect(change.details.join(' ')).toContain('type string → integer');
+  });
+
+  it('flags a field removed from an error body as breaking', () => {
+    const baseline = report([
+      endpoint({
+        id: 'POST /api/orders',
+        errorResponses: [
+          errorContract({
+            status: 422,
+            schema: {
+              type: 'object',
+              properties: { error: { type: 'string' }, detail: { type: 'string' } },
+            },
+          }),
+        ],
+      }),
+    ]);
+    const current = report([
+      endpoint({
+        id: 'POST /api/orders',
+        errorResponses: [
+          errorContract({
+            status: 422,
+            schema: { type: 'object', properties: { error: { type: 'string' } } },
+          }),
+        ],
+      }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'POST /api/orders');
+    expect(change.breaking).toBe(true);
+    expect(change.details).toContain('error response 422 field removed: detail');
+  });
+
+  it('does not flag an endpoint that merely gained an error status', () => {
+    const baseline = report([endpoint({ id: 'GET /api/x' })]);
+    const current = report([
+      endpoint({
+        id: 'GET /api/x',
+        statusCodes: [200, 404],
+        errorResponses: [
+          errorContract({
+            status: 404,
+            schema: { type: 'object', properties: { error: { type: 'string' } } },
+          }),
+        ],
+      }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/x');
+    // The status-code comparison already reports the new status, and a new
+    // failure mode breaks no existing client.
+    expect(change.breaking).toBe(false);
+    expect(change.details.join(' ')).toContain('status codes 200 → 200, 404');
   });
 
   it('reports query parameter drift without calling it breaking', () => {

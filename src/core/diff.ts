@@ -18,6 +18,7 @@ import type {
   CapturedWebSocket,
   Endpoint,
   EndpointChange,
+  ErrorResponse,
   GraphQLInfo,
   GraphQLOperation,
   JsonSchemaLike,
@@ -163,6 +164,28 @@ function describeFrameCount(count: number): string {
   return `${count} frame(s)`;
 }
 
+/**
+ * Compare the error body shapes by status. A status appearing or disappearing is
+ * already covered by the status-code comparison, so this only looks at statuses
+ * seen on both sides — where a changed error body is otherwise invisible.
+ */
+function diffErrorResponses(
+  before: ErrorResponse[] | undefined,
+  after: ErrorResponse[] | undefined,
+): Detail[] {
+  if (!before?.length || !after?.length) return [];
+  const beforeBy = new Map(before.map((error) => [error.status, error]));
+  const details: Detail[] = [];
+
+  for (const error of after) {
+    const previous = beforeBy.get(error.status);
+    if (previous) {
+      details.push(...diffSchema(previous.schema, error.schema, `error response ${error.status}`));
+    }
+  }
+  return details;
+}
+
 function compareEndpoints(before: Endpoint, after: Endpoint): Detail[] {
   const details: Detail[] = [];
 
@@ -186,6 +209,7 @@ function compareEndpoints(before: Endpoint, after: Endpoint): Detail[] {
 
   details.push(...diffSchema(before.responseSchema, after.responseSchema, 'response'));
   details.push(...diffSchema(before.requestBodySchema, after.requestBodySchema, 'request body'));
+  details.push(...diffErrorResponses(before.errorResponses, after.errorResponses));
 
   const beforeParams = new Set(before.queryParams.map((q) => q.name));
   const afterParams = new Set(after.queryParams.map((q) => q.name));
