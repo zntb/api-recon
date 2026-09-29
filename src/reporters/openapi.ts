@@ -114,6 +114,7 @@ export function toOpenApiSchema(schema: JsonSchemaLike | null): Json {
   } else if (schema.type && schema.type !== 'any') {
     out.type = schema.type;
   }
+  if (schema.oneOf?.length) out.oneOf = schema.oneOf.map(toOpenApiSchema);
   if (schema.properties) {
     out.properties = Object.fromEntries(
       Object.entries(schema.properties).map(([k, v]) => [k, toOpenApiSchema(v)]),

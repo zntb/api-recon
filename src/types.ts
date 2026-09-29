@@ -131,6 +131,11 @@ export interface JsonSchemaLike {
   properties?: Record<string, JsonSchemaLike>;
   items?: JsonSchemaLike;
   required?: string[];
+  /**
+   * Present when samples disagreed on the type, so the value is one of these
+   * shapes; `type` is then absent. A single `type` is used when they agree.
+   */
+  oneOf?: JsonSchemaLike[];
   example?: unknown;
 }
 

@@ -265,6 +265,17 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   signal explain *why* an endpoint landed in its bucket. A `--telemetry-preview`
   mode prints that payload to stdout without writing a file, so the boundary can
   be checked before opting in.
+- **Schemas merged across samples** — `buildEndpoint` used to infer
+  `requestBodySchema` / `responseSchema` from a single representative body, so a
+  field that only appeared in a later sample was invisible and a field observed
+  as both `integer` and `string` took whichever body came first.
+  `inferSchemaFromBodies` and `mergeSchema` (`src/core/schemaInference.ts`) now
+  union every sample: a field seen anywhere is present, it is `required` only
+  when every sample had it, `integer`/`number` widen to `number`, types that
+  disagree become a `oneOf` union, and a format hint survives only when the
+  samples agreed on it. WebSocket frames and the `--diff` message comparison
+  share the same merge, the OpenAPI reporter carries the union as `oneOf`, and
+  `--diff` compares type *sets* so a gained or lost union member is reported.
 
 **Proposed updates & features**
 
@@ -275,14 +286,6 @@ so it can be scoped without re-reading the source.
 
 **Report accuracy & detail**
 
-- **Merge every sample into an endpoint's schema, not just one body.**
-  `buildEndpoint` derives `requestBodySchema` / `responseSchema` from a single
-  representative body (`firstNonNull` over the samples), so a field that only
-  appears on page 2 is invisible and a field observed as both `integer` and
-  `string` silently takes whichever body came first. Union the shapes across all
-  samples, mark a field `required` only when it was present in every sample, and
-  emit `oneOf`/nullable when types genuinely disagree. This is the single
-  biggest accuracy lever the report has.
 - **Distinguish "not observed" from "absent".** A `null` schema today means both
   "no body was captured" and "the body was not JSON". Record an explicit reason
   (`no-body`, `not-json`, `truncated`, `binary`) so a reader can tell a contract
@@ -442,9 +445,9 @@ so it can be scoped without re-reading the source.
   entirely — keeping only patterns, categories, and schemas — and emits a
   one-page summary suitable for pasting into a ticket.
 
-If a few are picked first, the highest-leverage trio is merging samples into
-endpoint schemas (accuracy), making example generation deterministic
-(reviewable diffs), and proving redaction before writing (security).
+If a few are picked first, the highest-leverage trio is making example
+generation deterministic (reviewable diffs), proving redaction before writing
+(security), and capturing error contracts (report accuracy).
 
 ---
 

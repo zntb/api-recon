@@ -257,6 +257,13 @@ you only care about the API surface, Chromium is the safer default.
 }
 ```
 
+`requestBodySchema` and `responseSchema` (and a socket's `sentSchema` /
+`receivedSchema`) are inferred across *every* sample, not just one body: a field
+seen in any sample is present, a field is listed in `required` only when every
+sample carried it, `integer` and `number` widen to `number`, and a field whose
+samples genuinely disagree on the type becomes a `oneOf` union. A format hint
+such as `description: "uuid"` is kept only when every sample agreed on it.
+
 Look at [`examples/output/`](examples/output) for a real report generated from
 the bundled fixture site.
 
@@ -491,7 +498,7 @@ precisely because it cannot describe the target:
 ```jsonc
 {
   "version": 1,
-  "apiReconVersion": "0.2.6",
+  "apiReconVersion": "0.2.7",
   "generatedAt": "2026-09-29T…",
   "endpointCount": 2,
   "contains": "categorization decisions only: category, heuristic, HTTP method, and whether the response was JSON. No host, path, query values, headers, or bodies.",

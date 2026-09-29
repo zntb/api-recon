@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-09-29
+
+Endpoint schemas now describe every observed sample rather than a single body.
+Existing flags and options are unchanged; a schema may gain fields and, when
+samples disagree on a type, use a `oneOf` union.
+
+### Added
+
+- **Schemas merged across samples** — `requestBodySchema` and `responseSchema`
+  (and a socket's `sentSchema` / `receivedSchema`) are now inferred from *all* of
+  the endpoint's samples instead of one representative body. A field seen in any
+  sample is present, a field appears in `required` only when every sample carried
+  it, `integer` and `number` widen to `number`, and a field whose samples
+  genuinely disagree on the type becomes a `oneOf` union (with `type` absent). A
+  format hint such as `description: "uuid"` survives only when every sample
+  agreed on it, and a `null` observation keeps the informative shape instead of
+  erasing it. Responses still prefer successful samples, so an error page cannot
+  masquerade as the contract. `openapi.yaml` carries the union as `oneOf`, and
+  `--diff` compares type *sets*, so gaining or losing a union member reads as a
+  type change rather than being missed.
+
 ## [0.2.6] - 2026-09-29
 
 Adds a way to inspect the opt-in telemetry payload without writing it.
@@ -270,6 +291,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[0.2.7]: https://github.com/zntb/api-recon/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/zntb/api-recon/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/zntb/api-recon/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/zntb/api-recon/compare/v0.2.3...v0.2.4

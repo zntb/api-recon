@@ -15,7 +15,7 @@ import type {
   QueryParam,
 } from '../types.js';
 import { analyzeGraphQL, mergeGraphQL } from './graphql.js';
-import { inferSchemaFromBody, inferSchemaFromFrames } from './schemaInference.js';
+import { inferSchemaFromBodies, inferSchemaFromFrames } from './schemaInference.js';
 import { isSameDomain, toUrlPattern } from '../utils/url.js';
 
 /** Hosts that are almost always telemetry/analytics vendors. */
@@ -97,11 +97,8 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
     responseBodySample: firstNonNull(samples.map((s) => s.responseBodySample)),
     pathParams: uniquePathParams(pattern),
     queryParams: collectQueryParams(samples),
-    requestBodySchema: inferSchemaFromBody(firstNonNull(samples.map((s) => s.requestBodySample))),
-    responseSchema: inferSchemaFromBody(
-      firstNonNull(samples.filter((s) => s.status >= 200 && s.status < 300).map((s) => s.responseBodySample)) ??
-        firstNonNull(samples.map((s) => s.responseBodySample)),
-    ),
+    requestBodySchema: inferSchemaFromBodies(samples.map((s) => s.requestBodySample)),
+    responseSchema: inferSchemaFromBodies(responseBodies(samples)),
     mimeTypes: unique(samples.map((s) => s.mimeType).filter(Boolean)),
     triggeredBy: unique(samples.map((s) => s.triggeredBy)),
     ...(graphql ? { graphql } : {}),
@@ -180,6 +177,18 @@ function safeOrigin(url: string): string {
   } catch {
     return url;
   }
+}
+
+/**
+ * The bodies the response schema is inferred from: every successful response
+ * when there is one, so an error page cannot masquerade as the contract, and
+ * every response otherwise.
+ */
+function responseBodies(samples: CapturedCall[]): (string | null)[] {
+  const ok = samples
+    .filter((s) => s.status >= 200 && s.status < 300)
+    .map((s) => s.responseBodySample);
+  return ok.some((body) => body !== null) ? ok : samples.map((s) => s.responseBodySample);
 }
 
 function firstNonNull(values: (string | null)[]): string | null {

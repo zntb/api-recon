@@ -288,9 +288,14 @@ function diffSchemaNode(
   const details: Detail[] = [];
   const where = path === '' ? '(root)' : path;
 
-  if (before.type && after.type && before.type !== after.type) {
+  // Compared as type sets so a field that gained (or lost) a union member reads
+  // as a type change rather than being missed because neither side has a single
+  // `type`.
+  const beforeTypes = typeNames(before);
+  const afterTypes = typeNames(after);
+  if (beforeTypes.join('|') !== afterTypes.join('|')) {
     details.push({
-      text: `${label} ${where}: type ${before.type} → ${after.type}`,
+      text: `${label} ${where}: type ${beforeTypes.join('|') || 'unknown'} → ${afterTypes.join('|') || 'unknown'}`,
       breaking: true,
     });
   }
@@ -321,6 +326,12 @@ function diffSchemaNode(
   }
 
   return details;
+}
+
+/** The type names a schema node can take, flattening a `oneOf` union. */
+function typeNames(schema: JsonSchemaLike): string[] {
+  if (schema.type) return [schema.type];
+  return (schema.oneOf ?? []).flatMap(typeNames);
 }
 
 /**
