@@ -211,8 +211,10 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
 - **Scan diffing** — `--diff <baseline.json>` compares the current scan against an
   earlier report and marks each endpoint as added, removed, or changed, with
   per-endpoint details (status-code drift, category change, request/response
-  schema changes, query-param drift, and GraphQL operation drift, where a
-  removed operation is treated as breaking). Changes that can break a client (an
+  schema changes, query-param drift, GraphQL operation drift, where a removed
+  operation is treated as breaking, and WebSocket connection drift, where
+  connections are matched by URL and the shape of their sent/received JSON
+  frames is compared). Changes that can break a client (an
   endpoint disappearing, losing all 2xx responses, a response field or its type
   going away) are flagged `breaking`. `--fail-on-diff` exits `3` when anything
   changed, for CI. The logic lives in `src/core/diff.ts` and is exported as

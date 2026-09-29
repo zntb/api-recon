@@ -4,7 +4,13 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { diffReports, formatDiffSummary, loadBaseline } from '../../src/core/diff.js';
 import { SafetyError } from '../../src/utils/safety.js';
-import type { Endpoint, JsonSchemaLike, ReconReport } from '../../src/types.js';
+import type {
+  CapturedWebSocket,
+  Endpoint,
+  JsonSchemaLike,
+  ReconReport,
+  WebSocketFrame,
+} from '../../src/types.js';
 
 function endpoint(overrides: Partial<Endpoint> & { id: string }): Endpoint {
   const [method, ...rest] = overrides.id.split(' ');
@@ -51,6 +57,32 @@ function report(endpoints: Endpoint[], overrides: Partial<ReconReport> = {}): Re
       redact: true,
     },
     ...overrides,
+  };
+}
+
+function socket(overrides: Partial<CapturedWebSocket> & { url: string }): CapturedWebSocket {
+  return {
+    origins: ['wss://example.com'],
+    triggeredBy: 'https://example.com/',
+    openedAt: 0,
+    closedAt: 10,
+    frameCount: 1,
+    sentCount: 0,
+    receivedCount: 0,
+    framesTruncated: false,
+    frames: [],
+    ...overrides,
+  };
+}
+
+function frame(direction: WebSocketFrame['direction'], payload: string): WebSocketFrame {
+  return {
+    direction,
+    type: 'text',
+    payloadSample: payload,
+    size: payload.length,
+    truncated: false,
+    at: 0,
   };
 }
 
@@ -280,6 +312,67 @@ describe('diffReports', () => {
     const text = change.details.join(' ');
     expect(text).toContain('new GraphQL operations: IntrospectionQuery (query)');
     expect(text).toContain('GraphQL introspection newly observed');
+  });
+
+  it('reports a new WebSocket connection as additive and non-breaking', () => {
+    const current = report([], {
+      webSockets: [
+        socket({
+          url: 'wss://example.com/live',
+          frameCount: 1,
+          sentCount: 1,
+          frames: [frame('sent', '{"subscribe":true}')],
+        }),
+      ],
+    });
+
+    const change = changeFor(diffReports(report([]), current), 'WS wss://example.com/live');
+    expect(change.kind).toBe('added');
+    expect(change.breaking).toBe(false);
+    expect(change.details.join(' ')).toContain('new WebSocket connection');
+  });
+
+  it('flags a WebSocket connection that is no longer observed as breaking', () => {
+    const baseline = report([], { webSockets: [socket({ url: 'wss://example.com/live', frameCount: 2 })] });
+
+    const change = changeFor(diffReports(baseline, report([])), 'WS wss://example.com/live');
+    expect(change.kind).toBe('removed');
+    expect(change.breaking).toBe(true);
+    expect(change.details.join(' ')).toContain('not observed in this scan');
+  });
+
+  it('flags a removed WebSocket message field as breaking', () => {
+    const baseline = report([], {
+      webSockets: [
+        socket({ url: 'wss://example.com/live', frames: [frame('received', '{"type":"price","value":10}')] }),
+      ],
+    });
+    const current = report([], {
+      webSockets: [socket({ url: 'wss://example.com/live', frames: [frame('received', '{"type":"price"}')] })],
+    });
+
+    const change = changeFor(diffReports(baseline, current), 'WS wss://example.com/live');
+    expect(change.kind).toBe('changed');
+    expect(change.breaking).toBe(true);
+    expect(change.details).toContain('WebSocket received message field removed: value');
+  });
+
+  it('treats an added WebSocket message field as non-breaking', () => {
+    const baseline = report([], {
+      webSockets: [socket({ url: 'wss://example.com/live', frames: [frame('sent', '{"subscribe":true}')] })],
+    });
+    const current = report([], {
+      webSockets: [
+        socket({
+          url: 'wss://example.com/live',
+          frames: [frame('sent', '{"subscribe":true,"channel":"prices"}')],
+        }),
+      ],
+    });
+
+    const change = changeFor(diffReports(baseline, current), 'WS wss://example.com/live');
+    expect(change.breaking).toBe(false);
+    expect(change.details).toContain('WebSocket sent message field added: channel');
   });
 
   it('counts each kind separately and sorts changes by id', () => {

@@ -314,6 +314,12 @@ whether the schema is introspectable is additive, while an operation that is no
 longer observed is flagged breaking — `GraphQL operations not observed this
 time: DeleteProduct (mutation)`.
 
+WebSocket connections are matched by URL and reported the same way, under a
+`WS `-prefixed id. They also carry a message-shape comparison: the top-level
+fields of the sent and received JSON frames are diffed, so a field dropping out
+of a received message is flagged breaking —
+`WebSocket received message field removed: value`.
+
 Classification is heuristic and deliberately under-reports. A scan samples
 whatever traffic the crawl happened to trigger, so an endpoint listed as removed
 may simply not have been exercised this time — the evidence sits beside each
@@ -474,7 +480,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for test expectations.
   variables and returned fields are not analyzed.
 - WebSocket frames are captured but not parsed: a binary frame is stored
   base64-encoded, and a frame cap (200 per connection) bounds a chatty stream.
-  WebSocket traffic is not compared by `--diff`.
+  `--diff` compares a socket's message *shape*, not frame-by-frame content.
 - Heuristic categorization and schema inference are best-effort starting
   points — review reports before publishing them.
 

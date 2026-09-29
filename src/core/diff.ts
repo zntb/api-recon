@@ -6,10 +6,16 @@
  * endpoint is gone — removals are still reported, but the evidence is spelled
  * out in `details` so a human can judge. Only changes that would plausibly
  * break an existing client are flagged `breaking`.
+ *
+ * WebSocket connections are compared too. They have no HTTP status or method,
+ * so they ride in the same change list under a `WS `-prefixed pseudo-id; that
+ * keeps one set of counts, one summary, and the dashboard's existing change
+ * column and removed-row rendering working without a second code path.
  */
 
 import { readFile } from 'node:fs/promises';
 import type {
+  CapturedWebSocket,
   Endpoint,
   EndpointChange,
   GraphQLInfo,
@@ -18,7 +24,10 @@ import type {
   ReconReport,
   ReportDiff,
   ScanRef,
+  WebSocketDirection,
+  WebSocketFrame,
 } from '../types.js';
+import { inferSchemaFromBody } from './schemaInference.js';
 import { SafetyError } from '../utils/safety.js';
 
 interface Detail {
@@ -66,6 +75,42 @@ export function diffReports(baseline: ReconReport, current: ReconReport): Report
     });
   }
 
+  const baselineSockets = new Map((baseline.webSockets ?? []).map((ws) => [socketId(ws), ws]));
+  const currentSockets = new Map((current.webSockets ?? []).map((ws) => [socketId(ws), ws]));
+
+  for (const [id, socket] of currentSockets) {
+    const before = baselineSockets.get(id);
+    if (!before) {
+      changes.push({
+        id,
+        kind: 'added',
+        breaking: false,
+        details: [`new WebSocket connection (observed ${describeFrameCount(socket.frameCount)})`],
+      });
+      continue;
+    }
+
+    const details = compareSockets(before, socket);
+    if (details.length > 0) {
+      changes.push({
+        id,
+        kind: 'changed',
+        breaking: details.some((d) => d.breaking),
+        details: details.map((d) => d.text),
+      });
+    }
+  }
+
+  for (const [id, socket] of baselineSockets) {
+    if (currentSockets.has(id)) continue;
+    changes.push({
+      id,
+      kind: 'removed',
+      breaking: true,
+      details: [`not observed in this scan (was ${describeFrameCount(socket.frameCount)})`],
+    });
+  }
+
   changes.sort((a, b) => a.id.localeCompare(b.id));
 
   const counts = {
@@ -82,6 +127,59 @@ export function diffReports(baseline: ReconReport, current: ReconReport): Report
     counts,
     hasChanges: changes.length > 0,
   };
+}
+
+/** A stable id for a WebSocket connection, so it can share the change list. */
+function socketId(socket: CapturedWebSocket): string {
+  return `WS ${socket.url}`;
+}
+
+/**
+ * Compare the frames exchanged on the same WebSocket connection.
+ *
+ * Raw frame streams are noisy — a scan records whatever the crawl happened to
+ * trigger — so only the message *shape* is compared: the top-level fields a
+ * client would read out of sent and received JSON frames. A field that
+ * disappears is flagged breaking, exactly as a removed response field is.
+ */
+function compareSockets(before: CapturedWebSocket, after: CapturedWebSocket): Detail[] {
+  const details: Detail[] = [];
+  details.push(
+    ...diffSchema(
+      messageSchema(before.frames, 'sent'),
+      messageSchema(after.frames, 'sent'),
+      'WebSocket sent message',
+    ),
+  );
+  details.push(
+    ...diffSchema(
+      messageSchema(before.frames, 'received'),
+      messageSchema(after.frames, 'received'),
+      'WebSocket received message',
+    ),
+  );
+  return details;
+}
+
+/** Merge the JSON frames in one direction into a single inferred shape. */
+function messageSchema(
+  frames: WebSocketFrame[],
+  direction: WebSocketDirection,
+): JsonSchemaLike | null {
+  const properties: Record<string, JsonSchemaLike> = {};
+  let found = false;
+  for (const frame of frames) {
+    if (frame.direction !== direction || frame.type !== 'text' || !frame.payloadSample) continue;
+    const schema = inferSchemaFromBody(frame.payloadSample);
+    if (!schema?.properties) continue;
+    found = true;
+    Object.assign(properties, schema.properties);
+  }
+  return found ? { type: 'object', properties } : null;
+}
+
+function describeFrameCount(count: number): string {
+  return `${count} frame(s)`;
 }
 
 function compareEndpoints(before: Endpoint, after: Endpoint): Detail[] {
