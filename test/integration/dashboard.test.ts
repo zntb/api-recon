@@ -244,6 +244,8 @@ describe('dashboard', () => {
             { direction: 'sent', type: 'text', payloadSample: '{"subscribe":true}', size: 17, truncated: false, at: 1 },
             { direction: 'received', type: 'text', payloadSample: '{"ok":true}', size: 11, truncated: false, at: 2 },
           ],
+          sentSchema: { type: 'object', properties: { subscribe: { type: 'boolean' } } },
+          receivedSchema: { type: 'object', properties: { ok: { type: 'boolean' } } },
         },
       ],
     };
@@ -269,6 +271,8 @@ describe('dashboard', () => {
     expect(details).toContain('Frames');
     expect(details).toContain('sent · text');
     expect(details).toContain('{"subscribe":true}');
+    expect(details).toContain('Sent schema');
+    expect(details).toContain('Received schema');
     expect(details).not.toContain('Request headers');
     expect(pageErrors).toEqual([]);
   }, 90_000);

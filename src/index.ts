@@ -16,7 +16,7 @@ import { crawl } from './core/crawler.js';
 import { runActions, loadActions } from './core/actions.js';
 import { loadLoginFlow, runLoginFlow, validateStorageState } from './core/authenticator.js';
 import { runRecordSession } from './core/record.js';
-import { analyzeCalls } from './core/analyzer.js';
+import { analyzeCalls, analyzeWebSockets } from './core/analyzer.js';
 import { diffReports, loadBaseline } from './core/diff.js';
 import { buildTelemetry, writeTelemetryFile } from './core/telemetry.js';
 import { detectTechnologies, type TechEvidence } from './core/techStack.js';
@@ -139,7 +139,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   }
 
   const captures: CapturedCall[] = interceptor.calls.slice();
-  const webSockets = interceptor.webSockets.slice();
+  const webSockets = analyzeWebSockets(interceptor.webSockets);
   const endpoints = analyzeCalls(captures, { seedUrl });
   const technologies = detectTechnologies(evidence);
 

@@ -165,6 +165,10 @@ export interface CapturedWebSocket {
   /** True when frames past the storage cap were observed but not stored. */
   framesTruncated: boolean;
   frames: WebSocketFrame[];
+  /** Inferred shape of the JSON frames the page sent; null when none were JSON. */
+  sentSchema: JsonSchemaLike | null;
+  /** Inferred shape of the JSON frames the page received. */
+  receivedSchema: JsonSchemaLike | null;
 }
 
 export interface CapturedPage {

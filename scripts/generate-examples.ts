@@ -15,6 +15,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { startFixtureServer } from '../test/fixtures/server.js';
 import { analyzeCalls } from '../src/core/analyzer.js';
+import { inferSchemaFromFrames } from '../src/core/schemaInference.js';
 import { diffReports } from '../src/core/diff.js';
 import { detectTechnologies, type TechEvidence } from '../src/core/techStack.js';
 import { renderDashboard } from '../src/reporters/dashboard.js';
@@ -98,6 +99,8 @@ async function recordWebSocket(targetUrl: string, triggeredBy: string): Promise<
     receivedCount: count('received'),
     framesTruncated: false,
     frames,
+    sentSchema: inferSchemaFromFrames(frames, 'sent'),
+    receivedSchema: inferSchemaFromFrames(frames, 'received'),
   };
 }
 

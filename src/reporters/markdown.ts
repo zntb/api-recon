@@ -187,6 +187,19 @@ function webSocketSection(webSockets: CapturedWebSocket[]): string[] {
       out.push(`| ${direction} | ${frame.type} | ${frame.size} B | ${payload} |`);
     }
     out.push('');
+
+    if (ws.sentSchema) {
+      out.push('**Inferred sent message schema**');
+      out.push('');
+      out.push(code(JSON.stringify(ws.sentSchema, null, 2)));
+      out.push('');
+    }
+    if (ws.receivedSchema) {
+      out.push('**Inferred received message schema**');
+      out.push('');
+      out.push(code(JSON.stringify(ws.receivedSchema, null, 2)));
+      out.push('');
+    }
   }
 
   return out;

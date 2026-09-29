@@ -178,6 +178,8 @@ const SCRIPT = `
       sentCount: ws.sentCount,
       receivedCount: ws.receivedCount,
       framesTruncated: ws.framesTruncated,
+      sentSchema: ws.sentSchema || null,
+      receivedSchema: ws.receivedSchema || null,
       websocket: true
     };
   });
@@ -420,6 +422,8 @@ const SCRIPT = `
         frameBlock.appendChild(frameList);
       }
       blocks.appendChild(frameBlock);
+      if (e.sentSchema) blocks.appendChild(codeBlock('Sent schema', JSON.stringify(e.sentSchema, null, 2), true));
+      if (e.receivedSchema) blocks.appendChild(codeBlock('Received schema', JSON.stringify(e.receivedSchema, null, 2), true));
       cell.appendChild(blocks);
       row.appendChild(cell);
       return row;

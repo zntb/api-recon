@@ -24,10 +24,8 @@ import type {
   ReconReport,
   ReportDiff,
   ScanRef,
-  WebSocketDirection,
-  WebSocketFrame,
 } from '../types.js';
-import { inferSchemaFromBody } from './schemaInference.js';
+import { inferSchemaFromFrames } from './schemaInference.js';
 import { SafetyError } from '../utils/safety.js';
 
 interface Detail {
@@ -146,36 +144,19 @@ function compareSockets(before: CapturedWebSocket, after: CapturedWebSocket): De
   const details: Detail[] = [];
   details.push(
     ...diffSchema(
-      messageSchema(before.frames, 'sent'),
-      messageSchema(after.frames, 'sent'),
+      inferSchemaFromFrames(before.frames, 'sent'),
+      inferSchemaFromFrames(after.frames, 'sent'),
       'WebSocket sent message',
     ),
   );
   details.push(
     ...diffSchema(
-      messageSchema(before.frames, 'received'),
-      messageSchema(after.frames, 'received'),
+      inferSchemaFromFrames(before.frames, 'received'),
+      inferSchemaFromFrames(after.frames, 'received'),
       'WebSocket received message',
     ),
   );
   return details;
-}
-
-/** Merge the JSON frames in one direction into a single inferred shape. */
-function messageSchema(
-  frames: WebSocketFrame[],
-  direction: WebSocketDirection,
-): JsonSchemaLike | null {
-  const properties: Record<string, JsonSchemaLike> = {};
-  let found = false;
-  for (const frame of frames) {
-    if (frame.direction !== direction || frame.type !== 'text' || !frame.payloadSample) continue;
-    const schema = inferSchemaFromBody(frame.payloadSample);
-    if (!schema?.properties) continue;
-    found = true;
-    Object.assign(properties, schema.properties);
-  }
-  return found ? { type: 'object', properties } : null;
 }
 
 function describeFrameCount(count: number): string {

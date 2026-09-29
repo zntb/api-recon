@@ -8,13 +8,14 @@
 
 import type {
   CapturedCall,
+  CapturedWebSocket,
   CategorizationHeuristic,
   Category,
   Endpoint,
   QueryParam,
 } from '../types.js';
 import { analyzeGraphQL, mergeGraphQL } from './graphql.js';
-import { inferSchemaFromBody } from './schemaInference.js';
+import { inferSchemaFromBody, inferSchemaFromFrames } from './schemaInference.js';
 import { isSameDomain, toUrlPattern } from '../utils/url.js';
 
 /** Hosts that are almost always telemetry/analytics vendors. */
@@ -61,6 +62,19 @@ export function analyzeCalls(calls: CapturedCall[], opts: { seedUrl: string }): 
   }
   endpoints.sort((a, b) => a.category.localeCompare(b.category) || a.id.localeCompare(b.id));
   return endpoints;
+}
+
+/**
+ * Attach an inferred message schema to each WebSocket connection, once its
+ * frames are all in, so a socket is described the same way an HTTP endpoint is
+ * (sent ≈ request body, received ≈ response body).
+ */
+export function analyzeWebSockets(webSockets: CapturedWebSocket[]): CapturedWebSocket[] {
+  return webSockets.map((socket) => ({
+    ...socket,
+    sentSchema: inferSchemaFromFrames(socket.frames, 'sent'),
+    receivedSchema: inferSchemaFromFrames(socket.frames, 'received'),
+  }));
 }
 
 function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): Endpoint {

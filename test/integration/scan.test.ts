@@ -95,6 +95,9 @@ describe('capture and categorization', () => {
     const framePayloads = socket!.frames.map((f) => f.payloadSample ?? '').join(' ');
     expect(framePayloads).toContain('[REDACTED]');
     expect(framePayloads).not.toContain('ws-secret-token');
+    // JSON frames are summarized into message schemas, like request/response bodies.
+    expect(socket!.sentSchema?.properties).toHaveProperty('type');
+    expect(socket!.receivedSchema?.properties).toHaveProperty('type');
 
     expect(findEndpoint(report, 'POST /api/login')).toBeUndefined();
 

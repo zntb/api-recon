@@ -67,6 +67,11 @@ describe('renderMarkdown', () => {
                 at: 1,
               },
             ],
+            sentSchema: {
+              type: 'object',
+              properties: { subscribe: { type: 'boolean' } },
+            },
+            receivedSchema: null,
           },
         ],
       }),
@@ -75,5 +80,7 @@ describe('renderMarkdown', () => {
     expect(md).toContain('## 8. WebSocket Traffic');
     expect(md).toContain('wss://example.com/live');
     expect(md).toContain('[REDACTED]');
+    expect(md).toContain('**Inferred sent message schema**');
+    expect(md).toContain('"subscribe"');
   });
 });

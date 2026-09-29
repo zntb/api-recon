@@ -72,6 +72,8 @@ function socket(overrides: Partial<CapturedWebSocket> & { url: string }): Captur
     receivedCount: 0,
     framesTruncated: false,
     frames: [],
+    sentSchema: null,
+    receivedSchema: null,
     ...overrides,
   };
 }

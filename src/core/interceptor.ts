@@ -177,6 +177,9 @@ export class TrafficInterceptor {
       receivedCount: 0,
       framesTruncated: false,
       frames: [],
+      // Filled in once the scan is done and every frame has arrived.
+      sentSchema: null,
+      receivedSchema: null,
     };
     this.webSockets.push(connection);
 

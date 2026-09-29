@@ -180,9 +180,12 @@ controls cross-origin sockets the same way it controls cross-origin fetches.
 }
 ```
 
-Binary frames are stored base64-encoded. The Markdown/HTML/PDF reports gain a
-**WebSocket Traffic** section, and the dashboard lists each connection as a row
-whose expanded view is its frames.
+Binary frames are stored base64-encoded. JSON frames are summarized into
+message schemas — `sentSchema` for what the page sent (like a request body) and
+`receivedSchema` for what it received (like a response) — so a socket's messages
+sit alongside the HTTP schemas. The Markdown/HTML/PDF reports gain a **WebSocket
+Traffic** section with those schemas, and the dashboard lists each connection as
+a row whose expanded view is its frames and message schemas.
 
 The capture layer is engine-independent: `--browser` swaps the Playwright
 driver, and interception, categorization, technology detection, and schema
@@ -244,7 +247,9 @@ you only care about the API surface, Chromium is the safer default.
       "sentCount": 1,
       "receivedCount": 2,
       "framesTruncated": false,
-      "frames": [{ "direction": "sent", "type": "text", "payloadSample": "{\"subscribe\":true}", "size": 17, "truncated": false, "at": 1699999999920 }]
+      "frames": [{ "direction": "sent", "type": "text", "payloadSample": "{\"subscribe\":true}", "size": 17, "truncated": false, "at": 1699999999920 }],
+      "sentSchema": { "type": "object", "properties": { "subscribe": { "type": "boolean" } } },
+      "receivedSchema": null
     }
   ],
   "safety": { "robotsRespected": true, "robotsSkippedPaths": [], "rateLimitMs": 500, "maxBodyBytes": 1048576, "allowLocal": false, "redact": true }
@@ -269,7 +274,8 @@ open ./reports/dashboard.html
 - **Filter** by category, HTTP method, and status code.
 - **Sort** by any column; the default order is discovery order.
 - **Expand** a row for its headers, query and path params, and the inferred
-  request/response schemas — rendered from the sampled bodies.
+  request/response schemas — rendered from the sampled bodies. WebSocket rows
+  expand to their frames and inferred sent/received message schemas instead.
 - **Diff** — with `--diff`, a Change column and "Changed only" / "Breaking only"
   filters appear. Without a baseline they are omitted entirely rather than
   shown empty.
@@ -477,7 +483,7 @@ precisely because it cannot describe the target:
 ```jsonc
 {
   "version": 1,
-  "apiReconVersion": "0.2.4",
+  "apiReconVersion": "0.2.5",
   "generatedAt": "2026-09-29T…",
   "endpointCount": 2,
   "contains": "categorization decisions only: category, heuristic, HTTP method, and whether the response was JSON. No host, path, query values, headers, or bodies.",

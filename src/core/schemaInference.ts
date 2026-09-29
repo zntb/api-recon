@@ -1,6 +1,6 @@
 /** Infer a compact JSON-Schema-like shape from sample payloads (depth-capped). */
 
-import type { JsonSchemaLike } from '../types.js';
+import type { JsonSchemaLike, WebSocketDirection, WebSocketFrame } from '../types.js';
 
 const MAX_DEPTH = 4;
 const MAX_PROPERTIES = 50;
@@ -44,6 +44,28 @@ export function inferSchemaFromBody(body: string | null | undefined): JsonSchema
   } catch {
     return null;
   }
+}
+
+/**
+ * Merge the JSON frames in one direction into a single inferred shape, so a
+ * socket's messages can be described like a request or response body. Frames
+ * that are not text or not JSON objects simply contribute nothing; the result
+ * is null when no usable frame was seen.
+ */
+export function inferSchemaFromFrames(
+  frames: WebSocketFrame[],
+  direction: WebSocketDirection,
+): JsonSchemaLike | null {
+  const properties: Record<string, JsonSchemaLike> = {};
+  let found = false;
+  for (const frame of frames) {
+    if (frame.direction !== direction || frame.type !== 'text' || !frame.payloadSample) continue;
+    const schema = inferSchemaFromBody(frame.payloadSample);
+    if (!schema?.properties) continue;
+    found = true;
+    Object.assign(properties, schema.properties);
+  }
+  return found ? { type: 'object', properties } : null;
 }
 
 function stringFormatHint(value: string): Pick<JsonSchemaLike, 'description'> {

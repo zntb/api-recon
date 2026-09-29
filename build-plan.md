@@ -244,9 +244,13 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   and records each connection's frames, with the same origin filtering,
   capture-time redaction, per-payload cap, and shared size budget as HTTP
   bodies. A per-connection frame cap bounds chatty streams while `frameCount`
-  still reports what was seen. The report gains a `webSockets` array, the
-  Markdown reporter a "WebSocket Traffic" section, and the dashboard a row per
-  connection whose expanded view is its frames.
+  still reports what was seen. The report gains a `webSockets` array, and the
+  JSON frames in each direction are merged into an inferred message shape
+  (`sentSchema` / `receivedSchema`) using the same depth-capped inference as
+  HTTP bodies — shared with the `--diff` message comparison, so the two cannot
+  disagree. The Markdown reporter gains a "WebSocket Traffic" section and the
+  dashboard a row per connection whose expanded view is its frames and message
+  schemas.
 
 - **Engine recorded in the report** — `meta.engine` names the Playwright engine
   a scan ran in, so the report is reproducible from its own output via
@@ -262,8 +266,6 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
 
 **Ideas for follow-ups**
 
-- Parse WebSocket frame payloads into inferred schemas, so a socket's messages
-  appear beside the HTTP ones.
 - Add a `--telemetry-preview` mode that prints the anonymized payload to stdout
   without writing a file.
 
