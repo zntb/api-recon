@@ -242,6 +242,46 @@ describe('scripted actions', () => {
   }, 120_000);
 });
 
+describe('opt-in telemetry', () => {
+  it('is off by default and, when enabled, writes anonymized signals only', async () => {
+    const off = await scan({
+      url: fixture.url,
+      depth: 1,
+      allowLocal: true,
+      rate: 0,
+      formats: ['json'],
+      logger: silent(),
+    });
+    expect(off.telemetry).toBeUndefined();
+    expect(off.files.some((f) => f.endsWith('telemetry.json'))).toBe(false);
+
+    const dir = join(outDir, 'telemetry');
+    const on = await scan({
+      url: fixture.url,
+      depth: 1,
+      allowLocal: true,
+      rate: 0,
+      formats: ['json'],
+      out: dir,
+      telemetry: true,
+      logger: silent(),
+    });
+
+    expect(on.telemetry?.endpointCount).toBeGreaterThan(0);
+    expect(on.files.some((f) => f.endsWith('telemetry.json'))).toBe(true);
+
+    const raw = await readFile(join(dir, 'telemetry.json'), 'utf8');
+    const host = new URL(fixture.url).host;
+    expect(raw).not.toContain(host);
+    expect(raw).not.toContain('/api/products');
+    expect(raw).not.toContain('ws-secret-token');
+    expect(raw).toContain('No host, path, query values, headers, or bodies');
+
+    const parsed = JSON.parse(raw) as { endpointCount: number; signals: unknown[] };
+    expect(parsed.signals).toHaveLength(parsed.endpointCount);
+  }, 120_000);
+});
+
 describe('report formats', () => {
   it('writes json, md, html, pdf, openapi, and the dashboard with redaction intact', async () => {
     const dir = join(outDir, 'formats');

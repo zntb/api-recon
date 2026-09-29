@@ -18,6 +18,7 @@ import { loadLoginFlow, runLoginFlow, validateStorageState } from './core/authen
 import { runRecordSession } from './core/record.js';
 import { analyzeCalls } from './core/analyzer.js';
 import { diffReports, loadBaseline } from './core/diff.js';
+import { buildTelemetry, writeTelemetryFile } from './core/telemetry.js';
 import { detectTechnologies, type TechEvidence } from './core/techStack.js';
 import { writeReports } from './reporters/index.js';
 import { fetchRobots } from './utils/robots.js';
@@ -37,6 +38,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const force = options.force ?? false;
   const includeThirdParty = options.includeThirdParty ?? false;
   const redact = options.redact ?? true;
+  const telemetryEnabled = options.telemetry ?? false;
   const maxBodyBytes = options.maxBodyBytes ?? 1024 * 1024;
   const formats = normalizeFormats(options.formats);
   // Validated up front so a typo fails before any network or browser work.
@@ -166,8 +168,19 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
 
   if (baseline) report.diff = diffReports(baseline, report);
 
-  const writeReportsTo = (outDir: string): Promise<string[]> =>
-    writeReports(report, formats, outDir, logger);
+  const telemetry = telemetryEnabled ? buildTelemetry(report, captures) : undefined;
+  if (telemetry) {
+    logger.info(
+      'Telemetry enabled: writing anonymized categorization signals only — ' +
+        'no host, path, query, header, or body data.',
+    );
+  }
+
+  const writeReportsTo = async (outDir: string): Promise<string[]> => {
+    const written = await writeReports(report, formats, outDir, logger);
+    if (telemetry) written.push(await writeTelemetryFile(telemetry, outDir));
+    return written;
+  };
 
   let files: string[] = [];
   if (options.out) files = await writeReportsTo(options.out);
@@ -177,6 +190,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     writeReports: writeReportsTo,
     files,
     ...(report.diff ? { diff: report.diff } : {}),
+    ...(telemetry ? { telemetry } : {}),
   };
 }
 
@@ -215,6 +229,7 @@ export type {
   ChangeKind,
   EndpointChange,
   CapturedPage,
+  CategorizationHeuristic,
   Category,
   CapturedWebSocket,
   Endpoint,
@@ -230,6 +245,8 @@ export type {
   ScanResult,
   ScanRef,
   Technology,
+  TelemetryPayload,
+  TelemetrySignal,
   WebSocketDirection,
   WebSocketFrame,
 } from './types.js';

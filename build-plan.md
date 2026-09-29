@@ -252,10 +252,20 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   a scan ran in, so the report is reproducible from its own output via
   `--browser <engine>`. The Markdown/HTML/PDF Overview table and the dashboard
   header surface it, and the multi-engine integration suite asserts it.
+- **Opt-in telemetry** — `--telemetry`, `API_RECON_TELEMETRY=1`, or the library
+  `telemetry: true` writes an anonymized `telemetry.json` beside the reports:
+  for each endpoint, the category, the heuristic that produced it, the HTTP
+  method, and whether the response was JSON, with no host, path, query, header,
+  or body. It is inert by default and never touches the network. Categorization
+  yields the matched heuristic alongside the category, which is what lets a
+  signal explain *why* an endpoint landed in its bucket.
 
 **Ideas for follow-ups**
 
-- Optional telemetry (opt-in) to improve categorization heuristics.
+- Parse WebSocket frame payloads into inferred schemas, so a socket's messages
+  appear beside the HTTP ones.
+- Add a `--telemetry-preview` mode that prints the anonymized payload to stdout
+  without writing a file.
 
 ---
 

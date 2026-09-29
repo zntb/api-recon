@@ -5,6 +5,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2026-09-29
+
+Adds opt-in, local-only telemetry for tuning the categorization heuristics.
+Off by default; existing flags, options, and report fields are unchanged.
+
+### Added
+
+- **Opt-in telemetry** — `--telemetry`, `API_RECON_TELEMETRY=1`, or the library
+  `telemetry: true` writes an anonymized `telemetry.json` beside the reports.
+  It holds only the categorization decisions: for each endpoint, the category,
+  the heuristic that produced it, the HTTP method, and whether the response was
+  JSON. No host, path, query value, header, or body is included, and nothing is
+  sent over the network — the file is for a human to read and forward. It is
+  never written unless enabled, and the payload carries a plain-language
+  `contains` field stating the boundary. Categorization now yields the matched
+  heuristic (`categorizeWithReason`), which is what makes a signal explain
+  *why* an endpoint landed in its bucket.
+
 ## [0.2.3] - 2026-09-29
 
 Records the browser engine in the report. Existing flags, options, and report
@@ -224,6 +242,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[0.2.4]: https://github.com/zntb/api-recon/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/zntb/api-recon/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/zntb/api-recon/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/zntb/api-recon/compare/v0.2.0...v0.2.1

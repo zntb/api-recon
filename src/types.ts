@@ -38,6 +38,22 @@ export const CATEGORIES: readonly Category[] = [
   'uncategorized',
 ];
 
+/**
+ * The rule that decided an endpoint's category. Kept alongside the category so
+ * diagnostics — and the opt-in telemetry file — can explain a decision without
+ * carrying the URL that triggered it.
+ */
+export type CategorizationHeuristic =
+  | 'auth-path'
+  | 'analytics-host'
+  | 'analytics-path'
+  | 'third-party'
+  | 'graphql'
+  | 'mutation-method'
+  | 'json-response'
+  | 'fallback'
+  | 'invalid-url';
+
 /** A single captured XHR/fetch request/response pair. */
 export interface CapturedCall {
   method: string;
@@ -243,6 +259,32 @@ export interface ReconReport {
   diff?: ReportDiff;
 }
 
+/** One anonymized categorization decision in a telemetry payload. */
+export interface TelemetrySignal {
+  category: Category;
+  /** The heuristic that produced the category. */
+  heuristic: CategorizationHeuristic;
+  /** HTTP method, as observed. */
+  method: string;
+  /** Whether the representative response was JSON. */
+  json: boolean;
+}
+
+/**
+ * An opt-in, local-only diagnostics payload: categorization decisions with no
+ * host, path, query value, header, or body. Never sent over the network — it is
+ * written to `telemetry.json` for a human to review and forward.
+ */
+export interface TelemetryPayload {
+  version: 1;
+  apiReconVersion: string;
+  generatedAt: string;
+  endpointCount: number;
+  /** A plain-language reminder of the privacy boundary, shipped with the data. */
+  contains: string;
+  signals: TelemetrySignal[];
+}
+
 import type { Logger } from './utils/logger.js';
 
 /** Options accepted by `scan()` (library) and the CLI. */
@@ -272,6 +314,12 @@ export interface ScanOptions {
   allowLocal?: boolean;
   quiet?: boolean;
   verbose?: boolean;
+  /**
+   * Write an anonymized `telemetry.json` next to the reports. Off by default;
+   * no host, path, or body data is included and nothing is sent over the
+   * network.
+   */
+  telemetry?: boolean;
   /** Injectable logger (used by the CLI for progress output and tests). */
   logger?: Logger;
 }
@@ -285,4 +333,6 @@ export interface ScanResult {
   files: string[];
   /** Convenience alias for `report.diff`, when a baseline was supplied. */
   diff?: ReportDiff;
+  /** The anonymized payload, present only when telemetry was enabled. */
+  telemetry?: TelemetryPayload;
 }

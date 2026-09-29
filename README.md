@@ -92,6 +92,7 @@ api-recon https://example.com --browser firefox
 | `--force` | off | Bypass robots.txt restrictions (only for systems you may test) |
 | `--allow-local` | off | Allow scanning localhost/private network ranges |
 | `--max-body-mb <n>` | `1` | Maximum response body / WebSocket frame size kept, in MB |
+| `--telemetry` | off | Write anonymized categorization signals to `telemetry.json` (no host, path, or body data) |
 | `-q, --quiet` / `-v, --verbose` | — | Reduce / increase progress output |
 
 Exit codes: `0` success, `1` runtime failure, `2` refused by a safety guard (`--force`,
@@ -202,6 +203,7 @@ you only care about the API surface, Chromium is the safer default.
 | `report.pdf` | Rendered from the HTML with Playwright's `page.pdf()` |
 | `openapi.yaml` | Best-effort OpenAPI 3.0 spec from inferred paths, methods, params, and schemas |
 | `dashboard.html` | Interactive dashboard: search, filter, sort, and expand endpoints |
+| `telemetry.json` | Opt-in anonymized categorization signals (see [Telemetry](#telemetry-opt-in)); never written unless enabled |
 
 `report.json` shape:
 
@@ -405,7 +407,8 @@ A headed browser opens; browse, click, log in — every XHR/fetch call is
 captured. Type `done` + Enter (or press Ctrl+C) to finish and write the report.
 Redaction settings still apply.
 
-Automation hooks: `API_RECON_HEADLESS=1` runs record mode headless, and
+Automation hooks: `API_RECON_HEADLESS=1` runs record mode headless,
+`API_RECON_TELEMETRY=1` enables telemetry, and
 `API_RECON_RECORD_AUTOSTOP_MS=<ms>` ends the session automatically.
 
 ## Library API
@@ -452,8 +455,43 @@ import type { ReconReport, Endpoint, ScanOptions, ScanResult } from 'api-recon';
 - **Local/private targets are refused** unless `--allow-local` is passed.
 - **Size caps**: 1 MB per response body (`--max-body-mb`) and a global capture
   budget, plus `--max-pages` and `--depth` bounds.
+- **Telemetry is opt-in and local**: `--telemetry` (or `API_RECON_TELEMETRY=1`)
+  writes an anonymized `telemetry.json` beside the reports. It contains no host,
+  path, query value, header, or body, and nothing is ever sent over the network.
 - The tool **never** bypasses authentication, CAPTCHAs, or bot protections, and
   never fuzzes or brute-forces endpoints.
+
+## Telemetry (opt-in)
+
+`api-recon` has no phone-home. The only diagnostics it can produce are written
+to a **local** `telemetry.json` in the output directory, and only when you ask
+for them — `--telemetry`, `API_RECON_TELEMETRY=1`, or `telemetry: true` from the
+library. Nothing is ever sent over the network.
+
+A scan usually targets a private system, so the payload deliberately holds only
+the *categorization decisions*: for each endpoint, the category, the heuristic
+that produced it, the HTTP method, and whether the response was JSON. No host,
+path, query value, header, or body is included — the payload is safe to share
+precisely because it cannot describe the target:
+
+```jsonc
+{
+  "version": 1,
+  "apiReconVersion": "0.2.4",
+  "generatedAt": "2026-09-29T…",
+  "endpointCount": 2,
+  "contains": "categorization decisions only: category, heuristic, HTTP method, and whether the response was JSON. No host, path, query values, headers, or bodies.",
+  "signals": [
+    { "category": "data-fetching", "heuristic": "json-response", "method": "GET", "json": true },
+    { "category": "mutations", "heuristic": "mutation-method", "method": "POST", "json": true }
+  ]
+}
+```
+
+The `heuristic` names the rule that matched (`auth-path`, `analytics-host`,
+`analytics-path`, `third-party`, `graphql`, `mutation-method`, `json-response`,
+`fallback`). Read the file before you send it — it exists to tune the
+heuristics, and a pile of `fallback` signals shows which paths still need a rule.
 
 ## Development
 

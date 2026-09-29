@@ -71,6 +71,11 @@ program
   .option('--no-redact', 'disable header redaction (not recommended)')
   .option('--force', 'bypass robots.txt restrictions (only for systems you are allowed to test)', false)
   .option('--allow-local', 'allow scanning localhost and private network ranges', false)
+  .option(
+    '--telemetry',
+    'write anonymized categorization signals to telemetry.json (off by default; no host, path, or body data)',
+    false,
+  )
   .option('--max-body-mb <n>', 'maximum response body / WebSocket frame size to keep, in MB', numberArg, 1)
   .option('-q, --quiet', 'suppress progress output (errors only)', false)
   .option('-v, --verbose', 'verbose progress output', false)
@@ -115,6 +120,8 @@ program
         includeThirdParty: opts.includeThirdParty,
         redact: opts.redact,
         allowLocal: opts.allowLocal,
+        // Off unless asked for on the command line or in the environment.
+        telemetry: opts.telemetry || process.env.API_RECON_TELEMETRY === '1',
         maxBodyBytes: Math.round(opts.maxBodyMb * 1024 * 1024),
         logger,
       });
@@ -178,6 +185,7 @@ interface CliOptions {
   redact: boolean;
   force: boolean;
   allowLocal: boolean;
+  telemetry: boolean;
   maxBodyMb: number;
   quiet: boolean;
   verbose: boolean;

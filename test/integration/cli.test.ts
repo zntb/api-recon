@@ -21,7 +21,7 @@ let outDir: string;
 let canRunBrowser = false;
 
 // The help/guard tests run without a browser; these two need a real one.
-const NEEDS_BROWSER = ['produces report files', 'diffs'];
+const NEEDS_BROWSER = ['produces report files', 'diffs', 'telemetry'];
 
 beforeEach((ctx) => {
   if (!canRunBrowser && NEEDS_BROWSER.some((name) => ctx.task.name.includes(name))) {
@@ -76,6 +76,7 @@ describe('api-recon CLI', () => {
       '--include-third-party',
       '--force',
       '--allow-local',
+      '--telemetry',
       '--quiet',
       '--verbose',
     ]) {
@@ -130,6 +131,31 @@ describe('api-recon CLI', () => {
     const md = await readFile(join(dir, 'report.md'), 'utf8');
     expect(md).toContain('# API recon report');
   }, 150_000);
+
+  it('writes telemetry only when the flag or env enables it', async () => {
+    const host = new URL(fixture.url).host;
+    const base = [fixture.url, '--allow-local', '--depth', '0', '--rate', '0', '--formats', 'json', '--quiet'];
+
+    // Off by default: no telemetry.json next to the reports.
+    const offDir = join(outDir, 'cli-telemetry-off');
+    const off = await runCli([...base, '--out', offDir]);
+    expect(off.code).toBe(0);
+    await expect(readFile(join(offDir, 'telemetry.json'), 'utf8')).rejects.toThrow();
+
+    // The flag writes it, and it carries no host or path.
+    const flagDir = join(outDir, 'cli-telemetry-flag');
+    const flagged = await runCli([...base, '--telemetry', '--out', flagDir]);
+    expect(flagged.code).toBe(0);
+    const raw = await readFile(join(flagDir, 'telemetry.json'), 'utf8');
+    expect((JSON.parse(raw) as { version: number }).version).toBe(1);
+    expect(raw).not.toContain(host);
+
+    // API_RECON_TELEMETRY=1 does the same without the flag.
+    const envDir = join(outDir, 'cli-telemetry-env');
+    const viaEnv = await runCli([...base, '--out', envDir], { API_RECON_TELEMETRY: '1' });
+    expect(viaEnv.code).toBe(0);
+    await expect(readFile(join(envDir, 'telemetry.json'), 'utf8')).resolves.toContain('"version": 1');
+  }, 240_000);
 
   it('diffs a scan against a baseline and exits 3 on changes with --fail-on-diff', async () => {
     const dir = join(outDir, 'cli-diff');

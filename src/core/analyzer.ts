@@ -6,7 +6,13 @@
  *   -> data-fetching -> uncategorized
  */
 
-import type { CapturedCall, Category, Endpoint, QueryParam } from '../types.js';
+import type {
+  CapturedCall,
+  CategorizationHeuristic,
+  Category,
+  Endpoint,
+  QueryParam,
+} from '../types.js';
 import { analyzeGraphQL, mergeGraphQL } from './graphql.js';
 import { inferSchemaFromBody } from './schemaInference.js';
 import { isSameDomain, toUrlPattern } from '../utils/url.js';
@@ -88,25 +94,46 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
   };
 }
 
+export interface Categorization {
+  category: Category;
+  heuristic: CategorizationHeuristic;
+}
+
 export function categorize(call: CapturedCall, seedUrl: string, isGraphQL = false): Category {
+  return categorizeWithReason(call, seedUrl, isGraphQL).category;
+}
+
+/** Like `categorize`, but also reports which heuristic matched. */
+export function categorizeWithReason(
+  call: CapturedCall,
+  seedUrl: string,
+  isGraphQL = false,
+): Categorization {
   let parsed: URL;
   try {
     parsed = new URL(call.url);
   } catch {
-    return 'uncategorized';
+    return { category: 'uncategorized', heuristic: 'invalid-url' };
   }
   const path = parsed.pathname.toLowerCase();
   const host = parsed.host.toLowerCase();
 
-  if (AUTH_PATH_RE.test(path)) return 'authentication';
-  if (ANALYTICS_HOSTS.some((h) => host.includes(h)) || ANALYTICS_PATH_RE.test(path)) return 'analytics';
-  if (!isSameDomain(call.url, seedUrl)) return 'third-party';
+  if (AUTH_PATH_RE.test(path)) return { category: 'authentication', heuristic: 'auth-path' };
+  if (ANALYTICS_HOSTS.some((h) => host.includes(h))) {
+    return { category: 'analytics', heuristic: 'analytics-host' };
+  }
+  if (ANALYTICS_PATH_RE.test(path)) return { category: 'analytics', heuristic: 'analytics-path' };
+  if (!isSameDomain(call.url, seedUrl)) return { category: 'third-party', heuristic: 'third-party' };
   // A GraphQL endpoint is recognized by its request, not its path, so it wins
   // over the method-based buckets below.
-  if (isGraphQL) return 'graphql';
-  if (call.method !== 'GET' && call.method !== 'HEAD' && call.method !== 'OPTIONS') return 'mutations';
-  if ((call.mimeType ?? '').toLowerCase().includes('json')) return 'data-fetching';
-  return 'uncategorized';
+  if (isGraphQL) return { category: 'graphql', heuristic: 'graphql' };
+  if (call.method !== 'GET' && call.method !== 'HEAD' && call.method !== 'OPTIONS') {
+    return { category: 'mutations', heuristic: 'mutation-method' };
+  }
+  if ((call.mimeType ?? '').toLowerCase().includes('json')) {
+    return { category: 'data-fetching', heuristic: 'json-response' };
+  }
+  return { category: 'uncategorized', heuristic: 'fallback' };
 }
 
 function collectQueryParams(samples: CapturedCall[]): QueryParam[] {
