@@ -413,6 +413,16 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   keep working offline. The busiest 20 pages and 40 requests are kept and the
   rest counted, so a large capture degrades to a readable picture rather than a
   hairball. `buildRequestGraph` is exported for library use.
+- **A consistent identity** — `src/reporters/brand.ts` holds the mark and the
+  favicon, both embedded: the mark is inline SVG drawn from the theme's ramp
+  tokens (so it takes the dark and print palettes for free), and the favicon is
+  a `data:` URI, so a shared report needs no asset beside it. `report.html`,
+  `dashboard.html`, and the PDF cover all show it. The palette is now a
+  documented ramp in `theme.ts` — `-50` tinted surface, `-200` soft fill, `-500`
+  full strength, `-600` pressed, `-700` readable ink — with the status and accent
+  roles aliasing it, so dark mode moves the ramp rather than restating thirteen
+  colour tokens, and print pins the ramp to its light values so a report printed
+  from a dark desktop cannot put dark ink on a black tile.
 
 **Proposed updates & features**
 
@@ -449,9 +459,6 @@ so it can be scoped without re-reading the source.
   first and report the offending path and line.
 
 **Aesthetics**
-
-- **A consistent identity.** An embedded logo/favicon and a documented colour
-  ramp, so a shared report looks deliberate rather than default-`<table>`.
 
 **Security & privacy**
 

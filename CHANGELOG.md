@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.8] - 2026-09-30
 
 ### Added
 
@@ -29,6 +29,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same graph as inline SVG laid out at build time — no Mermaid runtime, so both
   stay self-contained and offline. Pages and requests are ranked by activity and
   capped (20 / 40), and anything dropped is counted in the report.
+- **A consistent identity** — every HTML artifact and the PDF cover now lead with
+  the same mark, and the two pages link an SVG favicon. Both are embedded (inline
+  SVG and a `data:` URI), so a shared report is still one file with no asset
+  beside it. The mark is drawn from the theme's ramp tokens, so it picks up dark
+  mode and the print palette automatically.
+
+### Changed
+
+- **The palette is a documented colour ramp.** `theme.ts` now defines each hue as
+  a scale whose steps mean a role (`-50` tinted surface, `-200` soft fill, `-500`
+  full strength, `-600` pressed, `-700` readable ink), with the status and accent
+  tokens aliasing it. Dark mode therefore redefines the ramp instead of restating
+  thirteen colours, and print pins the ramp to its light values — a report printed
+  from a dark desktop used to put dark ink on the black print tile.
 
 ## [0.3.7] - 2026-09-30
 
@@ -503,7 +517,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
-[Unreleased]: https://github.com/zntb/api-recon/compare/v0.3.7...HEAD
+[0.3.8]: https://github.com/zntb/api-recon/compare/v0.3.7...v0.3.8
 [0.3.7]: https://github.com/zntb/api-recon/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/zntb/api-recon/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/zntb/api-recon/compare/v0.3.4...v0.3.5

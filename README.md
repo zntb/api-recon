@@ -215,6 +215,35 @@ the same colours, typography, spacing, and code blocks, and both follow your
 scrolls horizontally inside its table or code block instead of widening the
 page.
 
+### Identity and colour ramp
+
+`report.html`, `dashboard.html`, and the PDF cover all carry the same mark, and
+the two HTML pages link an SVG favicon. Both are embedded — the mark as inline
+SVG, the favicon as a `data:` URI — so a report stays one file you can attach,
+open from `file://`, or store as a CI artifact, with no asset to ship beside it.
+The mark is drawn from the theme's ramp tokens, so it follows dark mode and the
+print palette without a second definition.
+
+Everything with a colour takes it from a documented ramp in
+`src/reporters/theme.ts`. Each hue is a scale, and a step means the same *role*
+in every mode — dark mode redefines the ramp, and print pins it to the light
+values (a report printed from a dark desktop must not put dark ink on a black
+tile) — so a component names a step instead of a hex value:
+
+| Ramp | Hue | Steps in use | Where |
+| --- | --- | --- | --- |
+| `--brand-*` | indigo | 50, 200, 500, 600, 700 | logo tile, links, focus rings, graph edges, notes |
+| `--green-*` | green | 50, 700 | `ok` — success and healthy states |
+| `--amber-*` | amber | 50, 700 | `warn` — caution |
+| `--red-*` | red | 50, 700 | `bad` — breaking changes and errors |
+| `--blue-*` | blue | 50, 700 | `info` — neutral information |
+
+`-50` is a tinted surface (badge, note, and row backgrounds), `-200` a soft fill
+(borders, accents), `-500` the hue at full strength, `-600` one step down for a
+pressed or hovered control, and `-700` readable ink for text and icons. Surfaces
+and text (`--panel`, `--ink`, `--line`, …) are roles rather than ramp steps,
+because print flattens them to greys instead of scaling them.
+
 `report.md` closes with a **page → request graph**, rendered as Mermaid for a
 Markdown viewer and as inline SVG in `report.html` and `dashboard.html` (no
 Mermaid runtime, so both stay self-contained and work offline). It joins each

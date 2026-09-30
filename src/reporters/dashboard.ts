@@ -18,11 +18,12 @@ import type { ReconReport } from '../types.js';
 import { FORMAT_FILENAMES } from './json.js';
 import { CODE_STYLE, GRAPH_STYLE, THEME_TOKENS } from './theme.js';
 import { buildRequestGraph, renderRequestGraphSvg } from './graph.js';
+import { BRAND_STYLE, brandMark, faviconLink } from './brand.js';
 
 // Colours, typography, and the code treatment are shared with report.html, so
 // the two artifacts stay one product and a restyle happens in one place. Only
 // the dashboard's own components are defined below.
-const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}
+const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}${BRAND_STYLE}
   * { box-sizing: border-box; }
   /* The hidden attribute has to beat the component rules below that set an
      explicit display, or hiding an element from script silently does nothing. */
@@ -970,6 +971,7 @@ export function renderDashboard(report: ReconReport, title?: string): string {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+${faviconLink()}
 <title>${escapeHtml(heading)}</title>
 <style>${STYLE}</style>
 </head>
@@ -977,7 +979,7 @@ export function renderDashboard(report: ReconReport, title?: string): string {
 <div class="wrap">
   <header class="top">
     <div>
-      <h1>API recon dashboard</h1>
+      <h1>${brandMark(26)}API recon dashboard</h1>
       <p class="seed">${seed}</p>
     </div>
     <dl class="meta">

@@ -73,9 +73,14 @@ function embeddedReport(html: string): ReconReport {
   return JSON.parse(match[1]!) as ReconReport;
 }
 
-/** Every script/link tag the page would fetch from elsewhere. */
+/**
+ * Every script/link tag the page would fetch from elsewhere. A `data:` URI is
+ * self-contained by definition — that is how the favicon ships without a file —
+ * so it does not count as elsewhere.
+ */
 function externalReferences(html: string): string[] {
-  return html.match(/<(?:script[^>]*\bsrc|link\b|iframe\b|img\b)[^>]*>/gi) ?? [];
+  const tags = html.match(/<(?:script[^>]*\bsrc|link\b|iframe\b|img\b)[^>]*>/gi) ?? [];
+  return tags.filter((tag) => !/\b(?:href|src)="data:/i.test(tag));
 }
 
 describe('renderDashboard', () => {
@@ -89,6 +94,8 @@ describe('renderDashboard', () => {
     expect(html.startsWith('<!doctype html>')).toBe(true);
     expect(html).toContain('<style>');
     expect(externalReferences(html)).toEqual([]);
+    // The identity ships inside the file too, not as an asset beside it.
+    expect(html).toContain('<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,');
     // Inline data + inline behaviour: exactly two script elements, both ours.
     expect(html.match(/<script\b/g)).toHaveLength(2);
   });

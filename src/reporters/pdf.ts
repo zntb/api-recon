@@ -11,6 +11,7 @@
 
 import { chromium } from 'playwright';
 import { escapeHtml } from './html.js';
+import { brandMark } from './brand.js';
 
 /** What the cover and the running headers need to identify this document. */
 export interface PdfCoverInfo {
@@ -26,6 +27,7 @@ const PDF_STYLE = `
   .pdf-cover { padding-top: 30mm; break-after: page; }
   .pdf-cover .pdf-kicker { margin: 0; font-size: .8rem; font-weight: 600;
     letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .pdf-cover .pdf-kicker .brand-mark { vertical-align: -0.25em; margin-right: .45em; }
   .pdf-cover .pdf-title { margin: .4rem 0 0; font-size: 2.4rem; letter-spacing: -0.02em; }
   .pdf-cover .pdf-host { margin: .3rem 0 2rem; font-size: 1.15rem; color: var(--accent); }
   .pdf-cover .pdf-summary { margin: 0 0 2rem; color: var(--muted); }
@@ -60,7 +62,7 @@ function coverMarkup(info: PdfCoverInfo): string {
     .map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`)
     .join('');
   return `<section class="pdf-cover">
-  <p class="pdf-kicker">api-recon</p>
+  <p class="pdf-kicker">${brandMark(18)}api-recon</p>
   <h1 class="pdf-title">API recon report</h1>
   <p class="pdf-host">${escapeHtml(seedHost(info.seedUrl))}</p>
   <p class="pdf-summary">${escapeHtml(info.summary)}</p>

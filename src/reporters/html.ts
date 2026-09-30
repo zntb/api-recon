@@ -4,11 +4,12 @@ import { marked } from 'marked';
 import type { ReconReport } from '../types.js';
 import { CODE_STYLE, GRAPH_STYLE, THEME_TOKENS } from './theme.js';
 import { buildRequestGraph, renderRequestGraphSvg } from './graph.js';
+import { BRAND_STYLE, brandMark, faviconLink } from './brand.js';
 
 // The palette, typography, and code treatment come from the shared theme so
 // this page and dashboard.html stay one product; only the document layout is
 // local to this reporter.
-const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}
+const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}${BRAND_STYLE}
   * { box-sizing: border-box; }
   body {
     margin: 0; padding: 2.5rem 1.25rem;
@@ -51,6 +52,15 @@ const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}
  * a long URL, a payload — then scrolls horizontally instead of widening the
  * page past the viewport.
  */
+/**
+ * The report's title becomes its masthead: the mark sits inline with the `<h1>`
+ * the Markdown already carries, so the page leads with an identity instead of a
+ * bare heading and the heading structure is unchanged.
+ */
+function addMasthead(body: string): string {
+  return body.replace(/(<h1[^>]*>)([\s\S]*?)(<\/h1>)/, `$1${brandMark(26)}$2$3`);
+}
+
 function wrapTables(html: string): string {
   return html
     .replace(/<table>/g, '<div class="table-scroll"><table>')
@@ -91,12 +101,15 @@ export async function renderHtml(
   title: string,
   report?: ReconReport,
 ): Promise<string> {
-  const body = embedRequestGraph(await marked.parse(markdown, { async: true, gfm: true }), report);
+  const body = addMasthead(
+    embedRequestGraph(await marked.parse(markdown, { async: true, gfm: true }), report),
+  );
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+${faviconLink()}
 <title>${escapeHtml(title)}</title>
 <style>${STYLE}</style>
 </head>
