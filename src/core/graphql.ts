@@ -6,7 +6,8 @@
  * an `application/graphql` body, a `query` search parameter (GET), or the
  * `operationName` of an automatic persisted query. Nothing here executes or
  * replays a request — the document text is only tokenized to read the operation
- * definitions and check whether the schema introspection fields were selected.
+ * definitions, their top-level selection sets and argument names, and whether
+ * the schema introspection fields were selected.
  */
 
 import type {
@@ -59,12 +60,29 @@ export function mergeGraphQL(infos: Iterable<GraphQLInfo | null>): GraphQLInfo |
     introspection = introspection || info.introspection;
     for (const operation of info.operations) {
       const key = `${operation.type}:${operation.name ?? ''}`;
-      if (!operations.has(key)) operations.set(key, operation);
+      const existing = operations.get(key);
+      // Union the observations, so a field or argument seen in any sample is kept.
+      operations.set(key, existing ? mergeOperation(existing, operation) : operation);
     }
   }
 
   if (!found) return null;
   return { introspection, operations: sortOperations([...operations.values()]) };
+}
+
+/** Union two observations of one operation, so no selected field is dropped. */
+function mergeOperation(a: GraphQLOperation, b: GraphQLOperation): GraphQLOperation {
+  const selections = unionSorted(a.selections, b.selections);
+  const args = unionSorted(a.arguments, b.arguments);
+  return {
+    ...a,
+    ...(selections.length ? { selections } : {}),
+    ...(args.length ? { arguments: args } : {}),
+  };
+}
+
+function unionSorted(a: string[] | undefined, b: string[] | undefined): string[] {
+  return [...new Set([...(a ?? []), ...(b ?? [])])].sort();
 }
 
 /**
@@ -99,7 +117,7 @@ export function parseGraphQLDocument(query: string): ParsedGraphQLDocument {
         i = cursor;
         continue;
       }
-      operations.push({ name, type });
+      operations.push(withSelections({ name, type }, readSelectionSet(tokens, selection)));
       // Skip the whole operation so fields inside it are never read as definitions.
       i = skipSelectionSet(tokens, selection);
       continue;
@@ -107,7 +125,7 @@ export function parseGraphQLDocument(query: string): ParsedGraphQLDocument {
 
     if (token.kind === 'punct' && token.value === '{') {
       // Anonymous query shorthand: `{ products { id } }`.
-      operations.push({ name: null, type: 'query' });
+      operations.push(withSelections({ name: null, type: 'query' }, readSelectionSet(tokens, i)));
       i = skipSelectionSet(tokens, i);
       continue;
     }
@@ -242,6 +260,146 @@ function tokenize(source: string): Token[] {
     i += 1;
   }
   return tokens;
+}
+
+interface ReadSelectionSet {
+  selections: string[];
+  arguments: string[];
+}
+
+/** Attach the field and argument names a document revealed, when it had any. */
+function withSelections(
+  operation: GraphQLOperation,
+  read: ReadSelectionSet,
+): GraphQLOperation {
+  return {
+    ...operation,
+    ...(read.selections.length ? { selections: read.selections } : {}),
+    ...(read.arguments.length ? { arguments: read.arguments } : {}),
+  };
+}
+
+/**
+ * Read the fields selected at the top level of the selection set opened at
+ * `openBrace`, plus the argument names passed to those fields. Nested selection
+ * sets, fragment spreads, inline fragments, and directive arguments are skipped
+ * so only what this operation selects directly is recorded. Names are sorted so
+ * the result does not depend on how the document happened to be written.
+ */
+function readSelectionSet(tokens: Token[], openBrace: number): ReadSelectionSet {
+  const selections = new Set<string>();
+  const args = new Set<string>();
+  const end = matchingClose(tokens, openBrace);
+  let i = openBrace + 1;
+
+  while (i < end) {
+    const token = tokens[i]!;
+
+    if (token.kind === 'punct') {
+      if (token.value === '@') {
+        // A directive on the preceding field: skip its name and optional args.
+        i += 1;
+        if (tokens[i]?.kind === 'name') i += 1;
+        if (tokens[i]?.kind === 'punct' && tokens[i]!.value === '(') i = skipBalanced(tokens, i);
+        continue;
+      }
+      if (token.value === '...') {
+        i = skipFragment(tokens, i);
+        continue;
+      }
+      if (token.value === '(' || token.value === '{') {
+        i = skipBalanced(tokens, i);
+        continue;
+      }
+      i += 1;
+      continue;
+    }
+
+    if (token.kind === 'string') {
+      i += 1;
+      continue;
+    }
+
+    // A field: `name`, or `alias: name`, with optional arguments.
+    let field = token.value;
+    i += 1;
+    if (tokens[i]?.kind === 'punct' && tokens[i]!.value === ':') {
+      const aliased = tokens[i + 1];
+      if (aliased?.kind === 'name') {
+        field = aliased.value;
+        i += 2;
+      }
+    }
+    selections.add(field);
+    if (tokens[i]?.kind === 'punct' && tokens[i]!.value === '(') {
+      collectArgumentNames(tokens, i, args);
+      i = skipBalanced(tokens, i);
+    }
+  }
+
+  return { selections: [...selections].sort(), arguments: [...args].sort() };
+}
+
+/** Skip a fragment spread or inline fragment, including any selection set. */
+function skipFragment(tokens: Token[], at: number): number {
+  let i = at + 1; // past the `...`
+  if (tokens[i]?.kind === 'name' && tokens[i]!.value === 'on') {
+    i += 1;
+    if (tokens[i]?.kind === 'name') i += 1; // the type condition
+  } else if (tokens[i]?.kind === 'name') {
+    i += 1; // the fragment name
+  }
+  while (tokens[i]?.kind === 'punct' && tokens[i]!.value === '@') {
+    i += 1;
+    if (tokens[i]?.kind === 'name') i += 1;
+    if (tokens[i]?.kind === 'punct' && tokens[i]!.value === '(') i = skipBalanced(tokens, i);
+  }
+  if (tokens[i]?.kind === 'punct' && tokens[i]!.value === '{') i = skipBalanced(tokens, i);
+  return i;
+}
+
+/**
+ * Collect the argument names (`name:` pairs) of a call's argument list. Only
+ * pairs at the top level of the list count, so object literals and nested
+ * input objects are not mistaken for arguments.
+ */
+function collectArgumentNames(tokens: Token[], openParen: number, args: Set<string>): void {
+  const end = matchingClose(tokens, openParen);
+  let depth = 0;
+  for (let i = openParen + 1; i < end; i++) {
+    const token = tokens[i]!;
+    if (token.kind !== 'punct') continue;
+    if (token.value === '(' || token.value === '[' || token.value === '{') depth += 1;
+    else if (token.value === ')' || token.value === ']' || token.value === '}')
+      depth = Math.max(0, depth - 1);
+    else if (token.value === ':' && depth === 0) {
+      const previous = tokens[i - 1];
+      if (previous?.kind === 'name') args.add(previous.value);
+    }
+  }
+}
+
+/** Index of the bracket that closes the one opened at `openIndex`. */
+function matchingClose(tokens: Token[], openIndex: number): number {
+  const open = tokens[openIndex]!.value;
+  const close = open === '(' ? ')' : open === '[' ? ']' : '}';
+  let depth = 0;
+  for (let i = openIndex; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (token.kind !== 'punct') continue;
+    if (token.value === open) depth += 1;
+    else if (token.value === close) {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return tokens.length;
+}
+
+/** Index just past the bracket that closes the one opened at `openIndex`. */
+function skipBalanced(tokens: Token[], openIndex: number): number {
+  const close = matchingClose(tokens, openIndex);
+  return close < tokens.length ? close + 1 : tokens.length;
 }
 
 /** Index of the `{` that opens a definition's selection set, or -1. */

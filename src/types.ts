@@ -143,6 +143,15 @@ export interface GraphQLOperation {
   /** The operation's name, or `null` for an anonymous operation. */
   name: string | null;
   type: GraphQLOperationType;
+  /**
+   * The fields selected at the operation's top level — what a client reads
+   * from the response. Present only when a query document was captured, and
+   * omitted when the operation had no top-level fields (a persisted-query
+   * call carries only the operation name).
+   */
+  selections?: string[];
+  /** The argument names passed to those top-level fields; omitted when none. */
+  arguments?: string[];
 }
 
 /**

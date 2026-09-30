@@ -453,7 +453,9 @@ const SCRIPT = `
     if (e.graphql) {
       blocks.appendChild(kv('GraphQL introspection', [e.graphql.introspection ? 'observed' : 'not observed']));
       blocks.appendChild(kv('GraphQL operations', (e.graphql.operations || []).map(function (o) {
-        return (o.name || 'anonymous') + ' (' + o.type + ')';
+        var fields = (o.selections || []).length ? ' → ' + o.selections.join(', ') : '';
+        var args = (o.arguments || []).length ? ' (args: ' + o.arguments.join(', ') + ')' : '';
+        return (o.name || 'anonymous') + ' (' + o.type + ')' + fields + args;
       })));
     }
     blocks.appendChild(kv('Request headers', headerList(e.requestHeaders)));

@@ -4,7 +4,7 @@
     "startedAt": "2026-01-01T00:00:00.000Z",
     "durationMs": 280,
     "pagesVisited": 8,
-    "apiReconVersion": "0.3.0",
+    "apiReconVersion": "0.3.1",
     "engine": "chromium"
   },
   "technologies": [
@@ -699,11 +699,17 @@
         "operations": [
           {
             "name": "GetProducts",
-            "type": "query"
+            "type": "query",
+            "selections": [
+              "products"
+            ]
           },
           {
             "name": "IntrospectionQuery",
-            "type": "query"
+            "type": "query",
+            "selections": [
+              "__schema"
+            ]
           }
         ]
       }

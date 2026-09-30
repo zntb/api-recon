@@ -313,6 +313,15 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   it in plain words, `openapi.yaml` carries it as an `x-schema-reason`
   extension, and `--diff` treats a shape that was only partly observed as
   inconclusive instead of reporting a removed field.
+- **GraphQL selection sets** — `analyzeGraphQL` read operation names and types
+  but not what each operation asked the server for. Every operation now records
+  its top-level `selections` and the `arguments` passed to them. The tokenizer
+  in `src/core/graphql.ts` reads fields through aliases while still ignoring
+  strings, comments, nested selection sets, fragment spreads, inline fragments,
+  and directive arguments, and `mergeGraphQL` unions the observations across
+  samples like a REST schema. The Markdown report and dashboard show them, and
+  `--diff` treats a selection or argument that is no longer observed as
+  breaking, the way it already does for a removed REST response field.
 
 **Proposed updates & features**
 
@@ -323,11 +332,6 @@ so it can be scoped without re-reading the source.
 
 **Report accuracy & detail**
 
-- **GraphQL: record what each operation selects.** `analyzeGraphQL` reads
-  operation names and types; extend the tokenizer to keep each operation's
-  top-level selection set and argument names, so the report shows the fields a
-  client depends on and `--diff` can flag a removed one as breaking, the way it
-  already does for a REST response field.
 - **Group endpoints into resources.** Cluster `/api/orders`, `/api/orders/{id}`,
   and `/api/orders/{id}/items` into one resource with the verbs observed, and
   surface the missing ones (say, no `DELETE`). That turns a flat endpoint list

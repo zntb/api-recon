@@ -297,6 +297,15 @@ function diffGraphQL(before: GraphQLInfo | undefined, after: GraphQLInfo | undef
       breaking: true,
     });
   }
+
+  // Compare what each operation still selects and passes: a field a client
+  // reads is contract, so losing one is breaking, like a removed REST field.
+  const beforeByKey = new Map(beforeOps.map((operation) => [operationKey(operation), operation]));
+  for (const operation of afterOps) {
+    const previous = beforeByKey.get(operationKey(operation));
+    if (previous) details.push(...diffOperationFields(previous, operation));
+  }
+
   if (!before!.introspection && after!.introspection) {
     details.push({ text: 'GraphQL introspection newly observed', breaking: false });
   } else if (before!.introspection && !after!.introspection) {
@@ -308,6 +317,46 @@ function diffGraphQL(before: GraphQLInfo | undefined, after: GraphQLInfo | undef
 
 function operationKey(operation: GraphQLOperation): string {
   return `${operation.type}:${operation.name ?? ''}`;
+}
+
+/**
+ * Compare the top-level fields an operation selects and the argument names it
+ * passes. A selection or argument that is no longer observed is treated like a
+ * removed response field — the crawl may not have exercised it, but a client
+ * that asks for it would break — while a new one is additive.
+ */
+function diffOperationFields(before: GraphQLOperation, after: GraphQLOperation): Detail[] {
+  const name = after.name ?? 'anonymous';
+  return [
+    ...diffStringSet('selection', before.selections, after.selections, name),
+    ...diffStringSet('argument', before.arguments, after.arguments, name),
+  ];
+}
+
+function diffStringSet(
+  kind: 'selection' | 'argument',
+  before: string[] | undefined,
+  after: string[] | undefined,
+  operation: string,
+): Detail[] {
+  const beforeSet = new Set(before ?? []);
+  const afterSet = new Set(after ?? []);
+  const removed = [...beforeSet].filter((value) => !afterSet.has(value));
+  const added = [...afterSet].filter((value) => !beforeSet.has(value));
+  const details: Detail[] = [];
+  if (removed.length > 0) {
+    details.push({
+      text: `GraphQL ${operation} ${kind}(s) removed: ${removed.join(', ')}`,
+      breaking: true,
+    });
+  }
+  if (added.length > 0) {
+    details.push({
+      text: `GraphQL ${operation} ${kind}(s) added: ${added.join(', ')}`,
+      breaking: false,
+    });
+  }
+  return details;
 }
 
 function describeOperations(operations: GraphQLOperation[]): string {

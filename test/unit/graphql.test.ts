@@ -27,44 +27,87 @@ function post(body: unknown, overrides: Partial<CapturedCall> = {}): CapturedCal
 }
 
 describe('parseGraphQLDocument', () => {
-  it('reads named operations and their types', () => {
+  it('reads named operations, their types, and top-level fields', () => {
     const parsed = parseGraphQLDocument('query GetUser { user { id } }');
-    expect(parsed.operations).toEqual([{ name: 'GetUser', type: 'query' }]);
+    expect(parsed.operations).toEqual([
+      { name: 'GetUser', type: 'query', selections: ['user'] },
+    ]);
 
     const mixed = parseGraphQLDocument('query A { a } mutation B { b } subscription C { c }');
     expect(mixed.operations).toEqual([
-      { name: 'A', type: 'query' },
-      { name: 'B', type: 'mutation' },
-      { name: 'C', type: 'subscription' },
+      { name: 'A', type: 'query', selections: ['a'] },
+      { name: 'B', type: 'mutation', selections: ['b'] },
+      { name: 'C', type: 'subscription', selections: ['c'] },
+    ]);
+  });
+
+  it('records argument names without reading into input objects', () => {
+    const parsed = parseGraphQLDocument(
+      'query GetProducts($first: Int) { products(first: $first) { id } }',
+    );
+    expect(parsed.operations).toEqual([
+      { name: 'GetProducts', type: 'query', selections: ['products'], arguments: ['first'] },
+    ]);
+
+    const nested = parseGraphQLDocument(
+      'query Search { search(filter: { status: "open" }) { id } }',
+    );
+    expect(nested.operations).toEqual([
+      { name: 'Search', type: 'query', selections: ['search'], arguments: ['filter'] },
+    ]);
+  });
+
+  it('keeps only the top-level selection set, not nested fields', () => {
+    const parsed = parseGraphQLDocument('query Q { products { id name reviews { body } } }');
+    expect(parsed.operations).toEqual([{ name: 'Q', type: 'query', selections: ['products'] }]);
+  });
+
+  it('reads through aliases and ignores directives', () => {
+    const parsed = parseGraphQLDocument(
+      'query Q { price: product(id: 1) @include(if: true) { amount } }',
+    );
+    expect(parsed.operations).toEqual([
+      { name: 'Q', type: 'query', selections: ['product'], arguments: ['id'] },
     ]);
   });
 
   it('treats the anonymous query shorthand as a query', () => {
     expect(parseGraphQLDocument('{ products { id } }').operations).toEqual([
-      { name: null, type: 'query' },
+      { name: null, type: 'query', selections: ['products'] },
     ]);
   });
 
   it('ignores keywords in nested fields, strings, comments, and fragments', () => {
     const nested = parseGraphQLDocument('query GetProducts { query { id } mutation { state } }');
-    expect(nested.operations).toEqual([{ name: 'GetProducts', type: 'query' }]);
+    expect(nested.operations).toEqual([
+      { name: 'GetProducts', type: 'query', selections: ['mutation', 'query'] },
+    ]);
 
     const noisy = parseGraphQLDocument(
       '# query NotReal\nquery Real { field(arg: "mutation AlsoNotReal") }',
     );
-    expect(noisy.operations).toEqual([{ name: 'Real', type: 'query' }]);
+    expect(noisy.operations).toEqual([
+      { name: 'Real', type: 'query', selections: ['field'], arguments: ['arg'] },
+    ]);
 
+    // A fragment spread selects nothing directly, and its fields are not the
+    // operation's own top-level fields.
     const withFragment = parseGraphQLDocument(
       'fragment Fields on Query { id } query WithFragment { ...Fields }',
     );
     expect(withFragment.operations).toEqual([{ name: 'WithFragment', type: 'query' }]);
+
+    const inline = parseGraphQLDocument('query Q { ... on User { email } }');
+    expect(inline.operations).toEqual([{ name: 'Q', type: 'query' }]);
   });
 
   it('skips variable definitions and directives before the selection set', () => {
     const parsed = parseGraphQLDocument(
       'query GetProducts($first: Int = 3, $filter: Filter = { status: "open" }) @cached(ttl: 60) { products { id } }',
     );
-    expect(parsed.operations).toEqual([{ name: 'GetProducts', type: 'query' }]);
+    expect(parsed.operations).toEqual([
+      { name: 'GetProducts', type: 'query', selections: ['products'] },
+    ]);
   });
 
   it('flags schema introspection fields', () => {
@@ -82,7 +125,7 @@ describe('analyzeGraphQL', () => {
     );
     expect(info).toEqual({
       introspection: false,
-      operations: [{ name: 'GetProducts', type: 'query' }],
+      operations: [{ name: 'GetProducts', type: 'query', selections: ['products'] }],
     });
   });
 
@@ -94,7 +137,9 @@ describe('analyzeGraphQL', () => {
       }),
     );
     expect(info?.introspection).toBe(true);
-    expect(info?.operations).toEqual([{ name: 'IntrospectionQuery', type: 'query' }]);
+    expect(info?.operations).toEqual([
+      { name: 'IntrospectionQuery', type: 'query', selections: ['__schema'] },
+    ]);
   });
 
   it('records an operation name the document did not declare', () => {
@@ -103,7 +148,7 @@ describe('analyzeGraphQL', () => {
     );
     expect(info?.operations).toEqual([
       { name: 'GetViewer', type: 'unknown' },
-      { name: 'Other', type: 'query' },
+      { name: 'Other', type: 'query', selections: ['viewer'] },
     ]);
   });
 
@@ -115,7 +160,9 @@ describe('analyzeGraphQL', () => {
         requestBodySample: null,
       }),
     );
-    expect(info?.operations).toEqual([{ name: 'GetViewer', type: 'query' }]);
+    expect(info?.operations).toEqual([
+      { name: 'GetViewer', type: 'query', selections: ['viewer'] },
+    ]);
   });
 
   it('detects an application/graphql body', () => {
@@ -125,7 +172,9 @@ describe('analyzeGraphQL', () => {
         requestBodySample: 'query GetViewer { viewer { id } }',
       }),
     );
-    expect(info?.operations).toEqual([{ name: 'GetViewer', type: 'query' }]);
+    expect(info?.operations).toEqual([
+      { name: 'GetViewer', type: 'query', selections: ['viewer'] },
+    ]);
   });
 
   it('recognizes an automatic persisted query from its operation name', () => {
@@ -168,6 +217,34 @@ describe('mergeGraphQL', () => {
         { name: 'B', type: 'mutation' },
       ],
     });
+  });
+
+  it('unions the fields and arguments observed for one operation', () => {
+    const merged = mergeGraphQL([
+      {
+        introspection: false,
+        operations: [{ name: 'GetProducts', type: 'query', selections: ['products'] }],
+      },
+      {
+        introspection: false,
+        operations: [
+          {
+            name: 'GetProducts',
+            type: 'query',
+            selections: ['products', 'reviews'],
+            arguments: ['first'],
+          },
+        ],
+      },
+    ]);
+    expect(merged?.operations).toEqual([
+      {
+        name: 'GetProducts',
+        type: 'query',
+        selections: ['products', 'reviews'],
+        arguments: ['first'],
+      },
+    ]);
   });
 
   it('returns null when nothing was GraphQL', () => {

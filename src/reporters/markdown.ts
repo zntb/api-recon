@@ -277,9 +277,12 @@ function detailedEndpoint(endpoint: Endpoint): string[] {
   lines.push(`| Origins | ${cell(endpoint.origins.join(', '))} |`);
   lines.push(`| Triggered by | ${cell(endpoint.triggeredBy.join(', '))} |`);
   if (endpoint.graphql) {
-    const operations = endpoint.graphql.operations.map(
-      (op) => `${op.name ? `\`${op.name}\`` : 'anonymous'} (${op.type})`,
-    );
+    const operations = endpoint.graphql.operations.map((op) => {
+      const label = `${op.name ? `\`${op.name}\`` : 'anonymous'} (${op.type})`;
+      const fields = op.selections?.length ? ` → ${op.selections.join(', ')}` : '';
+      const args = op.arguments?.length ? ` (args: ${op.arguments.join(', ')})` : '';
+      return `${label}${fields}${args}`;
+    });
     lines.push(
       `| GraphQL introspection | ${endpoint.graphql.introspection ? 'yes — the schema is exposed' : 'no'} |`,
     );

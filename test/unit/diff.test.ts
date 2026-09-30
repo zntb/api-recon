@@ -8,6 +8,7 @@ import type {
   CapturedWebSocket,
   Endpoint,
   ErrorResponse,
+  GraphQLInfo,
   JsonSchemaLike,
   ReconReport,
   WebSocketFrame,
@@ -497,6 +498,52 @@ describe('diffReports', () => {
     expect(change.details.join(' ')).toContain(
       'GraphQL operations not observed this time: DeleteProduct (mutation)',
     );
+  });
+
+  it('flags a removed GraphQL selection as breaking and an added one as additive', () => {
+    const withFields = (selections: string[]): GraphQLInfo => ({
+      introspection: false,
+      operations: [{ name: 'GetProducts', type: 'query', selections }],
+    });
+    const baseline = report([
+      endpoint({
+        id: 'POST /graphql',
+        category: 'graphql',
+        graphql: withFields(['products', 'reviews']),
+      }),
+    ]);
+    const current = report([
+      endpoint({
+        id: 'POST /graphql',
+        category: 'graphql',
+        graphql: withFields(['products', 'orders']),
+      }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'POST /graphql');
+    expect(change.breaking).toBe(true);
+    const text = change.details.join(' ');
+    expect(text).toContain('GraphQL GetProducts selection(s) removed: reviews');
+    expect(text).toContain('GraphQL GetProducts selection(s) added: orders');
+  });
+
+  it('flags a removed GraphQL argument as breaking', () => {
+    const withArgs = (args: string[]): GraphQLInfo => ({
+      introspection: false,
+      operations: [
+        { name: 'CreateOrder', type: 'mutation', selections: ['createOrder'], arguments: args },
+      ],
+    });
+    const baseline = report([
+      endpoint({ id: 'POST /graphql', category: 'graphql', graphql: withArgs(['input', 'coupon']) }),
+    ]);
+    const current = report([
+      endpoint({ id: 'POST /graphql', category: 'graphql', graphql: withArgs(['input']) }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'POST /graphql');
+    expect(change.breaking).toBe(true);
+    expect(change.details.join(' ')).toContain('GraphQL CreateOrder argument(s) removed: coupon');
   });
 
   it('reports GraphQL introspection being newly observed without calling it breaking', () => {

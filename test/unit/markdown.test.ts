@@ -149,4 +149,35 @@ describe('renderMarkdown', () => {
     const md = renderMarkdown(report({ endpoints: [endpoint] }));
     expect(md).toContain('Response schema not inferred — body was truncated');
   });
+
+  it('shows the fields and arguments a GraphQL operation selects', () => {
+    const endpoint: Endpoint = {
+      id: 'POST /graphql',
+      method: 'POST',
+      urlPattern: '/graphql',
+      origins: ['https://example.com'],
+      category: 'graphql',
+      count: 1,
+      statusCodes: [200],
+      requestHeaders: {},
+      responseHeaders: {},
+      requestBodySample: null,
+      responseBodySample: null,
+      pathParams: [],
+      queryParams: [],
+      requestBodySchema: null,
+      responseSchema: null,
+      graphql: {
+        introspection: false,
+        operations: [
+          { name: 'GetProducts', type: 'query', selections: ['products'], arguments: ['first'] },
+        ],
+      },
+      mimeTypes: ['application/json'],
+      triggeredBy: ['https://example.com/graphql'],
+    };
+
+    const md = renderMarkdown(report({ endpoints: [endpoint] }));
+    expect(md).toContain('`GetProducts` (query) → products (args: first)');
+  });
 });
