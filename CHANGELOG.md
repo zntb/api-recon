@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.6] - 2026-09-30
 
 ### Added
 
@@ -23,6 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `x-observed-response-bytes`. `--diff` flags a response whose p95 grew by at
   least 50% *and* 5 KB as a performance regression — reported in plain language,
   not as an API break.
+- **Findings & next steps** — a report now ends with what to act on rather than
+  only data. `src/core/findings.ts` derives `findings` from the capture: a
+  sensitive-looking endpoint that answered without a credential
+  (`unauthenticated`), PII-shaped field names in the samples (`pii`), security
+  headers no response sent (`missing-security-header`), error bodies that leaked
+  internals (`verbose-error`), and shapes that fell back to a `oneOf` union
+  within a single run (`inconsistent-shape`). Each carries a `severity`, the
+  endpoint ids, and the evidence. The Markdown report groups them under
+  **Findings & Next Steps** and the dashboard lists them in a findings panel.
+  They are heuristics over whatever traffic a scan triggered — review cues, not
+  a security audit — and are absent from reports written before this release.
 
 ## [0.3.5] - 2026-09-30
 
@@ -437,7 +448,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
-[Unreleased]: https://github.com/zntb/api-recon/compare/v0.3.5...HEAD
+[0.3.6]: https://github.com/zntb/api-recon/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/zntb/api-recon/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/zntb/api-recon/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/zntb/api-recon/compare/v0.3.2...v0.3.3

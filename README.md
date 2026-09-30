@@ -258,7 +258,10 @@ you only care about the API surface, Chromium is the safer default.
       "receivedSchema": null
     }
   ],
-  "safety": { "robotsRespected": true, "robotsSkippedPaths": [], "rateLimitMs": 500, "maxBodyBytes": 1048576, "allowLocal": false, "redact": true }
+  "safety": { "robotsRespected": true, "robotsSkippedPaths": [], "rateLimitMs": 500, "maxBodyBytes": 1048576, "allowLocal": false, "redact": true },
+  "findings": [
+    { "kind": "missing-security-header", "severity": "low", "title": "Security headers not observed on any response", "endpoints": [], "details": ["strict-transport-security was not present on any captured response"] }
+  ]
 }
 ```
 
@@ -317,6 +320,17 @@ observed being sent — the request body's top-level field names and the query
 parameter names, sorted. The report says `Stripe` or `Segment` rather than a
 hostname; a host that is not a known vendor stays unattributed, and an empty
 `payloadKeys` means the payload was not observed rather than that none was sent.
+
+Finally, the report closes with `findings`: review cues derived from the capture,
+so a scan ends with what to act on rather than only data. Each has a `kind`
+(`unauthenticated`, `pii`, `missing-security-header`, `verbose-error`, or
+`inconsistent-shape`), a `severity`, and the endpoint ids and evidence behind
+it. They flag sensitive-looking endpoints that answered without a credential,
+PII-shaped field names in the samples, security headers no response sent,
+error bodies that leaked internals, and shapes that had to fall back to a
+`oneOf` union within a single run. These are heuristics over whatever traffic
+the scan triggered, not a security audit — the Markdown report says so in its
+**Findings & Next Steps** section, and the dashboard shows the same list.
 
 Look at [`examples/output/`](examples/output) for a real report generated from
 the bundled fixture site.

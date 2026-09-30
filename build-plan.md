@@ -361,6 +361,15 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   in its expanded row, and `openapi.yaml` carries `x-observed-latency-ms` /
   `x-observed-response-bytes`. `--diff` flags a response whose p95 grew by both
   50% and at least 5 KB, as a performance regression rather than an API break.
+- **Findings & next steps** — the report now closes with `findings`,
+  `src/core/findings.ts` deriving review cues from the capture: sensitive-looking
+  endpoints answered without a credential, PII-shaped field names in the
+  samples, security headers no response sent, error bodies that leaked
+  internals, and shapes that fell back to a `oneOf` union within one run. Each
+  finding carries a `kind`, a `severity`, the endpoint ids, and the evidence;
+  the Markdown report groups them under **12. Findings & Next Steps** and the
+  dashboard lists them in a findings panel. They are heuristics over the traffic
+  a scan triggered, framed as review cues rather than an audit.
 
 **Proposed updates & features**
 
@@ -371,11 +380,6 @@ so it can be scoped without re-reading the source.
 
 **Report accuracy & detail**
 
-- **Close with findings and next steps.** End the report with what a reader
-  should act on: endpoints reached without auth, PII-shaped fields in samples,
-  missing security headers, verbose error bodies, and endpoints whose shape was
-  inconsistent within a single run. This is what turns a capture into a review
-  artifact.
 
 **Stability & performance**
 
@@ -494,8 +498,8 @@ so it can be scoped without re-reading the source.
   one-page summary suitable for pasting into a ticket.
 
 If a few are picked first, the highest-leverage trio is proving redaction before
-writing (security), checking example freshness in CI (stability), and closing
-the report with findings and next steps (report accuracy).
+writing (security), checking example freshness in CI (stability), and masking
+sensitive query values for flagged parameter names (privacy).
 
 ---
 

@@ -271,6 +271,27 @@ const SCRIPT = `
     });
   }
 
+  // ---- findings ------------------------------------------------------------
+  function renderFindings() {
+    var host = document.getElementById('findings');
+    var findings = data.findings || [];
+    if (!findings.length) { host.hidden = true; return; }
+    host.appendChild(el('h2', null, 'Findings & next steps'));
+    findings.forEach(function (finding) {
+      var block = el('div', 'block full');
+      block.appendChild(el('h4', null, finding.title + ' · ' + finding.severity));
+      var list = el('ul');
+      var details = finding.details || [];
+      if (details.length) {
+        details.forEach(function (detail) { list.appendChild(el('li', null, detail)); });
+      } else {
+        (finding.endpoints || []).forEach(function (id) { list.appendChild(el('li', null, id)); });
+      }
+      block.appendChild(list);
+      host.appendChild(block);
+    });
+  }
+
   function buildControls() {
     var categories = unique(endpoints.concat(sockets).map(function (e) { return e.category; }));
     var methods = unique(allRows.map(function (e) { return e.method; }));
@@ -662,6 +683,7 @@ const SCRIPT = `
 
   buildControls();
   renderStats();
+  renderFindings();
   renderResources();
   render();
 })();
@@ -751,6 +773,8 @@ export function renderDashboard(report: ReconReport, title?: string): string {
   </noscript>
 
   <section class="stats" id="stats" aria-label="Summary"></section>
+
+  <section class="panel" id="findings" aria-label="Findings"></section>
 
   <section class="panel" id="resources" aria-label="Resource coverage"></section>
 

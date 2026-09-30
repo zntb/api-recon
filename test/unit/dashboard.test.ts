@@ -163,6 +163,23 @@ describe('renderDashboard', () => {
     expect(embeddedReport(html).resources).toEqual(source.resources);
   });
 
+  it('embeds findings and exposes the panel', () => {
+    const findings = [
+      {
+        kind: 'pii' as const,
+        severity: 'medium' as const,
+        title: 'PII-shaped fields appear in captured samples',
+        endpoints: ['GET /api/profile'],
+        details: ['GET /api/profile — email'],
+      },
+    ];
+    const source = report([endpoint({ id: 'GET /api/profile' })], { findings });
+
+    const html = renderDashboard(source);
+    expect(html).toContain('id="findings"');
+    expect(embeddedReport(html).findings).toEqual(findings);
+  });
+
   it('says so when no endpoints were captured', () => {
     const html = renderDashboard(report([]));
     expect(html).toContain('No endpoints were captured.');

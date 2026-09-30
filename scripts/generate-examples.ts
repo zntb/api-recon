@@ -23,6 +23,7 @@ import { analyzeCalls, analyzeWebSockets } from '../src/core/analyzer.js';
 import { groupResources } from '../src/core/resources.js';
 import { inferSchemaFromFrames } from '../src/core/schemaInference.js';
 import { diffReports } from '../src/core/diff.js';
+import { collectFindings } from '../src/core/findings.js';
 import { detectTechnologies, type TechEvidence } from '../src/core/techStack.js';
 import { renderDashboard } from '../src/reporters/dashboard.js';
 import { writeReports } from '../src/reporters/index.js';
@@ -367,6 +368,8 @@ async function main(): Promise<void> {
         redact: true,
       },
     };
+
+    report.findings = collectFindings(report);
 
     const files = await writeReports(report, FORMATS, OUT_DIR);
     console.log(`Wrote ${files.length} sample report(s):`);

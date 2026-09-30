@@ -217,6 +217,35 @@ describe('renderMarkdown', () => {
     expect(md).toContain('### Largest responses (by p95)');
   });
 
+  it('closes with findings grouped by severity', () => {
+    const md = renderMarkdown(
+      report({
+        findings: [
+          {
+            kind: 'unauthenticated',
+            severity: 'high',
+            title: 'Sensitive-looking endpoints answered without credentials',
+            endpoints: ['GET /api/user'],
+            details: ['GET /api/user — no Authorization or Cookie header; observed 200'],
+          },
+          {
+            kind: 'missing-security-header',
+            severity: 'low',
+            title: 'Security headers not observed on any response',
+            endpoints: [],
+            details: ['strict-transport-security was not present on any captured response'],
+          },
+        ],
+      }),
+    );
+
+    expect(md).toContain('## 12. Findings & Next Steps');
+    expect(md).toContain('### High');
+    expect(md).toContain('**Sensitive-looking endpoints answered without credentials** (1 endpoint)');
+    expect(md).toContain('### Low');
+    expect(md).toContain('(site-wide)');
+  });
+
   it('renders resource coverage with the missing verbs', () => {
     const md = renderMarkdown(
       report({

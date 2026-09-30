@@ -1301,5 +1301,32 @@
     "maxBodyBytes": 1048576,
     "allowLocal": true,
     "redact": true
-  }
+  },
+  "findings": [
+    {
+      "kind": "pii",
+      "severity": "medium",
+      "title": "PII-shaped fields appear in captured samples",
+      "endpoints": [
+        "GET /api/user"
+      ],
+      "details": [
+        "GET /api/user — email"
+      ]
+    },
+    {
+      "kind": "missing-security-header",
+      "severity": "low",
+      "title": "Security headers not observed on any response",
+      "endpoints": [],
+      "details": [
+        "strict-transport-security was not present on any captured response",
+        "content-security-policy was not present on any captured response",
+        "x-content-type-options was not present on any captured response",
+        "x-frame-options was not present on any captured response",
+        "referrer-policy was not present on any captured response",
+        "permissions-policy was not present on any captured response"
+      ]
+    }
+  ]
 }

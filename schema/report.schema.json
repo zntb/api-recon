@@ -23,7 +23,8 @@
     "pages": { "type": "array", "items": { "$ref": "#/definitions/page" } },
     "webSockets": { "type": "array", "items": { "$ref": "#/definitions/webSocket" } },
     "safety": { "$ref": "#/definitions/safety" },
-    "diff": { "$ref": "#/definitions/diff" }
+    "diff": { "$ref": "#/definitions/diff" },
+    "findings": { "type": "array", "items": { "$ref": "#/definitions/finding" } }
   },
   "definitions": {
     "meta": {
@@ -339,6 +340,27 @@
         "maxBodyBytes": { "type": "number" },
         "allowLocal": { "type": "boolean" },
         "redact": { "type": "boolean" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "severity", "title", "endpoints", "details"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "unauthenticated",
+            "pii",
+            "missing-security-header",
+            "verbose-error",
+            "inconsistent-shape"
+          ]
+        },
+        "severity": { "type": "string", "enum": ["high", "medium", "low", "info"] },
+        "title": { "type": "string" },
+        "endpoints": { "type": "array", "items": { "type": "string" } },
+        "details": { "type": "array", "items": { "type": "string" } }
       }
     },
     "scanRef": {

@@ -19,6 +19,7 @@ import { runRecordSession } from './core/record.js';
 import { analyzeCalls, analyzeWebSockets } from './core/analyzer.js';
 import { groupResources } from './core/resources.js';
 import { diffReports, loadBaseline } from './core/diff.js';
+import { collectFindings } from './core/findings.js';
 import { buildTelemetry, resolveTelemetryPlan, writeTelemetryFile } from './core/telemetry.js';
 import { detectTechnologies, type TechEvidence } from './core/techStack.js';
 import { writeReports } from './reporters/index.js';
@@ -169,6 +170,8 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     },
   };
 
+  report.findings = collectFindings(report);
+
   if (baseline) report.diff = diffReports(baseline, report);
 
   // A preview builds the payload so the caller can inspect it, but only an
@@ -241,6 +244,9 @@ export type {
   Category,
   CapturedWebSocket,
   Endpoint,
+  Finding,
+  FindingKind,
+  FindingSeverity,
   GraphQLInfo,
   GraphQLOperation,
   GraphQLOperationType,
@@ -263,5 +269,6 @@ export type {
   WebSocketFrame,
 } from './types.js';
 export { diffReports, loadBaseline, formatDiffSummary } from './core/diff.js';
+export { collectFindings } from './core/findings.js';
 export { groupResources } from './core/resources.js';
 export { REPORT_FORMATS, REPORT_SCHEMA_VERSION, CATEGORIES, BROWSER_ENGINES } from './types.js';

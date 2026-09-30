@@ -6,6 +6,8 @@ import type {
   CacheInfo,
   CapturedWebSocket,
   Endpoint,
+  Finding,
+  FindingSeverity,
   PercentileStats,
   ReconReport,
   ReportDiff,
@@ -161,6 +163,9 @@ export function renderMarkdown(report: ReconReport): string {
   // ---- 11. Performance (derived from the endpoints) ---------------------
   if (report.endpoints.some((e) => e.timing)) out.push(...performanceSection(report.endpoints));
 
+  // ---- 12. Findings & next steps (derived from the scan) ----------------
+  if (report.findings?.length) out.push(...findingsSection(report.findings));
+
   out.push('_api-recon observes and documents only. It does not bypass authentication, CAPTCHAs, or bot protections._');
   out.push('');
 
@@ -215,6 +220,47 @@ function cacheSummary(cache: CacheInfo): string {
   if (cache.vary) parts.push(`vary \`${cache.vary}\``);
   if (cache.status) parts.push(`status \`${cache.status}\``);
   return parts.map(cell).join(' · ');
+}
+
+const SEVERITY_LABELS: Array<[FindingSeverity, string]> = [
+  ['high', 'High'],
+  ['medium', 'Medium'],
+  ['low', 'Low'],
+  ['info', 'Info'],
+];
+
+/**
+ * The report's close: what a reader should act on, grouped by severity. These
+ * are heuristics over the capture, so the section is framed as review cues
+ * rather than audit results.
+ */
+function findingsSection(findings: Finding[]): string[] {
+  const out: string[] = [];
+  out.push('## 12. Findings & Next Steps');
+  out.push('');
+  out.push(
+    '_Heuristic review cues from this capture, not a security audit. Each is derived from the ' +
+      'observations above._',
+  );
+  out.push('');
+
+  for (const [severity, label] of SEVERITY_LABELS) {
+    const group = findings.filter((finding) => finding.severity === severity);
+    if (group.length === 0) continue;
+    out.push(`### ${label}`);
+    out.push('');
+    for (const finding of group) {
+      const scope =
+        finding.endpoints.length > 0
+          ? ` (${finding.endpoints.length} endpoint${finding.endpoints.length === 1 ? '' : 's'})`
+          : ' (site-wide)';
+      out.push(`- **${cell(finding.title)}**${scope}`);
+      for (const detail of finding.details) out.push(`  - ${cell(detail)}`);
+    }
+    out.push('');
+  }
+
+  return out;
 }
 
 /**

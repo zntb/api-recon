@@ -1073,4 +1073,23 @@ _Observed, not benchmarked: a scan samples whatever traffic it triggered. Body s
 | POST | `/api/graphql` | 52 B / 63 B / 63 B |
 | GET | `/sdk/config.json` | 58 B / 58 B / 58 B |
 
+## 12. Findings & Next Steps
+
+_Heuristic review cues from this capture, not a security audit. Each is derived from the observations above._
+
+### Medium
+
+- **PII-shaped fields appear in captured samples** (1 endpoint)
+  - GET /api/user — email
+
+### Low
+
+- **Security headers not observed on any response** (site-wide)
+  - strict-transport-security was not present on any captured response
+  - content-security-policy was not present on any captured response
+  - x-content-type-options was not present on any captured response
+  - x-frame-options was not present on any captured response
+  - referrer-policy was not present on any captured response
+  - permissions-policy was not present on any captured response
+
 _api-recon observes and documents only. It does not bypass authentication, CAPTCHAs, or bot protections._

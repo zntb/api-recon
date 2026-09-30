@@ -435,6 +435,33 @@ export interface ReportDiff {
   hasChanges: boolean;
 }
 
+/** The rule that produced a finding. */
+export type FindingKind =
+  | 'unauthenticated'
+  | 'pii'
+  | 'missing-security-header'
+  | 'verbose-error'
+  | 'inconsistent-shape';
+
+/** How much attention a finding deserves, from `high` to `info`. */
+export type FindingSeverity = 'high' | 'medium' | 'low' | 'info';
+
+/**
+ * A review cue derived from a scan — something a reader should act on. Findings
+ * are heuristics over the captured traffic, not a security audit: each says
+ * "look here", not "this is exploitable".
+ */
+export interface Finding {
+  kind: FindingKind;
+  severity: FindingSeverity;
+  /** What to act on, in one line. */
+  title: string;
+  /** Endpoint ids the finding concerns; empty for a site-wide finding. */
+  endpoints: string[];
+  /** Supporting evidence, one line each. */
+  details: string[];
+}
+
 /**
  * Version of the `report.json` shape, published as `schema/report.schema.json`
  * and stamped into every report. Bumped when a field is renamed or its meaning
@@ -461,6 +488,11 @@ export interface ReconReport {
   safety: SafetyInfo;
   /** Present only when the scan was run with a baseline to compare against. */
   diff?: ReportDiff;
+  /**
+   * Review cues derived from the scan, so a capture ends with what to act on.
+   * Always present on a report this build writes; absent on older reports.
+   */
+  findings?: Finding[];
 }
 
 /** One anonymized categorization decision in a telemetry payload. */
