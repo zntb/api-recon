@@ -168,4 +168,62 @@ describe('buildOpenApi', () => {
     const responses = responsesFor(api, '/api/orders');
     expect(responses['500']?.content?.['application/json']?.schema.properties).toHaveProperty('orders');
   });
+
+  it('records why a response schema could not be inferred', () => {
+    const api = buildOpenApi(
+      report([
+        endpoint({
+          id: 'GET /api/x',
+          statusCodes: [200],
+          responseSchema: null,
+          responseSchemaReason: 'truncated',
+        }),
+      ]),
+    );
+
+    const responses = responsesFor(api, '/api/x');
+    expect(responses['200']).toMatchObject({ 'x-schema-reason': 'truncated' });
+  });
+
+  it('gives each error status its own gap reason', () => {
+    const api = buildOpenApi(
+      report([
+        endpoint({
+          id: 'GET /api/x',
+          statusCodes: [200, 404],
+          responseSchema: { type: 'object', properties: { ok: { type: 'boolean' } } },
+          errorResponses: [
+            {
+              status: 404,
+              count: 1,
+              bodySample: null,
+              schema: null,
+              schemaReason: 'not-json',
+              mimeTypes: ['text/html'],
+            },
+          ],
+        }),
+      ]),
+    );
+
+    const responses = responsesFor(api, '/api/x');
+    expect(responses['404']).toMatchObject({ 'x-schema-reason': 'not-json' });
+    // The success status was fully observed, so it carries no reason.
+    expect(responses['200']).not.toHaveProperty('x-schema-reason');
+  });
+
+  it('records why a request body schema could not be inferred', () => {
+    const api = buildOpenApi(
+      report([
+        endpoint({
+          id: 'POST /api/x',
+          requestBodySample: 'a=1&b=2',
+          requestBodySchema: null,
+          requestBodySchemaReason: 'not-json',
+        }),
+      ]),
+    ) as { paths: Record<string, { post: { requestBody: Record<string, unknown> } }> };
+
+    expect(api.paths['/api/x']!.post.requestBody['x-schema-reason']).toBe('not-json');
+  });
 });

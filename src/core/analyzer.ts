@@ -14,9 +14,17 @@ import type {
   Endpoint,
   ErrorResponse,
   QueryParam,
+  SchemaGapReason,
 } from '../types.js';
 import { analyzeGraphQL, mergeGraphQL } from './graphql.js';
-import { inferSchemaFromBodies, inferSchemaFromFrames } from './schemaInference.js';
+import {
+  absentBodyReason,
+  framesGapReason,
+  inferSchemaFromBodies,
+  inferSchemaFromFrames,
+  stringBodyGapReason,
+  worstGapReason,
+} from './schemaInference.js';
 import { isSameDomain, toUrlPattern } from '../utils/url.js';
 
 /** Hosts that are almost always telemetry/analytics vendors. */
@@ -71,11 +79,24 @@ export function analyzeCalls(calls: CapturedCall[], opts: { seedUrl: string }): 
  * (sent ≈ request body, received ≈ response body).
  */
 export function analyzeWebSockets(webSockets: CapturedWebSocket[]): CapturedWebSocket[] {
-  return webSockets.map((socket) => ({
-    ...socket,
-    sentSchema: inferSchemaFromFrames(socket.frames, 'sent'),
-    receivedSchema: inferSchemaFromFrames(socket.frames, 'received'),
-  }));
+  return webSockets.map((socket) => {
+    const sentSchema = inferSchemaFromFrames(socket.frames, 'sent');
+    const receivedSchema = inferSchemaFromFrames(socket.frames, 'received');
+    const sentReason = framesGapReason(socket.frames, 'sent', socket.framesTruncated, sentSchema);
+    const receivedReason = framesGapReason(
+      socket.frames,
+      'received',
+      socket.framesTruncated,
+      receivedSchema,
+    );
+    return {
+      ...socket,
+      sentSchema,
+      receivedSchema,
+      ...(sentReason ? { sentSchemaReason: sentReason } : {}),
+      ...(receivedReason ? { receivedSchemaReason: receivedReason } : {}),
+    };
+  });
 }
 
 function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): Endpoint {
@@ -84,6 +105,9 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
   const pattern = id.slice(id.indexOf(' ') + 1);
   const graphql = mergeGraphQL(samples.map((s) => analyzeGraphQL(s)));
   const errors = collectErrorResponses(samples);
+  const responseSamples = responseSampleSet(samples);
+  const requestReason = worstGapReason(samples.map(requestGapReason));
+  const responseReason = worstGapReason(responseSamples.map(responseGapReason));
 
   return {
     id,
@@ -100,7 +124,9 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
     pathParams: uniquePathParams(pattern),
     queryParams: collectQueryParams(samples),
     requestBodySchema: inferSchemaFromBodies(samples.map((s) => s.requestBodySample)),
-    responseSchema: inferSchemaFromBodies(responseBodies(samples)),
+    ...(requestReason ? { requestBodySchemaReason: requestReason } : {}),
+    responseSchema: inferSchemaFromBodies(responseSamples.map((s) => s.responseBodySample)),
+    ...(responseReason ? { responseSchemaReason: responseReason } : {}),
     ...(errors.length ? { errorResponses: errors } : {}),
     mimeTypes: unique(samples.map((s) => s.mimeType).filter(Boolean)),
     triggeredBy: unique(samples.map((s) => s.triggeredBy)),
@@ -183,15 +209,27 @@ function safeOrigin(url: string): string {
 }
 
 /**
- * The bodies the response schema is inferred from: every successful response
+ * The samples the response schema is inferred from: every successful response
  * when there is one, so an error page cannot masquerade as the contract, and
  * every response otherwise.
  */
-function responseBodies(samples: CapturedCall[]): (string | null)[] {
-  const ok = samples
-    .filter((s) => s.status >= 200 && s.status < 300)
-    .map((s) => s.responseBodySample);
-  return ok.some((body) => body !== null) ? ok : samples.map((s) => s.responseBodySample);
+function responseSampleSet(samples: CapturedCall[]): CapturedCall[] {
+  const ok = samples.filter((s) => s.status >= 200 && s.status < 300);
+  return ok.some((s) => s.responseBodySample !== null) ? ok : samples;
+}
+
+/** Why one response body observation yielded no schema, or only a partial one. */
+function responseGapReason(sample: CapturedCall): SchemaGapReason | null {
+  return sample.responseBodySample !== null
+    ? stringBodyGapReason(sample.responseBodySample, sample.responseBodyTruncated)
+    : absentBodyReason(sample.mimeType);
+}
+
+/** Why one request body observation yielded no schema. */
+function requestGapReason(sample: CapturedCall): SchemaGapReason | null {
+  return sample.requestBodySample !== null
+    ? stringBodyGapReason(sample.requestBodySample)
+    : 'no-body';
 }
 
 /**
@@ -209,13 +247,17 @@ function collectErrorResponses(samples: CapturedCall[]): ErrorResponse[] {
 
   return [...byStatus.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([status, group]) => ({
-      status,
-      count: group.length,
-      bodySample: firstNonNull(group.map((s) => s.responseBodySample)),
-      schema: inferSchemaFromBodies(group.map((s) => s.responseBodySample)),
-      mimeTypes: unique(group.map((s) => s.mimeType).filter(Boolean)),
-    }));
+    .map(([status, group]) => {
+      const reason = worstGapReason(group.map(responseGapReason));
+      return {
+        status,
+        count: group.length,
+        bodySample: firstNonNull(group.map((s) => s.responseBodySample)),
+        schema: inferSchemaFromBodies(group.map((s) => s.responseBodySample)),
+        ...(reason ? { schemaReason: reason } : {}),
+        mimeTypes: unique(group.map((s) => s.mimeType).filter(Boolean)),
+      };
+    });
 }
 
 function firstNonNull(values: (string | null)[]): string | null {

@@ -79,9 +79,13 @@ function buildOperation(endpoint: Endpoint): Json {
     // success schema is only a fallback for a status with no captured body.
     const contract = endpoint.errorResponses?.find((error) => error.status === status);
     const schema = toOpenApiSchema(contract ? contract.schema : endpoint.responseSchema);
+    // A schema can be absent or only partly observed; carry why as an
+    // extension so the gap is documented rather than silently blank.
+    const schemaReason = contract ? contract.schemaReason : endpoint.responseSchemaReason;
     responses[key] = {
       description,
       ...(Object.keys(schema).length ? { content: { 'application/json': { schema } } } : {}),
+      ...(schemaReason ? { 'x-schema-reason': schemaReason } : {}),
     };
   }
 
@@ -94,7 +98,18 @@ function buildOperation(endpoint: Endpoint): Json {
     tags: [endpoint.category],
     ...(parameters.length ? { parameters } : {}),
     ...(hasBody && BODY_METHODS.has(endpoint.method)
-      ? { requestBody: { content: { 'application/json': { schema: Object.keys(requestSchema).length ? requestSchema : { type: 'object' } } } } }
+      ? {
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: Object.keys(requestSchema).length ? requestSchema : { type: 'object' },
+              },
+            },
+            ...(endpoint.requestBodySchemaReason
+              ? { 'x-schema-reason': endpoint.requestBodySchemaReason }
+              : {}),
+          },
+        }
       : {}),
     responses,
     'x-observed-count': endpoint.count,

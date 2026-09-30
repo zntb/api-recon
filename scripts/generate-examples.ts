@@ -19,7 +19,7 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { startFixtureServer } from '../test/fixtures/server.js';
-import { analyzeCalls } from '../src/core/analyzer.js';
+import { analyzeCalls, analyzeWebSockets } from '../src/core/analyzer.js';
 import { inferSchemaFromFrames } from '../src/core/schemaInference.js';
 import { diffReports } from '../src/core/diff.js';
 import { detectTechnologies, type TechEvidence } from '../src/core/techStack.js';
@@ -334,9 +334,9 @@ async function main(): Promise<void> {
       triggeredBy: `${fixture.url}/external.html`,
     });
 
-    const webSockets = [
+    const webSockets = analyzeWebSockets([
       await recordWebSocket(`${fixture.url.replace(/^http/, 'ws')}/ws`, `${fixture.url}/websocket`),
-    ];
+    ]);
 
     const report: ReconReport = {
       meta: {

@@ -7,6 +7,10 @@
  * out in `details` so a human can judge. Only changes that would plausibly
  * break an existing client are flagged `breaking`.
  *
+ * A shape that was only partly observed — because a body was truncated, was
+ * not JSON, or was never captured — is not compared field-by-field: a gap is
+ * reported as such rather than mistaken for a removed field.
+ *
  * WebSocket connections are compared too. They have no HTTP status or method,
  * so they ride in the same change list under a `WS `-prefixed pseudo-id; that
  * keeps one set of counts, one summary, and the dashboard's existing change
@@ -25,8 +29,9 @@ import type {
   ReconReport,
   ReportDiff,
   ScanRef,
+  SchemaGapReason,
 } from '../types.js';
-import { inferSchemaFromFrames } from './schemaInference.js';
+import { describeGapReason, inferSchemaFromFrames } from './schemaInference.js';
 import { SafetyError } from '../utils/safety.js';
 
 interface Detail {
@@ -148,6 +153,7 @@ function compareSockets(before: CapturedWebSocket, after: CapturedWebSocket): De
       inferSchemaFromFrames(before.frames, 'sent'),
       inferSchemaFromFrames(after.frames, 'sent'),
       'WebSocket sent message',
+      { before: before.sentSchemaReason, after: after.sentSchemaReason },
     ),
   );
   details.push(
@@ -155,6 +161,7 @@ function compareSockets(before: CapturedWebSocket, after: CapturedWebSocket): De
       inferSchemaFromFrames(before.frames, 'received'),
       inferSchemaFromFrames(after.frames, 'received'),
       'WebSocket received message',
+      { before: before.receivedSchemaReason, after: after.receivedSchemaReason },
     ),
   );
   return details;
@@ -180,7 +187,12 @@ function diffErrorResponses(
   for (const error of after) {
     const previous = beforeBy.get(error.status);
     if (previous) {
-      details.push(...diffSchema(previous.schema, error.schema, `error response ${error.status}`));
+      details.push(
+        ...diffSchema(previous.schema, error.schema, `error response ${error.status}`, {
+          before: previous.schemaReason,
+          after: error.schemaReason,
+        }),
+      );
     }
   }
   return details;
@@ -207,8 +219,18 @@ function compareEndpoints(before: Endpoint, after: Endpoint): Detail[] {
     details.push({ text: `category ${before.category} → ${after.category}`, breaking: false });
   }
 
-  details.push(...diffSchema(before.responseSchema, after.responseSchema, 'response'));
-  details.push(...diffSchema(before.requestBodySchema, after.requestBodySchema, 'request body'));
+  details.push(
+    ...diffSchema(before.responseSchema, after.responseSchema, 'response', {
+      before: before.responseSchemaReason,
+      after: after.responseSchemaReason,
+    }),
+  );
+  details.push(
+    ...diffSchema(before.requestBodySchema, after.requestBodySchema, 'request body', {
+      before: before.requestBodySchemaReason,
+      after: after.requestBodySchemaReason,
+    }),
+  );
   details.push(...diffErrorResponses(before.errorResponses, after.errorResponses));
 
   const beforeParams = new Set(before.queryParams.map((q) => q.name));
@@ -296,11 +318,27 @@ function diffSchema(
   before: JsonSchemaLike | null,
   after: JsonSchemaLike | null,
   label: string,
+  gap: { before?: SchemaGapReason; after?: SchemaGapReason } = {},
 ): Detail[] {
   if (!before && !after) return [];
-  if (before && !after) return [{ text: `${label} schema no longer inferred`, breaking: false }];
-  if (!before && after) return [{ text: `${label} schema newly inferred`, breaking: false }];
-  return diffSchemaNode(before!, after!, label, '');
+  const gapNote = gap.after ?? gap.before;
+  if (!before) return [{ text: `${label} schema newly inferred`, breaking: false }];
+  if (!after) {
+    const suffix = gapNote ? ` (${describeGapReason(gapNote)})` : '';
+    return [{ text: `${label} schema no longer inferred${suffix}`, breaking: false }];
+  }
+  // Both shapes exist, but a truncated or uncaptured sample can hide a field,
+  // so a field-level comparison against an incomplete observation would be a
+  // guess. Say the comparison was skipped rather than report a false removal.
+  if (gapNote) {
+    return [
+      {
+        text: `${label} not fully observed (${describeGapReason(gapNote)}); shape not compared`,
+        breaking: false,
+      },
+    ];
+  }
+  return diffSchemaNode(before, after, label, '');
 }
 
 function diffSchemaNode(

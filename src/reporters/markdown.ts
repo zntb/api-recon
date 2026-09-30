@@ -4,6 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { CapturedWebSocket, Endpoint, ReconReport, ReportDiff } from '../types.js';
 import { CATEGORIES } from '../types.js';
+import { describeGapReason } from '../core/schemaInference.js';
 import { formatDuration, truncate } from '../utils/misc.js';
 import { FORMAT_FILENAMES } from './json.js';
 
@@ -194,10 +195,20 @@ function webSocketSection(webSockets: CapturedWebSocket[]): string[] {
       out.push(code(JSON.stringify(ws.sentSchema, null, 2)));
       out.push('');
     }
+    if (ws.sentSchemaReason) {
+      out.push(`_Sent message schema not fully observed — ${describeGapReason(ws.sentSchemaReason)}._`);
+      out.push('');
+    }
     if (ws.receivedSchema) {
       out.push('**Inferred received message schema**');
       out.push('');
       out.push(code(JSON.stringify(ws.receivedSchema, null, 2)));
+      out.push('');
+    }
+    if (ws.receivedSchemaReason) {
+      out.push(
+        `_Received message schema not fully observed — ${describeGapReason(ws.receivedSchemaReason)}._`,
+      );
       out.push('');
     }
   }
@@ -312,6 +323,15 @@ function detailedEndpoint(endpoint: Endpoint): string[] {
     lines.push('');
     lines.push(code(JSON.stringify(endpoint.responseSchema, null, 2)));
     lines.push('');
+    if (endpoint.responseSchemaReason) {
+      lines.push(`_Partly observed — ${describeGapReason(endpoint.responseSchemaReason)}._`);
+      lines.push('');
+    }
+  } else if (endpoint.responseSchemaReason) {
+    lines.push(
+      `_Response schema not inferred — ${describeGapReason(endpoint.responseSchemaReason)}._`,
+    );
+    lines.push('');
   }
   if (endpoint.errorResponses?.length) {
     lines.push('**Error responses**');
@@ -326,6 +346,10 @@ function detailedEndpoint(endpoint: Endpoint): string[] {
       }
       if (error.schema) {
         lines.push(code(JSON.stringify(error.schema, null, 2)));
+        lines.push('');
+      }
+      if (error.schemaReason) {
+        lines.push(`_${describeGapReason(error.schemaReason)}._`);
         lines.push('');
       }
     }

@@ -366,6 +366,18 @@ const SCRIPT = `
     return block;
   }
 
+  // Mirrors describeGapReason() in core/schemaInference.ts; the dashboard is
+  // self-contained, so it cannot import it.
+  var GAP_NOTES = {
+    'no-body': 'no body captured',
+    'not-json': 'body was not JSON',
+    'truncated': 'body was truncated',
+    'binary': 'body is binary'
+  };
+  function gapNote(reason) {
+    return GAP_NOTES[reason] || reason;
+  }
+
   function headerList(headers) {
     return Object.keys(headers || {}).map(function (name) {
       return name + ': ' + headers[name];
@@ -423,7 +435,9 @@ const SCRIPT = `
       }
       blocks.appendChild(frameBlock);
       if (e.sentSchema) blocks.appendChild(codeBlock('Sent schema', JSON.stringify(e.sentSchema, null, 2), true));
+      if (e.sentSchemaReason) blocks.appendChild(el('p', 'hint', 'Sent schema not fully observed — ' + gapNote(e.sentSchemaReason)));
       if (e.receivedSchema) blocks.appendChild(codeBlock('Received schema', JSON.stringify(e.receivedSchema, null, 2), true));
+      if (e.receivedSchemaReason) blocks.appendChild(el('p', 'hint', 'Received schema not fully observed — ' + gapNote(e.receivedSchemaReason)));
       cell.appendChild(blocks);
       row.appendChild(cell);
       return row;
@@ -446,13 +460,16 @@ const SCRIPT = `
     blocks.appendChild(kv('Response headers', headerList(e.responseHeaders)));
     if (e.requestBodySample) blocks.appendChild(codeBlock('Request body', pretty(e.requestBodySample), true));
     if (e.requestBodySchema) blocks.appendChild(codeBlock('Request schema', JSON.stringify(e.requestBodySchema, null, 2), true));
+    if (e.requestBodySchemaReason) blocks.appendChild(el('p', 'hint', 'Request schema not fully observed — ' + gapNote(e.requestBodySchemaReason)));
     if (e.responseBodySample) blocks.appendChild(codeBlock('Response body', pretty(e.responseBodySample), true));
     if (e.responseSchema) blocks.appendChild(codeBlock('Response schema', JSON.stringify(e.responseSchema, null, 2), true));
+    if (e.responseSchemaReason) blocks.appendChild(el('p', 'hint', 'Response schema not fully observed — ' + gapNote(e.responseSchemaReason)));
     (e.errorResponses || []).forEach(function (error) {
       var label = 'Error ' + error.status;
       blocks.appendChild(kv(label, [error.count + ' occurrence(s)'].concat(error.mimeTypes || [])));
       if (error.bodySample) blocks.appendChild(codeBlock(label + ' body', pretty(error.bodySample), true));
       if (error.schema) blocks.appendChild(codeBlock(label + ' schema', JSON.stringify(error.schema, null, 2), true));
+      if (error.schemaReason) blocks.appendChild(el('p', 'hint', label + ' schema not fully observed — ' + gapNote(error.schemaReason)));
     });
 
     cell.appendChild(blocks);

@@ -231,6 +231,7 @@ you only care about the API surface, Chromium is the safer default.
       "requestBodySample": null,
       "responseBodySample": "{\"orders\":[…]}",
       "requestBodySchema": null,
+      "requestBodySchemaReason": "no-body",
       "responseSchema": { "type": "object", "properties": { "orders": { "type": "array", "items": { "type": "object", "properties": { "id": { "type": "integer" } } } } } },
       "mimeTypes": ["application/json"],
       "triggeredBy": ["https://example.com/dashboard"]
@@ -263,6 +264,16 @@ seen in any sample is present, a field is listed in `required` only when every
 sample carried it, `integer` and `number` widen to `number`, and a field whose
 samples genuinely disagree on the type becomes a `oneOf` union. A format hint
 such as `description: "uuid"` is kept only when every sample agreed on it.
+
+A `null` schema says only that there is no shape; why is in the reason beside
+it. When a schema is absent — or was inferred from an incomplete body — the
+endpoint carries `requestBodySchemaReason` / `responseSchemaReason`, error
+contracts carry `schemaReason`, and socket directions carry `sentSchemaReason`
+/ `receivedSchemaReason`. The value is one of `no-body` (nothing captured),
+`not-json` (a body that is not a JSON object/array), `truncated` (cut off at
+the size cap), or `binary` (a non-text payload), so a gap is not mistaken for a
+contract. `--diff` skips the field-level comparison when either scan only
+partly observed a shape, rather than reporting a removed field.
 
 An endpoint that was seen failing also carries `errorResponses`, one entry per
 4xx/5xx status with that status's own `bodySample` and `schema`, so the failure

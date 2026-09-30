@@ -123,4 +123,30 @@ describe('renderMarkdown', () => {
     expect(md).toContain('**Inferred sent message schema**');
     expect(md).toContain('"subscribe"');
   });
+
+  it('explains why a schema was not inferred', () => {
+    const endpoint: Endpoint = {
+      id: 'GET /api/orders',
+      method: 'GET',
+      urlPattern: '/api/orders',
+      origins: ['https://example.com'],
+      category: 'data-fetching',
+      count: 1,
+      statusCodes: [200],
+      requestHeaders: {},
+      responseHeaders: {},
+      requestBodySample: null,
+      responseBodySample: null,
+      pathParams: [],
+      queryParams: [],
+      requestBodySchema: null,
+      responseSchema: null,
+      responseSchemaReason: 'truncated',
+      mimeTypes: ['application/json'],
+      triggeredBy: ['https://example.com/'],
+    };
+
+    const md = renderMarkdown(report({ endpoints: [endpoint] }));
+    expect(md).toContain('Response schema not inferred — body was truncated');
+  });
 });

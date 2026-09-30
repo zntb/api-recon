@@ -90,7 +90,17 @@ export interface Endpoint {
   pathParams: string[];
   queryParams: QueryParam[];
   requestBodySchema: JsonSchemaLike | null;
+  /**
+   * Present only when the request schema is absent or was observed from an
+   * incomplete body, explaining the gap. Omitted when the schema is complete.
+   */
+  requestBodySchemaReason?: SchemaGapReason;
   responseSchema: JsonSchemaLike | null;
+  /**
+   * Present only when the response schema is absent or was observed from an
+   * incomplete body, explaining the gap. Omitted when the schema is complete.
+   */
+  responseSchemaReason?: SchemaGapReason;
   /**
    * One entry per error status (4xx/5xx) observed, so the failure contract is
    * documented rather than folded into the success shape. Omitted entirely when
@@ -119,6 +129,8 @@ export interface ErrorResponse {
   bodySample: string | null;
   /** Inferred shape of the bodies seen with this status, merged across them. */
   schema: JsonSchemaLike | null;
+  /** Present when this status's schema is absent or only partly observed. */
+  schemaReason?: SchemaGapReason;
   /** MIME types observed with this status. */
   mimeTypes: string[];
 }
@@ -143,6 +155,19 @@ export interface GraphQLInfo {
   /** Operation definitions observed across the endpoint's samples. */
   operations: GraphQLOperation[];
 }
+
+/**
+ * Why a body (or frame) yielded no schema, or only a partial one:
+ *
+ * - `no-body`   no payload was captured at all (a `204`, a `GET`, a navigated-away body)
+ * - `not-json`  a payload was captured but was not a JSON object or array
+ * - `truncated` the payload was cut off at the capture size cap, so its shape is partial
+ * - `binary`    the payload is not text (an image, download, or binary socket frame)
+ *
+ * Recorded beside a `null` (or possibly incomplete) schema so a reader can tell
+ * a contract from a gap in the capture.
+ */
+export type SchemaGapReason = 'no-body' | 'not-json' | 'truncated' | 'binary';
 
 /** Minimal JSON-Schema-like object produced by the inference engine. */
 export interface JsonSchemaLike {
@@ -206,8 +231,12 @@ export interface CapturedWebSocket {
   frames: WebSocketFrame[];
   /** Inferred shape of the JSON frames the page sent; null when none were JSON. */
   sentSchema: JsonSchemaLike | null;
+  /** Present when the sent-message schema is absent or only partly observed. */
+  sentSchemaReason?: SchemaGapReason;
   /** Inferred shape of the JSON frames the page received. */
   receivedSchema: JsonSchemaLike | null;
+  /** Present when the received-message schema is absent or only partly observed. */
+  receivedSchemaReason?: SchemaGapReason;
 }
 
 export interface CapturedPage {

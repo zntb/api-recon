@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  absentBodyReason,
+  describeGapReason,
+  framesGapReason,
   inferSchemaFromBodies,
   inferSchemaFromBody,
   inferSchemaFromFrames,
   mergeSchema,
+  stringBodyGapReason,
+  worstGapReason,
 } from '../../src/core/schemaInference.js';
 import type { JsonSchemaLike, WebSocketDirection, WebSocketFrame } from '../../src/types.js';
 
@@ -195,6 +200,56 @@ describe('mergeSchema', () => {
       { type: 'integer' },
     );
     expect(merged.oneOf?.map((variant) => variant.type)).toEqual(['string', 'integer']);
+  });
+});
+
+describe('schema gap reasons', () => {
+  it('classifies a captured body that is or is not JSON', () => {
+    expect(stringBodyGapReason('{"a":1}')).toBeNull();
+    expect(stringBodyGapReason('[1,2]')).toBeNull();
+    expect(stringBodyGapReason('not json')).toBe('not-json');
+    // A body that is JSON but not an object/array has no fields to describe.
+    expect(stringBodyGapReason('42')).toBe('not-json');
+  });
+
+  it('marks a cut-off body as truncated', () => {
+    expect(stringBodyGapReason('{"a":1', true)).toBe('truncated');
+    expect(stringBodyGapReason('{"a":1}', true)).toBe('truncated');
+  });
+
+  it('classifies an absent response body by its MIME type', () => {
+    expect(absentBodyReason('application/json')).toBe('no-body');
+    expect(absentBodyReason('')).toBe('no-body');
+    expect(absentBodyReason('text/html')).toBe('not-json');
+    expect(absentBodyReason('image/png')).toBe('binary');
+    expect(absentBodyReason('application/octet-stream')).toBe('binary');
+  });
+
+  it('keeps the most consequential reason across observations', () => {
+    expect(worstGapReason([null, undefined])).toBeUndefined();
+    expect(worstGapReason([null, 'no-body'])).toBe('no-body');
+    expect(worstGapReason(['no-body', 'not-json'])).toBe('not-json');
+    expect(worstGapReason(['not-json', 'binary'])).toBe('binary');
+    expect(worstGapReason(['binary', 'truncated'])).toBe('truncated');
+  });
+
+  it('describes a reason in plain words', () => {
+    expect(describeGapReason('truncated')).toBe('body was truncated');
+    expect(describeGapReason('binary')).toBe('body is binary');
+  });
+
+  it('classifies each WebSocket frame direction', () => {
+    const sample: JsonSchemaLike = { type: 'object', properties: { ok: { type: 'boolean' } } };
+    const binary = { ...frame('sent', 'AAAA'), type: 'binary' as const };
+    const unstored = { ...frame('sent', ''), payloadSample: null };
+
+    expect(framesGapReason([], 'sent', false, null)).toBe('no-body');
+    expect(framesGapReason([binary], 'sent', false, null)).toBe('binary');
+    expect(framesGapReason([unstored], 'sent', false, null)).toBe('no-body');
+    expect(framesGapReason([frame('sent', 'not json')], 'sent', false, null)).toBe('not-json');
+    expect(framesGapReason([frame('sent', '{"ok":true}')], 'sent', false, sample)).toBeUndefined();
+    // An unparsed direction with no stored payload cannot be blamed on JSON.
+    expect(framesGapReason([unstored], 'sent', true, null)).toBe('truncated');
   });
 });
 

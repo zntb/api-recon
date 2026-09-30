@@ -5,6 +5,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-09-30
+
+### Added
+
+- **Distinguish "not observed" from "absent"** — a `null` schema used to mean
+  both "no body was captured" and "the body was not JSON". An endpoint now
+  carries a `requestBodySchemaReason` / `responseSchemaReason` beside an absent
+  or partial schema, with the same on error contracts (`schemaReason`) and
+  WebSocket directions (`sentSchemaReason` / `receivedSchemaReason`). The value
+  is one of `no-body`, `not-json`, `truncated`, or `binary`. The Markdown report
+  and dashboard show it in plain words and `openapi.yaml` records it as an
+  `x-schema-reason` extension. `--diff` treats a shape that was only partly
+  observed as inconclusive rather than reporting a removed field, so a truncated
+  sample no longer looks like an API change.
+
 ## [0.3.0] - 2026-09-30
 
 ### Added
@@ -346,6 +361,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[0.3.1]: https://github.com/zntb/api-recon/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/zntb/api-recon/compare/v0.2.9...v0.3.0
 [0.2.9]: https://github.com/zntb/api-recon/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/zntb/api-recon/compare/v0.2.7...v0.2.8

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeCalls } from '../../src/core/analyzer.js';
-import type { CapturedCall, Endpoint } from '../../src/types.js';
+import { analyzeCalls, analyzeWebSockets } from '../../src/core/analyzer.js';
+import type { CapturedCall, CapturedWebSocket, Endpoint } from '../../src/types.js';
 
 const SEED = 'https://example.com';
 
@@ -156,5 +156,108 @@ describe('analyzeCalls error contracts', () => {
     expect(endpoint.errorResponses?.map((e) => e.status)).toEqual([503]);
     // With no successful sample, the error body stays the only shape available.
     expect(Object.keys(endpoint.responseSchema?.properties ?? {})).toEqual(['error']);
+  });
+});
+
+describe('analyzeCalls schema gaps', () => {
+  it('records why a response schema is absent', () => {
+    const json = endpointOf([call({ url: `${SEED}/api/a`, responseBodySample: null })]);
+    expect(json.responseSchemaReason).toBe('no-body');
+
+    const html = endpointOf([
+      call({ url: `${SEED}/api/b`, mimeType: 'text/html', responseBodySample: null }),
+    ]);
+    expect(html.responseSchemaReason).toBe('not-json');
+
+    const image = endpointOf([
+      call({ url: `${SEED}/api/c`, mimeType: 'image/png', responseBodySample: null }),
+    ]);
+    expect(image.responseSchemaReason).toBe('binary');
+
+    const cut = endpointOf([
+      call({ url: `${SEED}/api/d`, responseBodySample: '{"a":1', responseBodyTruncated: true }),
+    ]);
+    expect(cut.responseSchemaReason).toBe('truncated');
+  });
+
+  it('omits the reason when the schema was fully observed', () => {
+    const endpoint = endpointOf([call({ url: `${SEED}/api/ok`, responseBodySample: '{"ok":true}' })]);
+    expect(endpoint.responseSchemaReason).toBeUndefined();
+  });
+
+  it('marks a present schema as partly observed when a sample was truncated', () => {
+    const endpoint = endpointOf([
+      call({ url: `${SEED}/api/orders`, responseBodySample: '{"a":1}' }),
+      call({ url: `${SEED}/api/orders`, responseBodySample: '{"b":2', responseBodyTruncated: true }),
+    ]);
+    expect(endpoint.responseSchema).not.toBeNull();
+    expect(endpoint.responseSchemaReason).toBe('truncated');
+  });
+
+  it('records request body gaps', () => {
+    const missing = endpointOf([
+      call({ url: `${SEED}/api/m`, method: 'POST', requestBodySample: null }),
+    ]);
+    expect(missing.requestBodySchemaReason).toBe('no-body');
+
+    const notJson = endpointOf([
+      call({ url: `${SEED}/api/m`, method: 'POST', requestBodySample: 'a=1&b=2' }),
+    ]);
+    expect(notJson.requestBodySchemaReason).toBe('not-json');
+  });
+
+  it('records a reason on an error contract', () => {
+    const endpoint = endpointOf([
+      call({ url: `${SEED}/api/orders`, status: 404, mimeType: 'text/html', responseBodySample: null }),
+    ]);
+    expect(endpoint.errorResponses?.[0]?.schemaReason).toBe('not-json');
+  });
+});
+
+describe('analyzeWebSockets schema gaps', () => {
+  function socket(overrides: Partial<CapturedWebSocket> & { url: string }): CapturedWebSocket {
+    return {
+      origins: ['wss://example.com'],
+      triggeredBy: `${SEED}/`,
+      openedAt: 0,
+      closedAt: 1,
+      frameCount: 0,
+      sentCount: 0,
+      receivedCount: 0,
+      framesTruncated: false,
+      frames: [],
+      sentSchema: null,
+      receivedSchema: null,
+      ...overrides,
+    };
+  }
+
+  it('explains an absent direction and flags a truncated stream', () => {
+    const [absent] = analyzeWebSockets([socket({ url: 'wss://example.com/a' })]);
+    expect(absent!.sentSchemaReason).toBe('no-body');
+    expect(absent!.receivedSchemaReason).toBe('no-body');
+
+    const [binary] = analyzeWebSockets([
+      socket({
+        url: 'wss://example.com/b',
+        frames: [
+          { direction: 'sent', type: 'binary', payloadSample: 'AAAA', size: 3, truncated: false, at: 0 },
+        ],
+      }),
+    ]);
+    expect(binary!.sentSchemaReason).toBe('binary');
+
+    const [cut] = analyzeWebSockets([
+      socket({
+        url: 'wss://example.com/c',
+        receivedCount: 1,
+        framesTruncated: true,
+        frames: [
+          { direction: 'received', type: 'text', payloadSample: '{"ok":true}', size: 11, truncated: false, at: 0 },
+        ],
+      }),
+    ]);
+    expect(cut!.receivedSchema).not.toBeNull();
+    expect(cut!.receivedSchemaReason).toBe('truncated');
   });
 });

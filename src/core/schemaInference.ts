@@ -1,6 +1,11 @@
 /** Infer a compact JSON-Schema-like shape from sample payloads (depth-capped). */
 
-import type { JsonSchemaLike, WebSocketDirection, WebSocketFrame } from '../types.js';
+import type {
+  JsonSchemaLike,
+  SchemaGapReason,
+  WebSocketDirection,
+  WebSocketFrame,
+} from '../types.js';
 
 const MAX_DEPTH = 4;
 const MAX_PROPERTIES = 50;
@@ -298,6 +303,104 @@ export function mergeSchema(a: JsonSchemaLike, b: JsonSchemaLike): JsonSchemaLik
   const known = distinct.filter((variant) => !isUninformative(variant));
   const kept = known.length > 0 ? known : distinct;
   return kept.length === 1 ? kept[0]! : { oneOf: kept };
+}
+
+/** MIME type prefixes whose payloads are not text. */
+const BINARY_MIME_PREFIXES = ['image/', 'audio/', 'video/', 'font/', 'model/'];
+/** Binary types that do not use an `image/`-style prefix. */
+const BINARY_MIME_TYPES = new Set([
+  'application/octet-stream',
+  'application/pdf',
+  'application/zip',
+  'application/gzip',
+  'application/x-gzip',
+  'application/wasm',
+  'application/x-protobuf',
+  'application/vnd.ms-fontobject',
+]);
+
+/** Whether a MIME type names a payload that is not text. */
+export function isBinaryMime(mimeType: string | null | undefined): boolean {
+  const mime = (mimeType ?? '').split(';')[0]!.trim().toLowerCase();
+  if (mime === '') return false;
+  return BINARY_MIME_PREFIXES.some((prefix) => mime.startsWith(prefix)) || BINARY_MIME_TYPES.has(mime);
+}
+
+/**
+ * Why a captured, non-null body yields no schema: it was cut off at the size
+ * cap, or it is not a JSON object/array. Returns null when it did yield a shape.
+ */
+export function stringBodyGapReason(body: string, truncated = false): SchemaGapReason | null {
+  if (truncated) return 'truncated';
+  return parseBody(body) === undefined ? 'not-json' : null;
+}
+
+/**
+ * Why an absent response body yields no schema: it was never text, it was a
+ * JSON-shaped response that could not be read, or it was a non-JSON text body.
+ */
+export function absentBodyReason(mimeType: string | null | undefined): SchemaGapReason {
+  if (isBinaryMime(mimeType)) return 'binary';
+  const mime = (mimeType ?? '').split(';')[0]!.trim().toLowerCase();
+  // A JSON-shaped (or unlabelled) response that carried no body was simply not
+  // captured; anything else is a body we chose not to treat as a contract.
+  return mime === '' || mime.includes('json') ? 'no-body' : 'not-json';
+}
+
+/** Rank gap reasons so the most consequential one survives a merge. */
+const GAP_PRIORITY: Record<SchemaGapReason, number> = {
+  'no-body': 0,
+  'not-json': 1,
+  binary: 2,
+  truncated: 3,
+};
+
+/** A short, human-readable phrase for why a schema could not be fully observed. */
+export function describeGapReason(reason: SchemaGapReason): string {
+  switch (reason) {
+    case 'no-body':
+      return 'no body captured';
+    case 'not-json':
+      return 'body was not JSON';
+    case 'truncated':
+      return 'body was truncated';
+    case 'binary':
+      return 'body is binary';
+  }
+}
+
+/** The most consequential gap among observations, or undefined when none. */
+export function worstGapReason(
+  reasons: readonly (SchemaGapReason | null | undefined)[],
+): SchemaGapReason | undefined {
+  let worst: SchemaGapReason | undefined;
+  for (const reason of reasons) {
+    if (!reason) continue;
+    if (!worst || GAP_PRIORITY[reason] > GAP_PRIORITY[worst]) worst = reason;
+  }
+  return worst;
+}
+
+/**
+ * Why one direction of a socket's frames yields no schema, or only a partial
+ * one. Mirrors the HTTP body reasons: no frames is `no-body`, only binary
+ * frames are `binary`, cut-off frames are `truncated`, and text frames that
+ * never formed a JSON shape are `not-json`.
+ */
+export function framesGapReason(
+  frames: WebSocketFrame[],
+  direction: WebSocketDirection,
+  framesTruncated: boolean,
+  schema: JsonSchemaLike | null,
+): SchemaGapReason | undefined {
+  const relevant = frames.filter((frame) => frame.direction === direction);
+  if (framesTruncated || relevant.some((frame) => frame.truncated)) return 'truncated';
+  if (relevant.length === 0) return 'no-body';
+  if (relevant.every((frame) => frame.type === 'binary')) return 'binary';
+  if (schema !== null) return undefined;
+  const text = relevant.filter((frame) => frame.type === 'text');
+  // Text frames whose payloads were never stored cannot say anything.
+  return text.every((frame) => frame.payloadSample === null) ? 'no-body' : 'not-json';
 }
 
 /**

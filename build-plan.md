@@ -303,6 +303,16 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   `minimum`/`maximum`, and `--diff` flags a removed enum value, a gained enum,
   or an inward-moved bound as breaking while reporting a widened set or range
   as additive.
+- **Not observed vs. absent** — a `null` schema meant both "no body was
+  captured" and "the body was not JSON", so a reader could not tell a contract
+  from a gap. Every endpoint now carries `requestBodySchemaReason` /
+  `responseSchemaReason` beside an absent or partial schema, with `schemaReason`
+  on error contracts and `sentSchemaReason` / `receivedSchemaReason` on socket
+  directions. `src/core/schemaInference.ts` classifies the gap as `no-body`,
+  `not-json`, `truncated`, or `binary`, the Markdown report and dashboard show
+  it in plain words, `openapi.yaml` carries it as an `x-schema-reason`
+  extension, and `--diff` treats a shape that was only partly observed as
+  inconclusive instead of reporting a removed field.
 
 **Proposed updates & features**
 
@@ -313,11 +323,6 @@ so it can be scoped without re-reading the source.
 
 **Report accuracy & detail**
 
-- **Distinguish "not observed" from "absent".** A `null` schema today means both
-  "no body was captured" and "the body was not JSON". Record an explicit reason
-  (`no-body`, `not-json`, `truncated`, `binary`) so a reader can tell a contract
-  from a gap — and so `--diff` stops reporting a removed field when the sample
-  was merely truncated.
 - **GraphQL: record what each operation selects.** `analyzeGraphQL` reads
   operation names and types; extend the tokenizer to keep each operation's
   top-level selection set and argument names, so the report shows the fields a

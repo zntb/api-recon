@@ -4,7 +4,7 @@
     "startedAt": "2026-01-01T00:00:00.000Z",
     "durationMs": 280,
     "pagesVisited": 8,
-    "apiReconVersion": "0.2.9",
+    "apiReconVersion": "0.3.0",
     "engine": "chromium"
   },
   "technologies": [
@@ -69,6 +69,7 @@
         ]
       },
       "responseSchema": null,
+      "responseSchemaReason": "no-body",
       "mimeTypes": [
         "application/json"
       ],
@@ -117,6 +118,7 @@
         ]
       },
       "responseSchema": null,
+      "responseSchemaReason": "no-body",
       "mimeTypes": [],
       "triggeredBy": [
         "http://127.0.0.1:4610/external.html"
@@ -254,6 +256,7 @@
       "pathParams": [],
       "queryParams": [],
       "requestBodySchema": null,
+      "requestBodySchemaReason": "no-body",
       "responseSchema": {
         "type": "object",
         "properties": {
@@ -342,6 +345,7 @@
       ],
       "queryParams": [],
       "requestBodySchema": null,
+      "requestBodySchemaReason": "no-body",
       "responseSchema": {
         "type": "object",
         "properties": {
@@ -427,6 +431,7 @@
         }
       ],
       "requestBodySchema": null,
+      "requestBodySchemaReason": "no-body",
       "responseSchema": {
         "type": "object",
         "properties": {
@@ -524,6 +529,7 @@
       "pathParams": [],
       "queryParams": [],
       "requestBodySchema": null,
+      "requestBodySchemaReason": "no-body",
       "responseSchema": {
         "type": "object",
         "properties": {
@@ -818,6 +824,7 @@
       "pathParams": [],
       "queryParams": [],
       "requestBodySchema": null,
+      "requestBodySchemaReason": "no-body",
       "responseSchema": {
         "type": "object",
         "properties": {

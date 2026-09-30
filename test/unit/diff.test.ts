@@ -322,6 +322,48 @@ describe('diffReports', () => {
     expect(text).toContain('maximum 90 → 100');
   });
 
+  it('does not report a removed field when the current body was truncated', () => {
+    const baseline = report([
+      endpoint({
+        id: 'GET /api/orders',
+        responseSchema: {
+          type: 'object',
+          properties: { id: { type: 'integer' }, total: { type: 'number' } },
+        },
+      }),
+    ]);
+    const current = report([
+      endpoint({
+        id: 'GET /api/orders',
+        responseSchema: { type: 'object', properties: { id: { type: 'integer' } } },
+        responseSchemaReason: 'truncated',
+      }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/orders');
+    expect(change.breaking).toBe(false);
+    const text = change.details.join(' ');
+    expect(text).toContain('not fully observed');
+    expect(text).toContain('body was truncated');
+    expect(text).not.toContain('field removed');
+  });
+
+  it('says why a schema was no longer inferred when the body became a gap', () => {
+    const baseline = report([
+      endpoint({
+        id: 'GET /api/x',
+        responseSchema: { type: 'object', properties: { ok: { type: 'boolean' } } },
+      }),
+    ]);
+    const current = report([
+      endpoint({ id: 'GET /api/x', responseSchema: null, responseSchemaReason: 'binary' }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/x');
+    expect(change.breaking).toBe(false);
+    expect(change.details.join(' ')).toContain('response schema no longer inferred (body is binary)');
+  });
+
   it('flags a field removed from an error body as breaking', () => {
     const baseline = report([
       endpoint({
