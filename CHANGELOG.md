@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2026-09-30
+
+### Added
+
+- **Versioned report schema** — `report.json` now begins with `schemaVersion`,
+  which names the *shape* of the document independently of the tool build in
+  `meta.apiReconVersion`. The shape is published as
+  [`schema/report.schema.json`](schema/report.schema.json) (JSON Schema
+  draft-07), and CI validates the committed example report against it, so a
+  renamed, dropped, or retyped field fails the build rather than a downstream
+  consumer. `loadBaseline()` — and therefore `--diff` — refuses a baseline whose
+  `schemaVersion` this build cannot read, naming the expected and found
+  versions, instead of comparing a shape it does not understand.
+
 ## [0.3.3] - 2026-09-30
 
 ### Added
@@ -387,6 +401,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[0.3.4]: https://github.com/zntb/api-recon/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/zntb/api-recon/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/zntb/api-recon/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/zntb/api-recon/compare/v0.3.0...v0.3.1

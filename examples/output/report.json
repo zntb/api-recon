@@ -1,10 +1,11 @@
 {
+  "schemaVersion": 1,
   "meta": {
     "seedUrl": "http://127.0.0.1:4610",
     "startedAt": "2026-01-01T00:00:00.000Z",
     "durationMs": 280,
     "pagesVisited": 8,
-    "apiReconVersion": "0.3.2",
+    "apiReconVersion": "0.3.3",
     "engine": "chromium"
   },
   "technologies": [

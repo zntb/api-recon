@@ -5,6 +5,7 @@ import type { Endpoint, ReconReport } from '../../src/types.js';
 
 function report(overrides: Partial<ReconReport> = {}): ReconReport {
   return {
+    schemaVersion: 1,
     meta: {
       seedUrl: 'https://example.com',
       startedAt: '2026-09-01T00:00:00.000Z',

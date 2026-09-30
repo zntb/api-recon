@@ -31,6 +31,7 @@ function endpoint(overrides: Partial<Endpoint> & { id: string }): Endpoint {
 
 function report(endpoints: Endpoint[], overrides: Partial<ReconReport> = {}): ReconReport {
   return {
+    schemaVersion: 1,
     meta: {
       seedUrl: 'https://example.com',
       startedAt: '2026-09-01T00:00:00.000Z',

@@ -1,0 +1,352 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/zntb/api-recon/schema/report.schema.json",
+  "title": "api-recon report",
+  "description": "The shape of report.json. `schemaVersion` names this shape; `meta.apiReconVersion` names the tool build that produced it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "meta",
+    "technologies",
+    "endpoints",
+    "pages",
+    "webSockets",
+    "safety"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "meta": { "$ref": "#/definitions/meta" },
+    "technologies": { "type": "array", "items": { "$ref": "#/definitions/technology" } },
+    "endpoints": { "type": "array", "items": { "$ref": "#/definitions/endpoint" } },
+    "resources": { "type": "array", "items": { "$ref": "#/definitions/resource" } },
+    "pages": { "type": "array", "items": { "$ref": "#/definitions/page" } },
+    "webSockets": { "type": "array", "items": { "$ref": "#/definitions/webSocket" } },
+    "safety": { "$ref": "#/definitions/safety" },
+    "diff": { "$ref": "#/definitions/diff" }
+  },
+  "definitions": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seedUrl",
+        "startedAt",
+        "durationMs",
+        "pagesVisited",
+        "apiReconVersion",
+        "engine"
+      ],
+      "properties": {
+        "seedUrl": { "type": "string" },
+        "startedAt": { "type": "string" },
+        "durationMs": { "type": "number" },
+        "pagesVisited": { "type": "integer" },
+        "apiReconVersion": { "type": "string" },
+        "engine": { "type": "string", "enum": ["chromium", "firefox", "webkit"] }
+      }
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "authentication",
+        "data-fetching",
+        "mutations",
+        "analytics",
+        "third-party",
+        "graphql",
+        "uncategorized"
+      ]
+    },
+    "schemaGapReason": {
+      "type": "string",
+      "enum": ["no-body", "not-json", "truncated", "binary"]
+    },
+    "technology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "category", "evidence"],
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "evidence": { "type": "string" }
+      }
+    },
+    "jsonSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string" },
+        "description": { "type": "string" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/jsonSchema" }
+        },
+        "items": { "$ref": "#/definitions/jsonSchema" },
+        "required": { "type": "array", "items": { "type": "string" } },
+        "enum": {
+          "type": "array",
+          "items": { "type": ["string", "number", "boolean"] }
+        },
+        "minimum": { "type": "number" },
+        "maximum": { "type": "number" },
+        "oneOf": { "type": "array", "items": { "$ref": "#/definitions/jsonSchema" } },
+        "example": {}
+      }
+    },
+    "queryParam": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sampleValues"],
+      "properties": {
+        "name": { "type": "string" },
+        "sampleValues": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "errorResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "count", "bodySample", "schema", "mimeTypes"],
+      "properties": {
+        "status": { "type": "integer" },
+        "count": { "type": "integer" },
+        "bodySample": { "type": ["string", "null"] },
+        "schema": {
+          "oneOf": [{ "$ref": "#/definitions/jsonSchema" }, { "type": "null" }]
+        },
+        "schemaReason": { "$ref": "#/definitions/schemaGapReason" },
+        "mimeTypes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "graphQLOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": ["string", "null"] },
+        "type": {
+          "type": "string",
+          "enum": ["query", "mutation", "subscription", "unknown"]
+        },
+        "selections": { "type": "array", "items": { "type": "string" } },
+        "arguments": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "graphQLInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["introspection", "operations"],
+      "properties": {
+        "introspection": { "type": "boolean" },
+        "operations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/graphQLOperation" }
+        }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "method",
+        "urlPattern",
+        "origins",
+        "category",
+        "count",
+        "statusCodes",
+        "requestHeaders",
+        "responseHeaders",
+        "requestBodySample",
+        "responseBodySample",
+        "pathParams",
+        "queryParams",
+        "requestBodySchema",
+        "responseSchema",
+        "mimeTypes",
+        "triggeredBy"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "method": { "type": "string" },
+        "urlPattern": { "type": "string" },
+        "origins": { "type": "array", "items": { "type": "string" } },
+        "category": { "$ref": "#/definitions/category" },
+        "count": { "type": "integer" },
+        "statusCodes": { "type": "array", "items": { "type": "integer" } },
+        "requestHeaders": { "$ref": "#/definitions/headers" },
+        "responseHeaders": { "$ref": "#/definitions/headers" },
+        "requestBodySample": { "type": ["string", "null"] },
+        "responseBodySample": { "type": ["string", "null"] },
+        "pathParams": { "type": "array", "items": { "type": "string" } },
+        "queryParams": { "type": "array", "items": { "$ref": "#/definitions/queryParam" } },
+        "requestBodySchema": {
+          "oneOf": [{ "$ref": "#/definitions/jsonSchema" }, { "type": "null" }]
+        },
+        "requestBodySchemaReason": { "$ref": "#/definitions/schemaGapReason" },
+        "responseSchema": {
+          "oneOf": [{ "$ref": "#/definitions/jsonSchema" }, { "type": "null" }]
+        },
+        "responseSchemaReason": { "$ref": "#/definitions/schemaGapReason" },
+        "errorResponses": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/errorResponse" }
+        },
+        "mimeTypes": { "type": "array", "items": { "type": "string" } },
+        "triggeredBy": { "type": "array", "items": { "type": "string" } },
+        "graphql": { "$ref": "#/definitions/graphQLInfo" }
+      }
+    },
+    "headers": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "resourceEndpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "methods", "missingMethods"],
+      "properties": {
+        "path": { "type": "string" },
+        "methods": { "type": "array", "items": { "type": "string" } },
+        "missingMethods": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "categories", "paths"],
+      "properties": {
+        "path": { "type": "string" },
+        "categories": { "type": "array", "items": { "$ref": "#/definitions/category" } },
+        "paths": { "type": "array", "items": { "$ref": "#/definitions/resourceEndpoint" } }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "normalizedUrl", "depth", "title", "visitedAt"],
+      "properties": {
+        "url": { "type": "string" },
+        "normalizedUrl": { "type": "string" },
+        "depth": { "type": "integer" },
+        "title": { "type": ["string", "null"] },
+        "visitedAt": { "type": "number" }
+      }
+    },
+    "webSocketFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["direction", "type", "payloadSample", "size", "truncated", "at"],
+      "properties": {
+        "direction": { "type": "string", "enum": ["sent", "received"] },
+        "type": { "type": "string", "enum": ["text", "binary"] },
+        "payloadSample": { "type": ["string", "null"] },
+        "size": { "type": "number" },
+        "truncated": { "type": "boolean" },
+        "at": { "type": "number" }
+      }
+    },
+    "webSocket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "origins",
+        "triggeredBy",
+        "openedAt",
+        "closedAt",
+        "frameCount",
+        "sentCount",
+        "receivedCount",
+        "framesTruncated",
+        "frames",
+        "sentSchema",
+        "receivedSchema"
+      ],
+      "properties": {
+        "url": { "type": "string" },
+        "origins": { "type": "array", "items": { "type": "string" } },
+        "triggeredBy": { "type": "string" },
+        "openedAt": { "type": "number" },
+        "closedAt": { "type": ["number", "null"] },
+        "frameCount": { "type": "integer" },
+        "sentCount": { "type": "integer" },
+        "receivedCount": { "type": "integer" },
+        "framesTruncated": { "type": "boolean" },
+        "frames": { "type": "array", "items": { "$ref": "#/definitions/webSocketFrame" } },
+        "sentSchema": {
+          "oneOf": [{ "$ref": "#/definitions/jsonSchema" }, { "type": "null" }]
+        },
+        "sentSchemaReason": { "$ref": "#/definitions/schemaGapReason" },
+        "receivedSchema": {
+          "oneOf": [{ "$ref": "#/definitions/jsonSchema" }, { "type": "null" }]
+        },
+        "receivedSchemaReason": { "$ref": "#/definitions/schemaGapReason" }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "robotsRespected",
+        "robotsSkippedPaths",
+        "rateLimitMs",
+        "maxBodyBytes",
+        "allowLocal",
+        "redact"
+      ],
+      "properties": {
+        "robotsRespected": { "type": "boolean" },
+        "robotsSkippedPaths": { "type": "array", "items": { "type": "string" } },
+        "rateLimitMs": { "type": "number" },
+        "maxBodyBytes": { "type": "number" },
+        "allowLocal": { "type": "boolean" },
+        "redact": { "type": "boolean" }
+      }
+    },
+    "scanRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seedUrl", "startedAt", "apiReconVersion"],
+      "properties": {
+        "seedUrl": { "type": "string" },
+        "startedAt": { "type": "string" },
+        "apiReconVersion": { "type": "string" },
+        "engine": { "type": "string", "enum": ["chromium", "firefox", "webkit"] }
+      }
+    },
+    "endpointChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "breaking", "details"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["added", "removed", "changed"] },
+        "breaking": { "type": "boolean" },
+        "details": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline", "current", "changes", "counts", "hasChanges"],
+      "properties": {
+        "baseline": { "$ref": "#/definitions/scanRef" },
+        "current": { "$ref": "#/definitions/scanRef" },
+        "changes": { "type": "array", "items": { "$ref": "#/definitions/endpointChange" } },
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["added", "removed", "changed", "breaking"],
+          "properties": {
+            "added": { "type": "integer" },
+            "removed": { "type": "integer" },
+            "changed": { "type": "integer" },
+            "breaking": { "type": "integer" }
+          }
+        },
+        "hasChanges": { "type": "boolean" }
+      }
+    }
+  }
+}

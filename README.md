@@ -213,6 +213,7 @@ you only care about the API surface, Chromium is the safer default.
 
 ```jsonc
 {
+  "schemaVersion": 1,
   "meta": { "seedUrl": "…", "startedAt": "…", "durationMs": 1234, "pagesVisited": 6, "apiReconVersion": "0.2.2", "engine": "chromium" },
   "technologies": [{ "name": "Express", "category": "framework", "evidence": "x-powered-by: Express" }],
   "endpoints": [
@@ -257,6 +258,13 @@ you only care about the API surface, Chromium is the safer default.
   "safety": { "robotsRespected": true, "robotsSkippedPaths": [], "rateLimitMs": 500, "maxBodyBytes": 1048576, "allowLocal": false, "redact": true }
 }
 ```
+
+`schemaVersion` names the shape of the document; `meta.apiReconVersion` names
+the tool build that wrote it, so a report can be read by a consumer that knows
+nothing about the tool's release numbering. The shape is published as
+[`schema/report.schema.json`](schema/report.schema.json) and CI validates the
+committed example against it. `--diff` refuses a baseline whose `schemaVersion`
+it cannot read rather than guessing at an unfamiliar shape.
 
 `requestBodySchema` and `responseSchema` (and a socket's `sentSchema` /
 `receivedSchema`) are inferred across *every* sample, not just one body: a field

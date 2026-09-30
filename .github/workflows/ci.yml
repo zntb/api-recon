@@ -32,6 +32,14 @@ jobs:
         run: npm run check:line-endings
         if: runner.os == 'Linux'
 
+      # Validates the committed example report against schema/report.schema.json
+      # so a renamed or dropped field fails here rather than in a consumer.
+      # Runs once, on Linux: the files are committed, so the verdict is the same
+      # on every OS. See scripts/validate-report.ts.
+      - name: Validate report schema
+        run: npm run check:schema
+        if: runner.os == 'Linux'
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:

@@ -29,6 +29,7 @@ import { writeReports } from '../src/reporters/index.js';
 import { redactBody, redactHeaders } from '../src/utils/redact.js';
 import { normalizeUrl } from '../src/utils/url.js';
 import { TOOL_VERSION } from '../src/version.js';
+import { REPORT_SCHEMA_VERSION } from '../src/types.js';
 import type {
   CapturedCall,
   CapturedPage,
@@ -341,6 +342,7 @@ async function main(): Promise<void> {
 
     const endpoints = analyzeCalls(calls, { seedUrl: fixture.url });
     const report: ReconReport = {
+      schemaVersion: REPORT_SCHEMA_VERSION,
       meta: {
         seedUrl: fixture.url,
         startedAt: new Date(startedAt).toISOString(),

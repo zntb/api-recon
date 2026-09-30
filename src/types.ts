@@ -361,8 +361,18 @@ export interface ReportDiff {
   hasChanges: boolean;
 }
 
+/**
+ * Version of the `report.json` shape, published as `schema/report.schema.json`
+ * and stamped into every report. Bumped when a field is renamed or its meaning
+ * changes, so a consumer — and `loadBaseline` — can reject a report it cannot
+ * read. Independent of the tool version in `meta.apiReconVersion`.
+ */
+export const REPORT_SCHEMA_VERSION = 1;
+
 /** The single source-of-truth report. All other formats derive from it. */
 export interface ReconReport {
+  /** The `report.json` shape version this document conforms to. */
+  schemaVersion: number;
   meta: ReportMeta;
   technologies: Technology[];
   endpoints: Endpoint[];

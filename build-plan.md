@@ -331,6 +331,16 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   dashboard. A resource is only audited for missing verbs when it exposes an
   item path, so an action endpoint such as `POST /api/login` is not asked for a
   `GET` it was never meant to have.
+- **Versioned report schema** — `report.json` now begins with `schemaVersion`,
+  naming the *shape* of the document independently of the tool build in
+  `meta.apiReconVersion`. `REPORT_SCHEMA_VERSION` in `src/types.ts` is the
+  source of truth, the shape is published as `schema/report.schema.json`
+  (draft-07, `additionalProperties: false` throughout), and
+  `scripts/validate-report.ts` validates the committed example report against
+  it in CI (`npm run check:schema`) so a renamed or dropped field fails the
+  build. `loadBaseline` — and therefore `--diff` — refuses a baseline whose
+  `schemaVersion` it cannot read, naming the expected and found versions,
+  instead of comparing a shape it does not understand.
 
 **Proposed updates & features**
 
@@ -357,11 +367,6 @@ so it can be scoped without re-reading the source.
 
 **Stability & performance**
 
-- **Version the report schema and ship a JSON Schema.** `meta.apiReconVersion`
-  names the tool, not the shape. Add a `schemaVersion` to `report.json`, publish
-  a JSON Schema for it, and validate the fixture report against that schema in CI
-  so a rename cannot slip out unnoticed — and so `loadBaseline` can reject an
-  incompatible report with a clear message.
 - **Check example freshness in CI.** Now that generation is deterministic, a CI
   job can run `npm run examples:generate` and fail on `git diff --exit-code
   examples/output`, so a report change that was never regenerated cannot merge.
@@ -477,8 +482,8 @@ so it can be scoped without re-reading the source.
   one-page summary suitable for pasting into a ticket.
 
 If a few are picked first, the highest-leverage trio is proving redaction before
-writing (security), versioning the report schema with a published JSON Schema
-(stability), and distinguishing "not observed" from "absent" (report accuracy).
+writing (security), checking example freshness in CI (stability), and closing
+the report with findings and next steps (report accuracy).
 
 ---
 

@@ -8,7 +8,7 @@
  */
 
 import type { CapturedCall, CapturedPage, ReconReport, ReportFormat, ScanOptions, ScanResult } from './types.js';
-import { REPORT_FORMATS } from './types.js';
+import { REPORT_FORMATS, REPORT_SCHEMA_VERSION } from './types.js';
 import { TOOL_VERSION } from './version.js';
 import { launchSession, resolveEngine } from './core/browser.js';
 import { TrafficInterceptor } from './core/interceptor.js';
@@ -145,6 +145,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const technologies = detectTechnologies(evidence);
 
   const report: ReconReport = {
+    schemaVersion: REPORT_SCHEMA_VERSION,
     meta: {
       seedUrl,
       startedAt: new Date(startedAt).toISOString(),
@@ -260,4 +261,4 @@ export type {
 } from './types.js';
 export { diffReports, loadBaseline, formatDiffSummary } from './core/diff.js';
 export { groupResources } from './core/resources.js';
-export { REPORT_FORMATS, CATEGORIES, BROWSER_ENGINES } from './types.js';
+export { REPORT_FORMATS, REPORT_SCHEMA_VERSION, CATEGORIES, BROWSER_ENGINES } from './types.js';

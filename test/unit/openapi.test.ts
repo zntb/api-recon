@@ -6,6 +6,7 @@ const SEED = 'https://example.com';
 
 function report(endpoints: Endpoint[]): ReconReport {
   return {
+    schemaVersion: 1,
     meta: {
       seedUrl: SEED,
       startedAt: '2026-01-01T00:00:00.000Z',

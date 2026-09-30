@@ -22,6 +22,7 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./schema/report.schema.json": "./schema/report.schema.json",
     "./package.json": "./package.json"
   },
   "bin": {
@@ -29,6 +30,7 @@
   },
   "files": [
     "dist",
+    "schema",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
@@ -54,6 +56,7 @@
     "test:server": "tsx test/fixtures/server.ts --port 4599",
     "lint": "eslint src test scripts",
     "check:line-endings": "tsx scripts/check-line-endings.ts",
+    "check:schema": "tsx scripts/validate-report.ts",
     "changelog:extract": "tsx scripts/changelog.ts",
     "format": "prettier --write src test",
     "start": "node dist/cli/index.js",
@@ -75,6 +78,7 @@
     "@types/js-yaml": "^4.0.9",
     "@types/marked": "^5.0.2",
     "@types/node": "^26.6.3",
+    "ajv": "^8.20.0",
     "eslint": "^10.11.0",
     "prettier": "^3.9.9",
     "tsx": "^4.23.15",

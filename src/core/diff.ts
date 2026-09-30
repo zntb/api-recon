@@ -31,6 +31,7 @@ import type {
   ScanRef,
   SchemaGapReason,
 } from '../types.js';
+import { REPORT_SCHEMA_VERSION } from '../types.js';
 import { describeGapReason, inferSchemaFromFrames } from './schemaInference.js';
 import { SafetyError } from '../utils/safety.js';
 
@@ -574,6 +575,21 @@ export async function loadBaseline(filePath: string): Promise<ReconReport> {
   if (!shape || typeof shape !== 'object' || !shape.meta || !Array.isArray(shape.endpoints)) {
     throw new SafetyError(
       `baseline report must be an api-recon report.json with 'meta' and 'endpoints': ${filePath}`,
+    );
+  }
+
+  // `meta.apiReconVersion` names the tool build, not the document shape. Checking
+  // `schemaVersion` separately means a baseline this build cannot read is refused
+  // with an actionable message, rather than silently diffed field-by-field and
+  // reported as API changes.
+  if (shape.schemaVersion !== REPORT_SCHEMA_VERSION) {
+    const found =
+      shape.schemaVersion === undefined
+        ? 'no schemaVersion (written before reports were versioned)'
+        : `schemaVersion ${shape.schemaVersion}`;
+    throw new SafetyError(
+      `baseline report is not compatible with this build: expected schemaVersion ` +
+        `${REPORT_SCHEMA_VERSION} but found ${found}. Re-scan to produce a current report: ${filePath}`,
     );
   }
 
