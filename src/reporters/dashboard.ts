@@ -16,12 +16,13 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ReconReport } from '../types.js';
 import { FORMAT_FILENAMES } from './json.js';
-import { CODE_STYLE, THEME_TOKENS } from './theme.js';
+import { CODE_STYLE, GRAPH_STYLE, THEME_TOKENS } from './theme.js';
+import { buildRequestGraph, renderRequestGraphSvg } from './graph.js';
 
 // Colours, typography, and the code treatment are shared with report.html, so
 // the two artifacts stay one product and a restyle happens in one place. Only
 // the dashboard's own components are defined below.
-const STYLE = `${THEME_TOKENS}${CODE_STYLE}
+const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}
   * { box-sizing: border-box; }
   /* The hidden attribute has to beat the component rules below that set an
      explicit display, or hiding an element from script silently does nothing. */
@@ -932,6 +933,19 @@ export function renderDashboard(report: ReconReport, title?: string): string {
   const baselineEngine = report.diff?.baseline.engine;
   const engineMismatch = baselineEngine !== undefined && baselineEngine !== report.meta.engine;
 
+  // The graph is laid out at build time rather than from the embedded JSON:
+  // it is a fixed picture of the capture, and drawing it here keeps the file
+  // free of a layout engine.
+  const graph = buildRequestGraph(report);
+  const graphPanel =
+    graph.edges.length === 0
+      ? ''
+      : `<section class="panel graphpanel" aria-label="Page to request graph">
+    <h2>Pages and the requests they triggered</h2>
+    <p class="hint">Read from the page recorded with each call. Hover a box for the full label.</p>
+    ${renderRequestGraphSvg(graph)}
+  </section>`;
+
   const columns = [
     { key: 'method', label: 'Method' },
     { key: 'path', label: 'Path' },
@@ -983,6 +997,8 @@ export function renderDashboard(report: ReconReport, title?: string): string {
   </noscript>
 
   <section class="stats" id="stats" aria-label="Summary"></section>
+
+  ${graphPanel}
 
   <section class="panel" id="findings" aria-label="Findings"></section>
 

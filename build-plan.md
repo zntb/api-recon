@@ -404,6 +404,15 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   endpoint's detail, resource, or finding group — is wrapped in a
   `section.detail` with `break-inside: avoid`, so a detail is not split across a
   page boundary when printed from the PDF or from `report.html`.
+- **Page → request graph** — `src/reporters/graph.ts` turns the `triggeredBy`
+  already recorded on every call into a graph: pages in one column, the requests
+  they triggered in the other, an edge per relationship weighted by call count.
+  `report.md` gets it as a Mermaid `flowchart LR` (§13), which GitHub and other
+  Markdown viewers draw; `report.html` and `dashboard.html` get the same graph as
+  inline SVG laid out at build time, so neither needs a Mermaid runtime and both
+  keep working offline. The busiest 20 pages and 40 requests are kept and the
+  rest counted, so a large capture degrades to a readable picture rather than a
+  hairball. `buildRequestGraph` is exported for library use.
 
 **Proposed updates & features**
 
@@ -441,9 +450,6 @@ so it can be scoped without re-reading the source.
 
 **Aesthetics**
 
-- **Draw the graph the crawler already knows.** Render the page → request
-  relationships as Mermaid in Markdown and inline SVG in HTML/dashboard, so a
-  reader can see which page produced which call without scanning the tables.
 - **A consistent identity.** An embedded logo/favicon and a documented colour
   ramp, so a shared report looks deliberate rather than default-`<table>`.
 

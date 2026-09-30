@@ -377,6 +377,10 @@ describe('report formats', () => {
     expect(html).toContain('<style>');
     expect(html).toContain('Endpoint Summary by Category');
     expect(html).not.toContain(FIXTURE_PASS);
+    // The Mermaid fence is swapped for the inline SVG the crawler's own
+    // triggeredBy data can draw — no graph if the relationship went missing.
+    expect(html).toContain('<svg class="request-graph"');
+    expect(html).not.toContain('language-mermaid');
 
     const json = await readFile(join(dir, 'report.json'), 'utf8');
     expect(json).toContain('[REDACTED]');
@@ -399,6 +403,7 @@ describe('report formats', () => {
     // has to hold for it — including for the JSON payload, not just the markup.
     const dashboard = await readFile(join(dir, 'dashboard.html'), 'utf8');
     expect(dashboard).toContain('API recon dashboard');
+    expect(dashboard).toContain('<svg class="request-graph"');
     expect(dashboard).not.toContain(FIXTURE_PASS);
     expect(dashboard).not.toContain('connect.sid=');
     const payload = JSON.parse(

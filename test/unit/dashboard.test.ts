@@ -213,6 +213,22 @@ describe('renderDashboard', () => {
     expect(html).toContain("event.key !== 'ArrowDown' && event.key !== 'ArrowUp'");
   });
 
+  it('draws the page to request graph as inline SVG', () => {
+    const html = renderDashboard(
+      report([endpoint({ id: 'GET /api/products', triggeredBy: ['https://example.com/products'] })]),
+    );
+
+    expect(html).toContain('Pages and the requests they triggered');
+    expect(html).toContain('<svg class="request-graph"');
+    expect(html).toContain('/products');
+  });
+
+  it('omits the graph panel when nothing recorded a triggering page', () => {
+    const html = renderDashboard(report([endpoint({ id: 'GET /api/products', triggeredBy: [] })]));
+    expect(html).not.toContain('<svg class="request-graph"');
+    expect(html).not.toContain('Pages and the requests they triggered');
+  });
+
   it('says so when no endpoints were captured', () => {
     const html = renderDashboard(report([]));
     expect(html).toContain('No endpoints were captured.');

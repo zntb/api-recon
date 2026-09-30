@@ -60,6 +60,13 @@
   pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
   .table-scroll { overflow-x: auto; }
 
+  .request-graph { max-width: 100%; height: auto; display: block; }
+  .request-graph text { font-family: var(--font-mono); font-size: 11px; fill: var(--ink); }
+  .request-graph .rg-page rect { fill: var(--head); stroke: var(--line); }
+  .request-graph .rg-request rect { fill: var(--panel); stroke: var(--line); }
+  .request-graph .rg-edge { fill: none; stroke: var(--accent-soft); }
+  .graph-note { color: var(--muted); font-size: .85em; }
+
   * { box-sizing: border-box; }
   body {
     margin: 0; padding: 2.5rem 1.25rem;
@@ -115,6 +122,7 @@
 <li><a href="#10-resource-coverage">10. Resource Coverage</a></li>
 <li><a href="#11-performance">11. Performance</a></li>
 <li><a href="#12-findings-next-steps">12. Findings &amp; Next Steps</a></li>
+<li><a href="#13-request-graph">13. Request Graph</a></li>
 </ul>
 <p><a id="1-overview"></a></p>
 <h2>1. Overview</h2>
@@ -1783,6 +1791,10 @@ x-powered-by: Express
 </ul>
 </li>
 </ul>
+<p><a id="13-request-graph"></a></p>
+<h2>13. Request Graph</h2>
+<p><em>Which page triggered which request, read from the <code>triggeredBy</code> recorded with each call. A page that produced no captured request is not drawn.</em></p>
+<svg class="request-graph" viewBox="0 0 528 378" width="528" height="378" role="img" aria-label="Pages and the requests they triggered"><title>Pages and the requests they triggered</title><g class="rg-edges"><path class="rg-edge" stroke-width="1.3" d="M 164 117 C 249 117, 249 135, 334 135" /><path class="rg-edge" stroke-width="1.3" d="M 164 117 C 249 117, 249 171, 334 171" /><path class="rg-edge" stroke-width="1.3" d="M 164 117 C 249 117, 249 207, 334 207" /><path class="rg-edge" stroke-width="1.3" d="M 164 153 C 249 153, 249 279, 334 279" /><path class="rg-edge" stroke-width="1.5" d="M 164 153 C 249 153, 249 27, 334 27" /><path class="rg-edge" stroke-width="1.3" d="M 164 153 C 249 153, 249 315, 334 315" /><path class="rg-edge" stroke-width="1.3" d="M 164 189 C 249 189, 249 351, 334 351" /><path class="rg-edge" stroke-width="1.3" d="M 164 189 C 249 189, 249 243, 334 243" /><path class="rg-edge" stroke-width="1.5" d="M 164 225 C 249 225, 249 63, 334 63" /><path class="rg-edge" stroke-width="1.5" d="M 164 261 C 249 261, 249 99, 334 99" /></g><g class="rg-nodes"><g class="rg-node rg-page" transform="translate(14,104)"><rect width="150" height="26" rx="7" /><text x="10" y="17">/dashboard</text><title>/dashboard</title></g><g class="rg-node rg-page" transform="translate(14,140)"><rect width="150" height="26" rx="7" /><text x="10" y="17">/products</text><title>/products</title></g><g class="rg-node rg-page" transform="translate(14,176)"><rect width="150" height="26" rx="7" /><text x="10" y="17">/external.html</text><title>/external.html</title></g><g class="rg-node rg-page" transform="translate(14,212)"><rect width="150" height="26" rx="7" /><text x="10" y="17">/graphql</text><title>/graphql</title></g><g class="rg-node rg-page" transform="translate(14,248)"><rect width="150" height="26" rx="7" /><text x="10" y="17">/login</text><title>/login</title></g><g class="rg-node rg-request" transform="translate(334,14)"><rect width="180" height="26" rx="7" /><text x="10" y="17">GET /api/products</text><title>GET /api/products</title></g><g class="rg-node rg-request" transform="translate(334,50)"><rect width="180" height="26" rx="7" /><text x="10" y="17">POST /api/graphql</text><title>POST /api/graphql</title></g><g class="rg-node rg-request" transform="translate(334,86)"><rect width="180" height="26" rx="7" /><text x="10" y="17">POST /api/login</text><title>POST /api/login</title></g><g class="rg-node rg-request" transform="translate(334,122)"><rect width="180" height="26" rx="7" /><text x="10" y="17">GET /api/orders</text><title>GET /api/orders</title></g><g class="rg-node rg-request" transform="translate(334,158)"><rect width="180" height="26" rx="7" /><text x="10" y="17">GET /api/orders/{id}</text><title>GET /api/orders/{id}</title></g><g class="rg-node rg-request" transform="translate(334,194)"><rect width="180" height="26" rx="7" /><text x="10" y="17">GET /api/user</text><title>GET /api/user</title></g><g class="rg-node rg-request" transform="translate(334,230)"><rect width="180" height="26" rx="7" /><text x="10" y="17">GET /sdk/config.json</text><title>GET /sdk/config.json</title></g><g class="rg-node rg-request" transform="translate(334,266)"><rect width="180" height="26" rx="7" /><text x="10" y="17">POST /api/collect</text><title>POST /api/collect</title></g><g class="rg-node rg-request" transform="translate(334,302)"><rect width="180" height="26" rx="7" /><text x="10" y="17">POST /api/search</text><title>POST /api/search</title></g><g class="rg-node rg-request" transform="translate(334,338)"><rect width="180" height="26" rx="7" /><text x="10" y="17">POST /collect</text><title>POST /collect</title></g></g></svg>
 <p><em>api-recon observes and documents only. It does not bypass authentication, CAPTCHAs, or bot protections.</em></p>
 </section>
 </main>

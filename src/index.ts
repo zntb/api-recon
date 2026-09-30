@@ -271,4 +271,5 @@ export type {
 export { diffReports, loadBaseline, formatDiffSummary } from './core/diff.js';
 export { collectFindings } from './core/findings.js';
 export { groupResources } from './core/resources.js';
+export { buildRequestGraph } from './reporters/graph.js';
 export { REPORT_FORMATS, REPORT_SCHEMA_VERSION, CATEGORIES, BROWSER_ENGINES } from './types.js';

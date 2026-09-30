@@ -31,7 +31,10 @@ export async function writeReports(
   }
 
   const needsHtml = formats.includes('html') || formats.includes('pdf');
-  const html = needsHtml && markdown ? await renderHtml(markdown, `API recon — ${report.meta.seedUrl}`) : null;
+  const html =
+    needsHtml && markdown
+      ? await renderHtml(markdown, `API recon — ${report.meta.seedUrl}`, report)
+      : null;
 
   if (formats.includes('html') && html) {
     await mkdir(outDir, { recursive: true });

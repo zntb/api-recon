@@ -62,6 +62,20 @@ export const THEME_TOKENS = `
 `;
 
 /**
+ * The page → request graph (see `graph.ts`). Styling lives here rather than in
+ * the generated SVG so the two columns take their colours from the same tokens
+ * as everything else and follow the dark and print overrides.
+ */
+export const GRAPH_STYLE = `
+  .request-graph { max-width: 100%; height: auto; display: block; }
+  .request-graph text { font-family: var(--font-mono); font-size: 11px; fill: var(--ink); }
+  .request-graph .rg-page rect { fill: var(--head); stroke: var(--line); }
+  .request-graph .rg-request rect { fill: var(--panel); stroke: var(--line); }
+  .request-graph .rg-edge { fill: none; stroke: var(--accent-soft); }
+  .graph-note { color: var(--muted); font-size: .85em; }
+`;
+
+/**
  * The code treatment shared by both artifacts: a dark block that scrolls
  * horizontally rather than wrapping (source code and payloads are read as they
  * were written), and inline code that does not invent its own colours.

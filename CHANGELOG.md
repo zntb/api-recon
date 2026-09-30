@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   host and `Page N of M`. Each `###` block — one endpoint's detail, resource, or
   finding group — is wrapped so it is not split across a page boundary, in the
   PDF and when printing `report.html`.
+- **Page → request graph** — the report now closes with a graph of which page
+  produced which call, built from the `triggeredBy` already recorded on each
+  endpoint. `report.md` carries it as a Mermaid `flowchart LR` (§13) that
+  Markdown viewers render, while `report.html` and `dashboard.html` embed the
+  same graph as inline SVG laid out at build time — no Mermaid runtime, so both
+  stay self-contained and offline. Pages and requests are ranked by activity and
+  capped (20 / 40), and anything dropped is counted in the report.
 
 ## [0.3.7] - 2026-09-30
 

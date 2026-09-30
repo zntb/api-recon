@@ -1,12 +1,14 @@
 /** HTML reporter: renders the Markdown report into a styled standalone page. */
 
 import { marked } from 'marked';
-import { CODE_STYLE, THEME_TOKENS } from './theme.js';
+import type { ReconReport } from '../types.js';
+import { CODE_STYLE, GRAPH_STYLE, THEME_TOKENS } from './theme.js';
+import { buildRequestGraph, renderRequestGraphSvg } from './graph.js';
 
 // The palette, typography, and code treatment come from the shared theme so
 // this page and dashboard.html stay one product; only the document layout is
 // local to this reporter.
-const STYLE = `${THEME_TOKENS}${CODE_STYLE}
+const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}
   * { box-sizing: border-box; }
   body {
     margin: 0; padding: 2.5rem 1.25rem;
@@ -68,8 +70,28 @@ export function wrapDetailSections(html: string): string {
   return `${head}${sections.map((section) => `<section class="detail">${section}</section>`).join('')}`;
 }
 
-export async function renderHtml(markdown: string, title: string): Promise<string> {
-  const body = await marked.parse(markdown, { async: true, gfm: true });
+/**
+ * Swap the Markdown report's Mermaid fence for the inline SVG the other Markdown
+ * viewers cannot draw. `marked` renders the fence as a `<pre><code>` block, so
+ * the graph arrives here as escaped text and leaves as a picture; without a
+ * report to draw from, the fence is left alone.
+ */
+function embedRequestGraph(body: string, report: ReconReport | undefined): string {
+  if (!report) return body;
+  const graph = buildRequestGraph(report);
+  if (graph.edges.length === 0) return body;
+  return body.replace(
+    /<pre><code class="language-mermaid">[\s\S]*?<\/code><\/pre>/,
+    renderRequestGraphSvg(graph),
+  );
+}
+
+export async function renderHtml(
+  markdown: string,
+  title: string,
+  report?: ReconReport,
+): Promise<string> {
+  const body = embedRequestGraph(await marked.parse(markdown, { async: true, gfm: true }), report);
   return `<!doctype html>
 <html lang="en">
 <head>

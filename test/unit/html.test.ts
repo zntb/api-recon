@@ -1,5 +1,53 @@
 import { describe, expect, it } from 'vitest';
 import { renderHtml } from '../../src/reporters/html.js';
+import { renderMarkdown } from '../../src/reporters/markdown.js';
+import type { ReconReport } from '../../src/types.js';
+
+function report(): ReconReport {
+  return {
+    schemaVersion: 1,
+    meta: {
+      seedUrl: 'https://example.com',
+      startedAt: '2026-09-01T00:00:00.000Z',
+      durationMs: 1000,
+      pagesVisited: 1,
+      apiReconVersion: '0.2.2',
+      engine: 'chromium',
+    },
+    technologies: [],
+    endpoints: [
+      {
+        id: 'GET /api/products',
+        method: 'GET',
+        urlPattern: '/api/products',
+        origins: ['https://example.com'],
+        category: 'data-fetching',
+        count: 2,
+        statusCodes: [200],
+        requestHeaders: {},
+        responseHeaders: {},
+        requestBodySample: null,
+        responseBodySample: null,
+        pathParams: [],
+        queryParams: [],
+        requestBodySchema: null,
+        responseSchema: null,
+        mimeTypes: ['application/json'],
+        triggeredBy: ['https://example.com/products'],
+      },
+    ],
+    pages: [],
+    webSockets: [],
+    safety: {
+      robotsRespected: true,
+      robotsSkippedPaths: [],
+      rateLimitMs: 0,
+      maxBodyBytes: 1024,
+      allowLocal: true,
+      redact: true,
+    },
+  };
+}
 
 describe('renderHtml', () => {
   it('uses the shared theme tokens and code treatment', async () => {
@@ -51,5 +99,25 @@ describe('renderHtml', () => {
     // The heading still never strands at the foot of a page.
     expect(html).toContain('h2, h3 { break-after: avoid; }');
     expect((html.match(/<\/section>/g) ?? []).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('replaces the Mermaid graph with inline SVG, and styles it from the theme', async () => {
+    const recon = report();
+    const html = await renderHtml(renderMarkdown(recon), 'Report', recon);
+
+    expect(html).toContain('<svg class="request-graph"');
+    expect(html).toContain('/products');
+    expect(html).toContain('GET /api/products');
+    expect(html).not.toContain('language-mermaid');
+    expect(html).toContain('.request-graph .rg-edge');
+    expect(html).toContain('.request-graph .rg-page rect');
+  });
+
+  it('leaves the Mermaid fence as a code block when there is no report to draw', async () => {
+    const markdown = '## 13. Request Graph\n\n```mermaid\nflowchart LR\n  p0 --> e0\n```\n';
+    const html = await renderHtml(markdown, 'Report');
+
+    expect(html).toContain('language-mermaid');
+    expect(html).not.toContain('<svg class="request-graph"');
   });
 });

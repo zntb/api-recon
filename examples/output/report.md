@@ -17,6 +17,7 @@ _Scorecard — 10 endpoints · 9 resources · 3 technologies · 2 findings · 8 
 - [10. Resource Coverage](#10-resource-coverage)
 - [11. Performance](#11-performance)
 - [12. Findings & Next Steps](#12-findings-next-steps)
+- [13. Request Graph](#13-request-graph)
 
 <a id="1-overview"></a>
 
@@ -1129,5 +1130,40 @@ _Heuristic review cues from this capture, not a security audit. Each is derived 
   - x-frame-options was not present on any captured response
   - referrer-policy was not present on any captured response
   - permissions-policy was not present on any captured response
+
+<a id="13-request-graph"></a>
+
+## 13. Request Graph
+
+_Which page triggered which request, read from the `triggeredBy` recorded with each call. A page that produced no captured request is not drawn._
+
+```mermaid
+flowchart LR
+  p0["/dashboard"]
+  p1["/products"]
+  p2["/external.html"]
+  p3["/graphql"]
+  p4["/login"]
+  e0["GET /api/products"]
+  e1["POST /api/graphql"]
+  e2["POST /api/login"]
+  e3["GET /api/orders"]
+  e4["GET /api/orders/{id}"]
+  e5["GET /api/user"]
+  e6["GET /sdk/config.json"]
+  e7["POST /api/collect"]
+  e8["POST /api/search"]
+  e9["POST /collect"]
+  p0 --> e3
+  p0 --> e4
+  p0 --> e5
+  p1 --> e7
+  p1 --> e0
+  p1 --> e8
+  p2 --> e9
+  p2 --> e6
+  p3 --> e1
+  p4 --> e2
+```
 
 _api-recon observes and documents only. It does not bypass authentication, CAPTCHAs, or bot protections._

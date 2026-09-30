@@ -215,6 +215,14 @@ the same colours, typography, spacing, and code blocks, and both follow your
 scrolls horizontally inside its table or code block instead of widening the
 page.
 
+`report.md` closes with a **page → request graph**, rendered as Mermaid for a
+Markdown viewer and as inline SVG in `report.html` and `dashboard.html` (no
+Mermaid runtime, so both stay self-contained and work offline). It joins each
+page to the requests it triggered, using the `triggeredBy` recorded on every
+call — a relationship the tables alone make the reader reconstruct. Only the
+busiest 20 pages and 40 requests are drawn, and the report says what was left
+out.
+
 `report.pdf` is `report.html` plus the page furniture a document needs: a cover
 naming the seed host, capture time, tool and report-schema version; a running
 header and footer carrying the seed host and `Page N of M`; and break rules that

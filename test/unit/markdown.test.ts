@@ -327,4 +327,29 @@ describe('renderMarkdown', () => {
     expect(md).toContain('`/api/orders/{id}`');
     expect(md).toContain('PUT, PATCH, DELETE');
   });
+
+  it('draws the page to request graph as Mermaid, and links it from the contents', () => {
+    const md = renderMarkdown(
+      report({
+        endpoints: [
+          endpoint({ id: 'GET /api/products', triggeredBy: ['https://example.com/products'] }),
+          endpoint({ id: 'POST /api/search', triggeredBy: ['https://example.com/products'] }),
+        ],
+      }),
+    );
+
+    expect(md).toContain('## 13. Request Graph');
+    expect(md).toContain('- [13. Request Graph](#13-request-graph)');
+    expect(md).toContain('```mermaid');
+    expect(md).toContain('flowchart LR');
+    expect(md).toContain('p0["/products"]');
+    expect(md).toContain('e0["GET /api/products"]');
+    expect(md).toContain('p0 --> e0');
+  });
+
+  it('omits the graph when no endpoint recorded the page that triggered it', () => {
+    const md = renderMarkdown(report({ endpoints: [endpoint({ id: 'GET /api/products', triggeredBy: [] })] }));
+    expect(md).not.toContain('## 13. Request Graph');
+    expect(md).not.toContain('```mermaid');
+  });
 });

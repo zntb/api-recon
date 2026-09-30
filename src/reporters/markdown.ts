@@ -17,6 +17,7 @@ import { CATEGORIES } from '../types.js';
 import { describeGapReason } from '../core/schemaInference.js';
 import { formatBytes, formatDuration, truncate } from '../utils/misc.js';
 import { FORMAT_FILENAMES } from './json.js';
+import { buildRequestGraph, toMermaid, type RequestGraph } from './graph.js';
 
 const MAX_SAMPLE_CHARS = 2000;
 
@@ -177,6 +178,11 @@ export function renderMarkdown(report: ReconReport): string {
 
   // ---- 12. Findings & next steps (derived from the scan) ----------------
   if (report.findings?.length) out.push(...findingsSection(report.findings));
+
+  // ---- 13. Page → request graph (derived from the endpoints) ------------
+  if (report.endpoints.some((e) => e.triggeredBy.length > 0)) {
+    out.push(...graphSection(buildRequestGraph(report)));
+  }
 
   out.push('_api-recon observes and documents only. It does not bypass authentication, CAPTCHAs, or bot protections._');
   out.push('');
@@ -391,6 +397,34 @@ function performanceSection(endpoints: Endpoint[]): string[] {
     out.push('');
   }
 
+  return out;
+}
+
+/**
+ * The page → request graph, as Mermaid so a Markdown viewer draws it (GitHub
+ * renders the fence) and the HTML reporters can swap in the inline SVG.
+ */
+function graphSection(graph: RequestGraph): string[] {
+  const out: string[] = [];
+  out.push('## 13. Request Graph');
+  out.push('');
+  out.push(
+    '_Which page triggered which request, read from the `triggeredBy` recorded with each ' +
+      'call. A page that produced no captured request is not drawn._',
+  );
+  if (graph.omittedPages > 0 || graph.omittedRequests > 0) {
+    out.push('');
+    out.push(
+      `_Only the busiest ${graph.pages.length} page(s) and ${graph.requests.length} ` +
+        `request(s) are drawn — ${graph.omittedPages} page(s) and ${graph.omittedRequests} ` +
+        'request(s) are in the tables but not the graph._',
+    );
+  }
+  out.push('');
+  out.push('```mermaid');
+  out.push(toMermaid(graph));
+  out.push('```');
+  out.push('');
   return out;
 }
 
