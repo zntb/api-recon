@@ -202,7 +202,7 @@ you only care about the API surface, Chromium is the safer default.
 | File | Contents |
 | --- | --- |
 | `report.json` | Machine-readable source of truth |
-| `report.md` | Overview, technologies, endpoint tables, detailed endpoints, auth flows, third-party calls, safety notes, WebSocket traffic |
+| `report.md` | A one-line scorecard and a linked table of contents, then overview, technologies, endpoint tables with category badges, detailed endpoints, auth flows, third-party calls, safety notes, WebSocket traffic |
 | `report.html` | Styled standalone version of the Markdown |
 | `report.pdf` | Rendered from the HTML with Playwright's `page.pdf()` |
 | `openapi.yaml` | Best-effort OpenAPI 3.0 spec from inferred paths, methods, params, and schemas |

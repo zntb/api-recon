@@ -26,6 +26,12 @@ const STYLE = `${THEME_TOKENS}${CODE_STYLE}
   blockquote { margin: 1rem 0; padding: .5rem 1rem; border-left: 4px solid var(--accent-soft);
     background: var(--note-bg); }
   hr { border: none; border-top: 1px solid var(--line); margin: 2rem 0; }
+  .cat-badge { display: inline-block; padding: .05rem .5rem; border-radius: 99px;
+    font-size: .78em; font-weight: 600; background: var(--chip); color: var(--chip-ink); }
+  .cat-badge.cat-authentication, .cat-badge.cat-mutations { background: var(--warn-bg); color: var(--warn); }
+  .cat-badge.cat-analytics, .cat-badge.cat-graphql { background: var(--info-bg); color: var(--info); }
+  .cat-badge.cat-third-party { background: var(--bad-bg); color: var(--bad); }
+  .cat-badge.cat-data-fetching { background: var(--ok-bg); color: var(--ok); }
   @media print {
     body { background: #fff; padding: 0; }
     main { border: none; box-shadow: none; padding: 0; max-width: none; }

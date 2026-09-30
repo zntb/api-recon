@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Markdown/HTML report polish** — the report now opens with a one-line
+  scorecard (endpoints, resources, technologies, findings, breaking changes,
+  pages and duration) and a `## Contents` table of contents. Every section
+  heading gets an explicit `<a id>` anchor first, so the contents links resolve
+  in `report.html` — `marked` does not add heading ids on its own. Categories
+  render as badges (styled by the shared theme, plain labels elsewhere), and
+  tables scroll horizontally instead of widening the page.
+
 ## [0.3.7] - 2026-09-30
 
 ### Added
@@ -478,6 +490,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[Unreleased]: https://github.com/zntb/api-recon/compare/v0.3.7...HEAD
 [0.3.7]: https://github.com/zntb/api-recon/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/zntb/api-recon/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/zntb/api-recon/compare/v0.3.4...v0.3.5

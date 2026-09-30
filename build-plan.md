@@ -390,6 +390,13 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   same `prefers-color-scheme` dark theme as the dashboard, and its tables are
   wrapped in a scroll box so an unbreakable cell (a long URL, a payload) scrolls
   horizontally instead of widening the page.
+- **Markdown/HTML report polish** — the report opens with a one-line scorecard
+  (endpoints, resources, technologies, findings, breaking changes, pages and
+  duration) and a `## Contents` table of contents, and each section heading gets
+  an explicit `<a id>` anchor first so the links resolve in `report.html` —
+  `marked` does not add heading ids by itself. Categories render as badges
+  (styled by the shared theme, plain labels elsewhere), and — as with the shared
+  theme — tables scroll horizontally rather than widening the page.
 
 **Proposed updates & features**
 
@@ -427,9 +434,6 @@ so it can be scoped without re-reading the source.
 
 **Aesthetics**
 
-- **Polish the Markdown/HTML report.** A table of contents with anchors, a
-  one-line scorecard summary, category badges, and tables that scroll
-  horizontally instead of overflowing the page.
 - **Polish the PDF.** A cover page, running headers/footers with page numbers
   and the seed host, and page-break control so an endpoint's detail is never
   split across two pages.

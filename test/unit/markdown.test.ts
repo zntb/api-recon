@@ -30,7 +30,68 @@ function report(overrides: Partial<ReconReport> = {}): ReconReport {
   };
 }
 
+function endpoint(overrides: Partial<Endpoint> & { id: string }): Endpoint {
+  const [method, ...rest] = overrides.id.split(' ');
+  return {
+    method: method!,
+    urlPattern: rest.join(' '),
+    origins: ['https://example.com'],
+    category: 'data-fetching',
+    count: 1,
+    statusCodes: [200],
+    requestHeaders: {},
+    responseHeaders: {},
+    requestBodySample: null,
+    responseBodySample: '{"ok":true}',
+    pathParams: [],
+    queryParams: [],
+    requestBodySchema: null,
+    responseSchema: null,
+    mimeTypes: ['application/json'],
+    triggeredBy: ['https://example.com/'],
+    ...overrides,
+  };
+}
+
 describe('renderMarkdown', () => {
+  it('opens with a scorecard and a contents list that links to anchors', () => {
+    const md = renderMarkdown(
+      report({
+        endpoints: [endpoint({ id: 'GET /api/products' })],
+        resources: [
+          {
+            path: '/api/products',
+            categories: ['data-fetching'],
+            paths: [{ path: '/api/products', methods: ['GET'], missingMethods: [] }],
+          },
+        ],
+        findings: [
+          {
+            kind: 'pii',
+            severity: 'medium',
+            title: 'PII-shaped fields appear in captured samples',
+            endpoints: ['GET /api/products'],
+            details: ['GET /api/products — email'],
+          },
+        ],
+      }),
+    );
+
+    expect(md).toContain('_Scorecard — 1 endpoint');
+    expect(md).toContain('1 resource');
+    expect(md).toContain('1 finding');
+    expect(md).toContain('## Contents');
+    expect(md).toContain('- [1. Overview](#1-overview)');
+    expect(md).toContain('<a id="1-overview"></a>');
+    expect(md).toContain('## 1. Overview');
+  });
+
+  it('renders a category as a badge', () => {
+    const md = renderMarkdown(report({ endpoints: [endpoint({ id: 'GET /api/products' })] }));
+
+    expect(md).toContain('<span class="cat-badge cat-data-fetching">data-fetching</span>');
+  });
+
   it('warns when the baseline ran in a different engine', () => {
     const current = report({ meta: { ...report().meta, engine: 'firefox' } });
     const md = renderMarkdown(report({ diff: diffReports(report(), current) }));
