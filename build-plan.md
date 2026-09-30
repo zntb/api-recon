@@ -432,6 +432,16 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   event, for a machine. The library gets the same stream as `onProgress` on
   `scan()`. Rendering is pure and separated from the timer (`src/utils/progress.ts`),
   and the scan only ever pushes state, so a reporter cannot fail a scan.
+- **Project config file** — `.api-reconrc` (also `api-recon.config.json` and
+  `.api-reconrc.json`) is discovered by walking up from the working directory,
+  or named with `--config <file>` / `API_RECON_CONFIG`, and skipped with
+  `--no-config`. It carries the same settings as the flags, in camelCase or
+  kebab-case, and resolves its relative paths (`login`, `actions`, `out`, …)
+  against its own directory so a committed file means the same thing from any
+  subdirectory. Precedence is CLI > `API_RECON_*` env > config > defaults, the
+  table of which lives in `src/cli/config.ts`; unknown keys are an error rather
+  than a silently ignored typo, and `force: true` / `redact: false` are refused
+  in a shared file because they would loosen safety for everyone who clones it.
 
 **Proposed updates & features**
 
@@ -503,9 +513,6 @@ so it can be scoped without re-reading the source.
 
 **User experience**
 
-- **A project config file.** `.api-reconrc` (or `api-recon.config.ts`) so a team
-  can commit the flags and login/action paths it always uses, with a documented
-  precedence of CLI > env > config > defaults.
 - **Presets.** `--preset quick|deep|ci` bundling the flags people otherwise piece
   together by hand, so the common cases become one word.
 - **A first-class diff workflow.** `api-recon baseline <url>` to write a known

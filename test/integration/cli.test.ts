@@ -1,9 +1,11 @@
 /** CLI end-to-end tests: spawn the real CLI against the local fixture site. */
 
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { startFixtureServer, type FixtureServerHandle } from '../fixtures/server.js';
@@ -13,15 +15,18 @@ const exec = promisify(execFile);
 const CLI_ENTRY = join(process.cwd(), 'src', 'cli', 'index.ts');
 // Run the TypeScript entrypoint through Node itself. Spawning the tsx shell
 // shim works on POSIX but fails on Windows, where .cmd files cannot be spawned
-// without a shell.
-const NODE_TSX_ARGS = ['--import', 'tsx', CLI_ENTRY];
+// without a shell. The loader is resolved from this file rather than by name,
+// because a bare `--import tsx` resolves against the *spawned* process's working
+// directory — and one of these tests runs the CLI from a temporary project.
+const TSX_LOADER = pathToFileURL(createRequire(import.meta.url).resolve('tsx')).href;
+const NODE_TSX_ARGS = ['--import', TSX_LOADER, CLI_ENTRY];
 
 let fixture: FixtureServerHandle;
 let outDir: string;
 let canRunBrowser = false;
 
 // The help/guard tests run without a browser; these two need a real one.
-const NEEDS_BROWSER = ['produces report files', 'diffs', 'telemetry', 'progress'];
+const NEEDS_BROWSER = ['produces report files', 'diffs', 'telemetry', 'progress', 'config'];
 
 beforeEach((ctx) => {
   if (!canRunBrowser && NEEDS_BROWSER.some((name) => ctx.task.name.includes(name))) {
@@ -43,10 +48,12 @@ afterAll(async () => {
 async function runCli(
   args: string[],
   env: Record<string, string | undefined> = {},
+  cwd?: string,
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   try {
     const { stdout, stderr } = await exec(process.execPath, [...NODE_TSX_ARGS, ...args], {
       env: { ...process.env, ...env },
+      ...(cwd ? { cwd } : {}),
       timeout: 120_000,
     });
     return { code: 0, stdout, stderr };
@@ -81,6 +88,8 @@ describe('api-recon CLI', () => {
       '--quiet',
       '--verbose',
       '--json-progress',
+      '--config',
+      '--no-config',
     ]) {
       expect(stdout, `--help should mention ${flag}`).toContain(flag);
     }
@@ -266,6 +275,51 @@ describe('api-recon CLI', () => {
     expect(plain.code).toBe(0);
     expect(plain.stdout).not.toMatch(/^\{"event"/m);
   }, 150_000);
+
+  it('takes flags from a project config file, with the CLI and the environment above it', async () => {
+    const projDir = join(outDir, 'cli-config', 'project');
+    await mkdir(projDir, { recursive: true });
+    await writeFile(
+      join(projDir, '.api-reconrc'),
+      JSON.stringify({
+        depth: 0,
+        rate: 0,
+        allowLocal: true,
+        quiet: true,
+        formats: ['json'],
+        out: 'reports',
+      }),
+      'utf8',
+    );
+
+    const pagesVisited = async (): Promise<number> => {
+      const report = JSON.parse(
+        await readFile(join(projDir, 'reports', 'report.json'), 'utf8'),
+      ) as { meta: { pagesVisited: number } };
+      return report.meta.pagesVisited;
+    };
+
+    // 1. The config alone: depth 0 from the file, and output relative to it.
+    const plain = await runCli([fixture.url], {}, projDir);
+    expect(plain.code, `${plain.stdout}${plain.stderr}`).toBe(0);
+    expect(await pagesVisited()).toBe(1);
+
+    // 2. A flag beats the config.
+    const withFlag = await runCli([fixture.url, '--depth', '1'], {}, projDir);
+    expect(withFlag.code).toBe(0);
+    expect(await pagesVisited()).toBeGreaterThan(1);
+
+    // 3. The environment beats the config too.
+    await writeFile(join(projDir, 'reports', 'report.json'), '{"meta":{"pagesVisited":0}}', 'utf8');
+    const withEnv = await runCli([fixture.url], { API_RECON_DEPTH: '1' }, projDir);
+    expect(withEnv.code).toBe(0);
+    expect(await pagesVisited()).toBeGreaterThan(1);
+
+    // 4. --no-config ignores it — and then nothing allows a local scan.
+    const ignored = await runCli([fixture.url, '--no-config'], {}, projDir);
+    expect(ignored.code).toBe(2);
+    expect(`${ignored.stdout}${ignored.stderr}`).toMatch(/allow-local/);
+  }, 300_000);
 
   it('refuses --fail-on-diff with no baseline', async () => {
     const { code, stderr } = await runCli([fixture.url, '--allow-local', '--fail-on-diff']);

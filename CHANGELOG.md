@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Project config file** — a team can commit the flags it always uses in
+  `.api-reconrc` (or `api-recon.config.json` / `.api-reconrc.json`), discovered
+  by walking up from the working directory, named explicitly with `--config
+  <file>` or `API_RECON_CONFIG`, and skipped with `--no-config`. Settings use
+  the same names as the long flags (camelCase or kebab-case), and a relative
+  path in the file — `login`, `actions`, `out`, `diff`, `auth` — resolves against
+  the config file's own directory, so a committed file behaves the same from any
+  subdirectory. Precedence is CLI > `API_RECON_*` environment > config >
+  defaults. An unknown key is an error rather than a silently ignored typo, and
+  two values are refused in a shared file — `force: true` and `redact: false` —
+  because they would loosen safety for everyone who clones the repository; both
+  still work from a flag or the environment.
 - **Live scan progress** — a terminal now shows a running table while the scan
   works — phase, seed host, elapsed time, pages visited, requests and endpoints
   so far, and the last few pages and endpoints — redrawn in place and cleared

@@ -5,11 +5,13 @@ import chalk from 'chalk';
 import { Command, InvalidArgumentError } from 'commander';
 import { BROWSER_ENGINES, formatDiffSummary, normalizeFormats, scan } from '../index.js';
 import { resolveEngine } from '../core/browser.js';
+import { CONFIG_FILENAMES } from './config.js';
 import { formatTelemetry, resolveTelemetryPlan } from '../core/telemetry.js';
 import type { BrowserEngine } from '../types.js';
 import { showBannerOnce } from '../utils/banner.js';
 import { Logger } from '../utils/logger.js';
 import { LiveProgress, progressModeFor } from '../utils/progress.js';
+import { resolveOptions } from './config.js';
 import { SafetyError } from '../utils/safety.js';
 import { formatDuration } from '../utils/misc.js';
 import { TOOL_VERSION } from '../version.js';
@@ -47,6 +49,11 @@ program
   .argument('<seedUrl>', 'URL to start from, e.g. https://example.com')
   .option('-d, --depth <n>', 'same-domain crawl depth (0 = seed page only)', intArg, 1)
   .option('-m, --max-pages <n>', 'hard cap on pages visited', intArg, 25)
+  .option(
+    '--config <file>',
+    `path to a project config file (default: the nearest ${CONFIG_FILENAMES.join(' / ')} up from the working directory)`,
+  )
+  .option('--no-config', 'ignore any project config file, even one found on the way up')
   .option('-o, --out <dir>', 'output directory for reports', './api-recon-output')
   .option(
     '-f, --formats <list>',
@@ -91,9 +98,37 @@ program
     'emit progress as JSON lines on stdout (one object per event) instead of a live table',
     false,
   )
-  .action(async (seedUrl: string, opts: CliOptions) => {
+  .action(async (seedUrl: string, raw: CliOptions) => {
+    // Fold the command line, the environment, and any project config file into
+    // one set of options before anything acts on them — so a guard like
+    // --fail-on-diff is satisfied by a config file too, as its precedence
+    // implies, and --quiet can come from the file.
+    let opts = raw;
+    let resolved: Awaited<ReturnType<typeof resolveOptions>>;
+    try {
+      resolved = await resolveOptions({
+        cli: raw as unknown as Record<string, unknown>,
+        isExplicit: (key) => program.getOptionValueSource(key) === 'cli',
+      });
+      opts = resolved.options as unknown as CliOptions;
+    } catch (err) {
+      const logger = new Logger({ quiet: raw.quiet, verbose: raw.verbose });
+      logger.error(err instanceof SafetyError ? err.message : String(err));
+      process.exitCode = 2;
+      return;
+    }
+
     const logger = new Logger({ quiet: opts.quiet, verbose: opts.verbose });
     showBannerOnce(logger);
+    if (resolved.configPath) {
+      logger.debug(`config: ${resolved.configPath}`);
+      const fromConfig = Object.entries(resolved.provenance)
+        .filter(([, source]) => source === 'config')
+        .map(([key]) => key);
+      if (fromConfig.length > 0) logger.debug(`  settings from config: ${fromConfig.join(', ')}`);
+    } else if (resolved.configIgnored) {
+      logger.debug('config: ignored (--no-config)');
+    }
 
     if (!opts.respectRobots && !opts.force) {
       logger.error(
@@ -226,6 +261,8 @@ interface CliOptions {
   quiet: boolean;
   verbose: boolean;
   jsonProgress: boolean;
+  /** A path from --config, `false` from --no-config, absent when discovering. */
+  config?: string | boolean;
 }
 
 await program.parseAsync(process.argv);

@@ -96,9 +96,64 @@ api-recon https://example.com --browser firefox
 | `--telemetry-preview` | off | Print that payload to stdout without writing `telemetry.json` |
 | `-q, --quiet` / `-v, --verbose` | — | Reduce / increase progress output |
 | `--json-progress` | off | Emit progress as JSON lines on stdout instead of a live table |
+| `--config <file>` | discovered | Project config file (see below) |
+| `--no-config` | — | Ignore any project config file, even one found on the way up |
 
 Exit codes: `0` success, `1` runtime failure, `2` refused by a safety guard (`--force`,
 `--allow-local`, a bad `--diff` file, …), `3` `--fail-on-diff` found endpoint changes.
+
+### Project config
+
+A team that runs the same scan every time can commit the flags it always uses
+instead of repeating them in every shell (or in a wiki). The file is plain JSON:
+
+```jsonc
+// .api-reconrc — committed at the repository root
+{
+  "depth": 2,
+  "maxPages": 50,
+  "rate": 250,
+  "formats": ["json", "md", "dashboard"],
+  "login": "flows/login.yaml",   // resolved relative to this file
+  "actions": "flows/actions.json",
+  "out": "reports",
+  "allowLocal": true
+}
+```
+
+It is discovered by walking up from the working directory, taking the nearest of
+`api-recon.config.json`, `.api-reconrc.json`, or `.api-reconrc`. `--config <file>`
+or `API_RECON_CONFIG` names one explicitly, and `--no-config` ignores whatever
+would have been found. Settings use the same names as the long flags, in
+camelCase or kebab-case, and an unknown key is an error rather than a typo that
+silently does nothing.
+
+**Precedence is CLI > environment > config > defaults.** A flag always wins, an
+`API_RECON_*` variable beats the file, and the file beats the built-in default:
+
+```console
+$ API_RECON_DEPTH=3 api-recon https://example.com --max-pages 10
+# depth 3 (environment), maxPages 10 (flag), everything else (config)
+```
+
+The environment variables are the flags in `SCREAMING_SNAKE_CASE`:
+`API_RECON_DEPTH`, `API_RECON_MAX_PAGES`, `API_RECON_OUT`, `API_RECON_FORMATS`,
+`API_RECON_BROWSER`, `API_RECON_AUTH`, `API_RECON_LOGIN`, `API_RECON_ACTIONS`,
+`API_RECON_RATE`, `API_RECON_DIFF`, `API_RECON_FAIL_ON_DIFF`,
+`API_RECON_RESPECT_ROBOTS`, `API_RECON_INCLUDE_THIRD_PARTY`, `API_RECON_REDACT`,
+`API_RECON_FORCE`, `API_RECON_ALLOW_LOCAL`, `API_RECON_TELEMETRY`,
+`API_RECON_TELEMETRY_PREVIEW`, `API_RECON_MAX_BODY_MB`, `API_RECON_QUIET`,
+`API_RECON_VERBOSE`, `API_RECON_JSON_PROGRESS`, `API_RECON_RECORD`. Booleans take
+`1`/`0` (also `true`/`false`, `yes`/`no`, `on`/`off`).
+
+Two values cannot be committed in a shared file: `force: true` and
+`redact: false`. Each loosens a safety default for everyone who clones the
+repository, so both are refused with an explanation and still work from a flag
+or the environment, where the choice is explicit for that run. Run with
+`--verbose` to see which file was used and which settings came from it.
+
+`scan()` itself reads no config file — the library takes explicit options, so an
+embedding application keeps control.
 
 ### Progress
 
