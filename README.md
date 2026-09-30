@@ -96,11 +96,41 @@ api-recon https://example.com --browser firefox
 | `--telemetry-preview` | off | Print that payload to stdout without writing `telemetry.json` |
 | `-q, --quiet` / `-v, --verbose` | — | Reduce / increase progress output |
 | `--json-progress` | off | Emit progress as JSON lines on stdout instead of a live table |
+| `--preset <name>` | — | Bundle the flags for a common case: `quick`, `deep`, `ci` (see below) |
 | `--config <file>` | discovered | Project config file (see below) |
 | `--no-config` | — | Ignore any project config file, even one found on the way up |
 
 Exit codes: `0` success, `1` runtime failure, `2` refused by a safety guard (`--force`,
 `--allow-local`, a bad `--diff` file, …), `3` `--fail-on-diff` found endpoint changes.
+
+### Presets
+
+Three bundles for the flags people otherwise piece together by hand, so the
+common cases are one word:
+
+| Preset | What it sets | Why |
+| --- | --- | --- |
+| `quick` | `depth 0`, `maxPages 1`, `formats json,md,dashboard` | A first look at one page — no crawl, and no slow PDF render |
+| `deep` | `depth 3`, `maxPages 100`, `includeThirdParty` | Crawl further, and capture the cross-origin calls too |
+| `ci` | `depth 2`, `maxPages 50`, `formats json,md`, `quiet` | Bounded, quiet, machine-readable for a pipeline |
+
+```console
+# What does this page talk to?
+api-recon https://example.com --preset quick
+
+# CI: bounded, quiet, and only the formats a pipeline reads
+api-recon https://example.com --preset ci
+```
+
+A preset is only a bundle — every value is an ordinary setting with an ordinary
+default, nothing is hidden, and `--verbose` names the ones it applied. It sits
+**between the environment and the config file**: a flag or an `API_RECON_*`
+variable beats it (they name one setting each, which is more specific than a
+bundle), and it beats the config file (otherwise `--preset quick` could not be
+quick in a repository whose config says `depth: 3`). Everything a preset does not
+mention still comes from the config or the default. For the same reason,
+`preset` is one of the settings a config file may not carry — commit the flags
+you want, and keep the shorthand for the run in front of you.
 
 ### Project config
 
@@ -128,8 +158,9 @@ would have been found. Settings use the same names as the long flags, in
 camelCase or kebab-case, and an unknown key is an error rather than a typo that
 silently does nothing.
 
-**Precedence is CLI > environment > config > defaults.** A flag always wins, an
-`API_RECON_*` variable beats the file, and the file beats the built-in default:
+**Precedence is CLI > environment > preset > config > defaults.** A flag always
+wins, an `API_RECON_*` variable beats the file, a `--preset` bundle beats the
+file, and the file beats the built-in default:
 
 ```console
 $ API_RECON_DEPTH=3 api-recon https://example.com --max-pages 10

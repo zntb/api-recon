@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Presets** — `--preset quick|deep|ci` bundles the flags people otherwise piece
+  together by hand: `quick` looks at one page without a crawl (and without the
+  slow PDF render), `deep` crawls further and captures cross-origin traffic, and
+  `ci` is bounded, quiet, and machine-readable. Each is only a bundle of ordinary
+  settings — `--verbose` names the ones it applied — and it layers between the
+  environment and the config file, so a flag or an `API_RECON_*` variable beats
+  it and it beats a committed `depth: 3`. `preset` cannot be set in a config file
+  for the same reason: commit the flags, keep the shorthand for the run in front
+  of you. An unknown name lists the alternatives.
 - **Project config file** — a team can commit the flags it always uses in
   `.api-reconrc` (or `api-recon.config.json` / `.api-reconrc.json`), discovered
   by walking up from the working directory, named explicitly with `--config

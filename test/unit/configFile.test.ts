@@ -312,6 +312,80 @@ describe('resolveOptions precedence', () => {
   });
 });
 
+describe('presets in the precedence chain', () => {
+  const cli = {
+    depth: 1,
+    maxPages: 25,
+    rate: 500,
+    formats: 'json,md,html,pdf,openapi,dashboard',
+    quiet: false,
+    respectRobots: true,
+    redact: true,
+  };
+
+  it('beats the config file, which is what makes --preset quick mean quick', async () => {
+    const res = 'preset-vs-config';
+    await writeConfig(res, '.api-reconrc', { depth: 3, maxPages: 90, rate: 100 });
+
+    const { options, provenance } = await resolveOptions({
+      cli: { ...cli, preset: 'quick' },
+      isExplicit: (key) => key === 'preset',
+      env: {},
+      cwd: join(root, res),
+    });
+
+    expect(options['depth']).toBe(0);
+    expect(provenance['depth']).toBe('preset');
+    // A setting the preset does not bundle still comes from the file.
+    expect(options['rate']).toBe(100);
+    expect(provenance['rate']).toBe('config');
+  });
+
+  it('loses to a flag and to an environment variable', async () => {
+    const withFlag = await resolveOptions({
+      cli: { ...cli, preset: 'deep', maxPages: 7 },
+      isExplicit: (key) => key === 'preset' || key === 'maxPages',
+      env: {},
+      cwd: root,
+    });
+    expect(withFlag.options['maxPages']).toBe(7);
+    expect(withFlag.provenance['maxPages']).toBe('cli');
+    expect(withFlag.options['depth']).toBe(3);
+
+    const withEnv = await resolveOptions({
+      cli,
+      isExplicit: () => false,
+      env: { API_RECON_PRESET: 'deep', API_RECON_MAX_PAGES: '8' },
+      cwd: root,
+    });
+    expect(withEnv.options['preset']).toBe('deep');
+    expect(withEnv.provenance['preset']).toBe('env');
+    expect(withEnv.options['maxPages']).toBe(8);
+    expect(withEnv.provenance['maxPages']).toBe('env');
+    expect(withEnv.options['depth']).toBe(3);
+  });
+
+  it('refuses to let a repository choose a preset for everyone', async () => {
+    const res = 'preset-in-config';
+    await writeConfig(res, '.api-reconrc', { preset: 'ci' });
+
+    await expect(
+      resolveOptions({ cli, isExplicit: () => false, env: {}, cwd: join(root, res) }),
+    ).rejects.toThrow(/"preset" cannot be set in .*commit the flags themselves/s);
+  });
+
+  it('rejects a name that is not a preset', async () => {
+    await expect(
+      resolveOptions({
+        cli: { ...cli, preset: 'turbo' },
+        isExplicit: (key) => key === 'preset',
+        env: {},
+        cwd: root,
+      }),
+    ).rejects.toThrow(/Unknown preset "turbo"/);
+  });
+});
+
 describe('configKeys', () => {
   it('lists the settings a config file may carry, and what it may not loosen', () => {
     expect(configKeys()).toContain('maxPages');
@@ -320,5 +394,7 @@ describe('configKeys', () => {
     // Documented as valid keys; the values that loosen safety are refused above.
     expect(configKeys()).toContain('force');
     expect(configKeys()).toContain('redact');
+    // Listed, but any value for it is refused — see the preset tests.
+    expect(configKeys()).toContain('preset');
   });
 });

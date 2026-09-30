@@ -26,7 +26,7 @@ let outDir: string;
 let canRunBrowser = false;
 
 // The help/guard tests run without a browser; these two need a real one.
-const NEEDS_BROWSER = ['produces report files', 'diffs', 'telemetry', 'progress', 'config'];
+const NEEDS_BROWSER = ['produces report files', 'diffs', 'telemetry', 'progress', 'config', 'preset'];
 
 beforeEach((ctx) => {
   if (!canRunBrowser && NEEDS_BROWSER.some((name) => ctx.task.name.includes(name))) {
@@ -90,8 +90,13 @@ describe('api-recon CLI', () => {
       '--json-progress',
       '--config',
       '--no-config',
+      '--preset',
     ]) {
       expect(stdout, `--help should mention ${flag}`).toContain(flag);
+    }
+    // The presets document themselves in --help, not only in the README.
+    for (const preset of ['quick', 'deep', 'ci']) {
+      expect(stdout, `--help should describe the ${preset} preset`).toContain(preset);
     }
     // Every report format is advertised as a default, the dashboard included.
     for (const format of ['json', 'md', 'html', 'pdf', 'openapi', 'dashboard']) {
@@ -320,6 +325,36 @@ describe('api-recon CLI', () => {
     expect(ignored.code).toBe(2);
     expect(`${ignored.stdout}${ignored.stderr}`).toMatch(/allow-local/);
   }, 300_000);
+
+  it('applies a preset over the config file, and rejects a name that is not one', async () => {
+    const projDir = join(outDir, 'cli-preset', 'project');
+    await mkdir(projDir, { recursive: true });
+    await writeFile(
+      join(projDir, '.api-reconrc'),
+      JSON.stringify({
+        depth: 2,
+        maxPages: 10,
+        rate: 0,
+        allowLocal: true,
+        quiet: true,
+        formats: ['json'],
+        out: 'reports',
+      }),
+      'utf8',
+    );
+
+    // The config crawls; --preset quick has to beat it to mean anything.
+    const quick = await runCli([fixture.url, '--preset', 'quick'], {}, projDir);
+    expect(quick.code, `${quick.stdout}${quick.stderr}`).toBe(0);
+    const report = JSON.parse(
+      await readFile(join(projDir, 'reports', 'report.json'), 'utf8'),
+    ) as { meta: { pagesVisited: number } };
+    expect(report.meta.pagesVisited).toBe(1);
+
+    const unknown = await runCli([fixture.url, '--preset', 'turbo'], {}, projDir);
+    expect(unknown.code).toBe(2);
+    expect(`${unknown.stdout}${unknown.stderr}`).toMatch(/Unknown preset "turbo"\. Available presets: quick/);
+  }, 240_000);
 
   it('refuses --fail-on-diff with no baseline', async () => {
     const { code, stderr } = await runCli([fixture.url, '--allow-local', '--fail-on-diff']);

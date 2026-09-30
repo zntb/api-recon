@@ -6,6 +6,7 @@ import { Command, InvalidArgumentError } from 'commander';
 import { BROWSER_ENGINES, formatDiffSummary, normalizeFormats, scan } from '../index.js';
 import { resolveEngine } from '../core/browser.js';
 import { CONFIG_FILENAMES } from './config.js';
+import { presetHelp } from './presets.js';
 import { formatTelemetry, resolveTelemetryPlan } from '../core/telemetry.js';
 import type { BrowserEngine } from '../types.js';
 import { showBannerOnce } from '../utils/banner.js';
@@ -49,6 +50,10 @@ program
   .argument('<seedUrl>', 'URL to start from, e.g. https://example.com')
   .option('-d, --depth <n>', 'same-domain crawl depth (0 = seed page only)', intArg, 1)
   .option('-m, --max-pages <n>', 'hard cap on pages visited', intArg, 25)
+  .option(
+    '--preset <name>',
+    `bundle the flags for a common case — ${presetHelp()}. A flag or an environment variable still wins`,
+  )
   .option(
     '--config <file>',
     `path to a project config file (default: the nearest ${CONFIG_FILENAMES.join(' / ')} up from the working directory)`,
@@ -120,15 +125,16 @@ program
 
     const logger = new Logger({ quiet: opts.quiet, verbose: opts.verbose });
     showBannerOnce(logger);
-    if (resolved.configPath) {
-      logger.debug(`config: ${resolved.configPath}`);
-      const fromConfig = Object.entries(resolved.provenance)
-        .filter(([, source]) => source === 'config')
-        .map(([key]) => key);
-      if (fromConfig.length > 0) logger.debug(`  settings from config: ${fromConfig.join(', ')}`);
-    } else if (resolved.configIgnored) {
-      logger.debug('config: ignored (--no-config)');
-    }
+    const from = (source: string): string =>
+      Object.entries(resolved.provenance)
+        .filter(([, value]) => value === source)
+        .map(([key]) => key)
+        .join(', ');
+    if (resolved.configPath) logger.debug(`config: ${resolved.configPath}`);
+    else if (resolved.configIgnored) logger.debug('config: ignored (--no-config)');
+    if (from('preset')) logger.debug(`preset ${opts.preset}: ${from('preset')}`);
+    if (from('config')) logger.debug(`from config: ${from('config')}`);
+    if (from('env')) logger.debug(`from environment: ${from('env')}`);
 
     if (!opts.respectRobots && !opts.force) {
       logger.error(
@@ -263,6 +269,8 @@ interface CliOptions {
   jsonProgress: boolean;
   /** A path from --config, `false` from --no-config, absent when discovering. */
   config?: string | boolean;
+  /** quick | deep | ci, when --preset was given. */
+  preset?: string;
 }
 
 await program.parseAsync(process.argv);

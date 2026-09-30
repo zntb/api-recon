@@ -442,6 +442,17 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   table of which lives in `src/cli/config.ts`; unknown keys are an error rather
   than a silently ignored typo, and `force: true` / `redact: false` are refused
   in a shared file because they would loosen safety for everyone who clones it.
+- **Presets** — `--preset quick|deep|ci` bundles the flags people piece together
+  by hand (`src/cli/presets.ts`): `quick` is one page with no crawl or PDF
+  render, `deep` crawls further and includes cross-origin traffic, `ci` is
+  bounded, quiet, and machine-readable. A preset is only a bundle of ordinary
+  settings, so it needs no special handling — it is one more layer in the
+  resolver, between the environment and the config file: flags and env vars beat
+  it (one setting each is more specific than a bundle) and it beats the config
+  (or `--preset quick` could not be quick in a repository whose config says
+  `depth: 3`). `preset` is therefore also refused in a config file. `--verbose`
+  names the settings a preset applied, and an unknown name lists the
+  alternatives.
 
 **Proposed updates & features**
 
@@ -513,8 +524,6 @@ so it can be scoped without re-reading the source.
 
 **User experience**
 
-- **Presets.** `--preset quick|deep|ci` bundling the flags people otherwise piece
-  together by hand, so the common cases become one word.
 - **A first-class diff workflow.** `api-recon baseline <url>` to write a known
   baseline path and `--diff latest` to compare against it, so the CI-gate use
   case stops requiring the user to manage file paths.

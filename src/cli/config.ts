@@ -11,8 +11,14 @@
  *
  *   1. a flag on the command line
  *   2. an `API_RECON_*` environment variable
- *   3. the config file
- *   4. the built-in default
+ *   3. a `--preset` bundle (see `presets.ts`)
+ *   4. the config file
+ *   5. the built-in default
+ *
+ * The preset sits above the config because it is a per-run choice: `--preset
+ * quick` on a repository whose config says `depth: 3` has to actually be quick.
+ * It sits below the environment and the flags because those name one setting
+ * each and are therefore more specific than a bundle.
  *
  * The same order applies to `login`, `actions`, and `out`, with one refinement:
  * a *relative* path in the config file resolves against the config file's own
@@ -23,6 +29,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { resolveEngine } from '../core/browser.js';
 import { SafetyError } from '../utils/safety.js';
+import { presetValues } from './presets.js';
 
 /** Looked for in each directory, in this order, walking up to the root. */
 export const CONFIG_FILENAMES = [
@@ -35,7 +42,7 @@ export const CONFIG_FILENAMES = [
 export const CONFIG_ENV = 'API_RECON_CONFIG';
 
 /** Where a value came from, so the CLI can explain itself. */
-export type Provenance = 'cli' | 'env' | 'config' | 'default';
+export type Provenance = 'cli' | 'env' | 'preset' | 'config' | 'default';
 
 export interface ProjectConfigFile {
   path: string;
@@ -96,6 +103,13 @@ const OPTION_SPECS: OptionSpec[] = [
   { key: 'telemetry', kind: 'bool', env: 'API_RECON_TELEMETRY' },
   { key: 'telemetryPreview', kind: 'bool', env: 'API_RECON_TELEMETRY_PREVIEW' },
   { key: 'maxBodyMb', kind: 'number', env: 'API_RECON_MAX_BODY_MB' },
+  {
+    key: 'preset',
+    kind: 'string',
+    env: 'API_RECON_PRESET',
+    notCommittable: () =>
+      'a preset bundles flags for one run — commit the flags themselves to share them with the team',
+  },
   { key: 'quiet', kind: 'bool', env: 'API_RECON_QUIET' },
   { key: 'verbose', kind: 'bool', env: 'API_RECON_VERBOSE' },
   { key: 'jsonProgress', kind: 'bool', env: 'API_RECON_JSON_PROGRESS' },
@@ -204,6 +218,12 @@ export async function resolveOptions(input: ResolveInput): Promise<ResolvedOptio
     }
   }
 
+  // The preset is chosen before the loop, because its bundle is one of the
+  // layers the loop applies. It can come from a flag or the environment, never
+  // from the file (a shared preset would be policy by another name).
+  const chosenPreset = selectPreset(input, env);
+  const preset = chosenPreset ? presetValues(chosenPreset.value).values : null;
+
   const options: Record<string, unknown> = {};
   const provenance: Record<string, Provenance> = {};
 
@@ -217,6 +237,9 @@ export async function resolveOptions(input: ResolveInput): Promise<ResolvedOptio
     } else if (spec.env && env[spec.env] !== undefined && env[spec.env] !== '') {
       value = parseEnv(spec, env[spec.env]!, spec.env);
       from = 'env';
+    } else if (preset && spec.key in preset) {
+      value = preset[spec.key];
+      from = 'preset';
     } else if (config && spec.key in config.values) {
       value = config.values[spec.key];
       const refusal = spec.notCommittable?.(value);
@@ -230,16 +253,52 @@ export async function resolveOptions(input: ResolveInput): Promise<ResolvedOptio
       from = 'default';
     }
 
-    options[spec.key] = from === 'default' ? value : validate(spec, value, where(spec, from, config));
+    // The chosen preset itself has no layer to fall back to: it was resolved above.
+    if (spec.key === 'preset') {
+      options[spec.key] = chosenPreset?.value;
+      provenance[spec.key] = chosenPreset?.from ?? 'default';
+      continue;
+    }
+
+    options[spec.key] = from === 'default' ? value : validate(spec, value, label(spec, from, config, chosenPreset));
     provenance[spec.key] = from;
   }
 
   return { options, provenance, configPath: config?.path ?? null, configIgnored };
 }
 
-function where(spec: OptionSpec, from: Provenance, config: ProjectConfigFile | null): string {
+/**
+ * Which preset applies, and where that choice came from. The config file is not
+ * consulted: `preset` is refused there, so a repository cannot pick one for you.
+ */
+function selectPreset(
+  input: ResolveInput,
+  env: NodeJS.ProcessEnv,
+): { value: string; from: Provenance } | null {
+  if (input.isExplicit('preset')) {
+    const value = input.cli['preset'];
+    if (typeof value !== 'string' || value.trim() === '') {
+      throw new SafetyError(`--preset: expected a preset name, got ${show(value)}.`);
+    }
+    return { value: value.trim(), from: 'cli' };
+  }
+  const fromEnv = env['API_RECON_PRESET'];
+  if (fromEnv !== undefined && fromEnv.trim() !== '') {
+    return { value: fromEnv.trim(), from: 'env' };
+  }
+  return null;
+}
+
+/** Names the source in an error message, so a bad value is traceable. */
+function label(
+  spec: OptionSpec,
+  from: Provenance,
+  config: ProjectConfigFile | null,
+  preset: { value: string } | null,
+): string {
   if (from === 'config') return `${spec.key} in ${config?.path ?? 'the config file'}`;
   if (from === 'env') return `${spec.env}`;
+  if (from === 'preset') return `preset "${preset?.value}"`;
   return `--${toKebabCase(spec.key)}`;
 }
 
