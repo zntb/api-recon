@@ -324,6 +324,15 @@ function diffSchemaNode(
     });
   }
 
+  // A narrowed enum or a tightened numeric range rejects values a client may
+  // rely on, so both are breaking; widening the set is reported as additive.
+  // Only compared when the type itself is unchanged — a type change is already
+  // reported above, and an enum/bound diff beside it would just be noise.
+  if (beforeTypes.join('|') === afterTypes.join('|')) {
+    details.push(...diffEnum(before, after, label, where));
+    details.push(...diffNumericBounds(before, after, label, where));
+  }
+
   const beforeProps = before.properties ?? {};
   const afterProps = after.properties ?? {};
 
@@ -350,6 +359,100 @@ function diffSchemaNode(
   }
 
   return details;
+}
+
+/**
+ * Compare the closed sets of two enum-bearing schemas. Losing a value (or
+ * gaining an enum where none was inferred) narrows what a client can send or
+ * expect, so it is breaking; gaining a value widens the set and is not.
+ */
+function diffEnum(
+  before: JsonSchemaLike,
+  after: JsonSchemaLike,
+  label: string,
+  where: string,
+): Detail[] {
+  const beforeEnum = before.enum;
+  const afterEnum = after.enum;
+  if (!beforeEnum && !afterEnum) return [];
+
+  if (!beforeEnum) {
+    return [
+      {
+        text: `${label} ${where}: enum added (${afterEnum!.map(showValue).join(', ')})`,
+        breaking: true,
+      },
+    ];
+  }
+  if (!afterEnum) {
+    return [
+      {
+        text: `${label} ${where}: enum no longer inferred (was ${beforeEnum.map(showValue).join(', ')})`,
+        breaking: false,
+      },
+    ];
+  }
+
+  const beforeSet = new Set(beforeEnum);
+  const afterSet = new Set(afterEnum);
+  const removed = beforeEnum.filter((value) => !afterSet.has(value));
+  const added = afterEnum.filter((value) => !beforeSet.has(value));
+  const details: Detail[] = [];
+  if (removed.length > 0) {
+    details.push({
+      text: `${label} ${where}: enum values removed: ${removed.map(showValue).join(', ')}`,
+      breaking: true,
+    });
+  }
+  if (added.length > 0) {
+    details.push({
+      text: `${label} ${where}: enum values added: ${added.map(showValue).join(', ')}`,
+      breaking: false,
+    });
+  }
+  return details;
+}
+
+/**
+ * Compare the observed numeric bounds. A bound that appears or moves inward
+ * narrows the range and is breaking; one that disappears or moves outward only
+ * widens it.
+ */
+function diffNumericBounds(
+  before: JsonSchemaLike,
+  after: JsonSchemaLike,
+  label: string,
+  where: string,
+): Detail[] {
+  return [
+    ...diffBound('minimum', before.minimum, after.minimum, label, where),
+    ...diffBound('maximum', before.maximum, after.maximum, label, where),
+  ];
+}
+
+function diffBound(
+  name: 'minimum' | 'maximum',
+  before: number | undefined,
+  after: number | undefined,
+  label: string,
+  where: string,
+): Detail[] {
+  if (before === after) return [];
+  // `minimum` narrows when it rises (or newly appears); `maximum` when it
+  // falls. A missing bound is unbounded, so appearing is always a narrowing.
+  const narrows =
+    before === undefined || (after !== undefined && (name === 'minimum' ? after > before : after < before));
+  return [
+    {
+      text: `${label} ${where}: ${name} ${before ?? 'unbounded'} → ${after ?? 'unbounded'}`,
+      breaking: narrows,
+    },
+  ];
+}
+
+/** Render an enum value so a string is quoted and a number is not. */
+function showValue(value: string | number | boolean): string {
+  return typeof value === 'string' ? `"${value}"` : String(value);
 }
 
 /** The type names a schema node can take, flattening a `oneOf` union. */

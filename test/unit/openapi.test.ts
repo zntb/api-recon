@@ -84,6 +84,32 @@ describe('toOpenApiSchema', () => {
     });
   });
 
+  it('carries enum, numeric bounds, and the new format hints through', () => {
+    expect(
+      toOpenApiSchema({
+        type: 'object',
+        properties: {
+          status: { type: 'string', enum: ['shipped', 'processing'] },
+          price: { type: 'number', minimum: 4.5, maximum: 12.5 },
+          day: { type: 'string', description: 'date' },
+          clock: { type: 'string', description: 'time' },
+          ttl: { type: 'string', description: 'duration' },
+          code: { type: 'string', description: 'currency' },
+        },
+      }),
+    ).toEqual({
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['shipped', 'processing'] },
+        price: { type: 'number', minimum: 4.5, maximum: 12.5 },
+        day: { type: 'string', format: 'date' },
+        clock: { type: 'string', format: 'time' },
+        ttl: { type: 'string', format: 'duration' },
+        code: { type: 'string', format: 'currency' },
+      },
+    });
+  });
+
   it('carries a merged union through as oneOf', () => {
     expect(
       toOpenApiSchema({ oneOf: [{ type: 'string' }, { type: 'integer' }] }),

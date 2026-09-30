@@ -11,6 +11,18 @@ type Json = Record<string, unknown>;
 
 const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
+/** The format hints `stringFormatHint` can attach to a string schema. */
+const FORMAT_HINTS = new Set([
+  'uuid',
+  'email',
+  'uri',
+  'date-time',
+  'date',
+  'time',
+  'duration',
+  'currency',
+]);
+
 export function buildOpenApi(report: ReconReport): Json {
   const host = safeHost(report.meta.seedUrl);
   const paths: Record<string, Json> = {};
@@ -125,10 +137,10 @@ export function toOpenApiSchema(schema: JsonSchemaLike | null): Json {
   }
   if (schema.items) out.items = toOpenApiSchema(schema.items);
   if (schema.required?.length) out.required = schema.required;
-  if (schema.description === 'date-time') out.format = 'date-time';
-  if (schema.description === 'uri') out.format = 'uri';
-  if (schema.description === 'email') out.format = 'email';
-  if (schema.description === 'uuid') out.format = 'uuid';
+  if (schema.description && FORMAT_HINTS.has(schema.description)) out.format = schema.description;
+  if (schema.enum?.length) out.enum = schema.enum;
+  if (schema.minimum !== undefined) out.minimum = schema.minimum;
+  if (schema.maximum !== undefined) out.maximum = schema.maximum;
   return out;
 }
 

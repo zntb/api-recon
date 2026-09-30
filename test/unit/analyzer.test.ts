@@ -76,7 +76,7 @@ describe('analyzeCalls schema merging', () => {
     expect(Object.keys(endpoint.responseSchema?.properties ?? {})).toEqual(['error']);
   });
 
-  it('leaves a single-sample schema exactly as one body infers it', () => {
+  it('annotates a single body from its own array elements', () => {
     const endpoint = endpointOf([
       call({ url: `${SEED}/api/user`, responseBodySample: '{"id":"u1","tags":["a","b"]}' }),
     ]);
@@ -85,7 +85,7 @@ describe('analyzeCalls schema merging', () => {
       type: 'object',
       properties: {
         id: { type: 'string' },
-        tags: { type: 'array', items: { type: 'string' } },
+        tags: { type: 'array', items: { type: 'string', enum: ['a', 'b'] } },
       },
       required: ['id', 'tags'],
     });

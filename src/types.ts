@@ -147,10 +147,24 @@ export interface GraphQLInfo {
 /** Minimal JSON-Schema-like object produced by the inference engine. */
 export interface JsonSchemaLike {
   type?: string;
+  /**
+   * A value-format hint (`uuid`, `email`, `uri`, `date-time`, `date`, `time`,
+   * `duration`, `currency`) that a reporter maps to OpenAPI's `format`.
+   */
   description?: string;
   properties?: Record<string, JsonSchemaLike>;
   items?: JsonSchemaLike;
   required?: string[];
+  /**
+   * The distinct values seen for a string field when they form a small closed
+   * set. Absent for prose, for identifiers that only repeat by coincidence, and
+   * for fields whose values carried a format hint of their own.
+   */
+  enum?: (string | number | boolean)[];
+  /** Smallest number observed for a numeric field, when a range was seen. */
+  minimum?: number;
+  /** Largest number observed for a numeric field, when a range was seen. */
+  maximum?: number;
   /**
    * Present when samples disagreed on the type, so the value is one of these
    * shapes; `type` is then absent. A single `type` is used when they agree.

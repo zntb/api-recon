@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-09-30
+
+### Added
+
+- **Richer value hints** — string inference now recognizes ISO-8601 timestamps
+  (`date`, `time`, and `date-time`), ISO-8601 durations, and currencies given as
+  an ISO-4217 code or a symbol-prefixed amount. A merged shape also gains an
+  `enum` when a field's samples formed a small closed set, and `minimum`/`maximum`
+  when they spanned a numeric range. `openapi.yaml` carries these through as
+  `format`, `enum`, and `minimum`/`maximum`, so the generated spec is more
+  precise without any new flag.
+- **Enum and bounds diffing** — `--diff` now compares those hints: losing an
+  enum value, gaining an enum where none was inferred, or having a numeric
+  `minimum` rise or `maximum` fall narrows what a client can rely on and is
+  flagged breaking, while an added value or a widened range is reported as
+  additive. A change that only drops an inferred enum or bound is not breaking.
+
 ## [0.2.9] - 2026-09-29
 
 Captures the response contract of each failed status, so a report documents what
@@ -329,6 +346,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[0.3.0]: https://github.com/zntb/api-recon/compare/v0.2.9...v0.3.0
 [0.2.9]: https://github.com/zntb/api-recon/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/zntb/api-recon/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/zntb/api-recon/compare/v0.2.6...v0.2.7

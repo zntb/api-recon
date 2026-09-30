@@ -4,7 +4,7 @@
     "startedAt": "2026-01-01T00:00:00.000Z",
     "durationMs": 280,
     "pagesVisited": 8,
-    "apiReconVersion": "0.2.8",
+    "apiReconVersion": "0.2.9",
     "engine": "chromium"
   },
   "technologies": [
@@ -263,13 +263,21 @@
               "type": "object",
               "properties": {
                 "id": {
-                  "type": "integer"
+                  "type": "integer",
+                  "minimum": 1042,
+                  "maximum": 1043
                 },
                 "total": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": 12.5,
+                  "maximum": 59.9
                 },
                 "status": {
-                  "type": "string"
+                  "type": "string",
+                  "enum": [
+                    "shipped",
+                    "processing"
+                  ]
                 },
                 "items": {
                   "type": "array",
@@ -423,7 +431,9 @@
         "type": "object",
         "properties": {
           "page": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2
           },
           "pageSize": {
             "type": "integer"
@@ -437,18 +447,27 @@
               "type": "object",
               "properties": {
                 "id": {
-                  "type": "integer"
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 6
                 },
                 "name": {
                   "type": "string"
                 },
                 "price": {
-                  "type": "number"
+                  "type": "number",
+                  "minimum": 9.99,
+                  "maximum": 11.99
                 },
                 "tags": {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                      "tools",
+                      "sale",
+                      "new"
+                    ]
                   }
                 }
               },
@@ -523,7 +542,11 @@
           "roles": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "customer",
+                "beta"
+              ]
             }
           },
           "avatarUrl": {
@@ -579,7 +602,11 @@
         "type": "object",
         "properties": {
           "operationName": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "IntrospectionQuery",
+              "GetProducts"
+            ]
           },
           "query": {
             "type": "string"
@@ -942,7 +969,11 @@
         "type": "object",
         "properties": {
           "type": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "welcome",
+              "ack"
+            ]
           },
           "channel": {
             "type": "string"

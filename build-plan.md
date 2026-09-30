@@ -290,6 +290,19 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   Markdown sections and the dashboard show a block per status, `openapi.yaml`
   gives each error status its own schema instead of repeating the success one,
   and `--diff` compares error bodies so a removed field in a `422` is breaking.
+- **Richer value hints** — `stringFormatHint` tagged only `uuid`, `email`,
+  `uri`, and a loose timestamp, and a single observation could describe neither
+  a closed set nor a range. String inference now also recognizes ISO-8601
+  `date`, `time`, and `date-time` values, ISO-8601 `duration`s, and `currency`
+  (an ISO-4217 code or a symbol-prefixed amount). A second, value-level pass
+  over the samples (`src/core/schemaInference.ts`) annotates the merged shape —
+  through nested objects, array items, and `oneOf` variants — with an `enum`
+  when a string field held a small closed set of short values (identifiers and
+  prose are excluded) and with `minimum`/`maximum` when a numeric field spanned
+  a range. `openapi.yaml` carries them through as `format`, `enum`, and
+  `minimum`/`maximum`, and `--diff` flags a removed enum value, a gained enum,
+  or an inward-moved bound as breaking while reporting a widened set or range
+  as additive.
 
 **Proposed updates & features**
 
@@ -305,10 +318,6 @@ so it can be scoped without re-reading the source.
   (`no-body`, `not-json`, `truncated`, `binary`) so a reader can tell a contract
   from a gap — and so `--diff` stops reporting a removed field when the sample
   was merely truncated.
-- **Richer value hints.** `stringFormatHint` already tags `uuid`, `email`, and
-  `uri`; extend it to ISO-8601 timestamps, durations, currencies, small closed
-  sets (enums), and numeric bounds from the observed range, then carry them into
-  `openapi.yaml` as `format`, `enum`, and `minimum`/`maximum`.
 - **GraphQL: record what each operation selects.** `analyzeGraphQL` reads
   operation names and types; extend the tokenizer to keep each operation's
   top-level selection set and argument names, so the report shows the fields a

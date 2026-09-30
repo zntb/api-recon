@@ -229,6 +229,99 @@ describe('diffReports', () => {
     expect(change.details.join(' ')).toContain('type string → integer');
   });
 
+  it('flags a narrowed enum as breaking and a new value as additive', () => {
+    const schemaWith = (values: string[]): JsonSchemaLike => ({
+      type: 'object',
+      properties: { status: { type: 'string', enum: values } },
+    });
+    const baseline = report([
+      endpoint({ id: 'GET /api/orders', responseSchema: schemaWith(['shipped', 'processing', 'cancelled']) }),
+    ]);
+    const current = report([
+      endpoint({ id: 'GET /api/orders', responseSchema: schemaWith(['shipped', 'processing', 'returned']) }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/orders');
+    expect(change.breaking).toBe(true);
+    const text = change.details.join(' ');
+    expect(text).toContain('enum values removed: "cancelled"');
+    expect(text).toContain('enum values added: "returned"');
+  });
+
+  it('flags an enum inferred for a previously open field as breaking', () => {
+    const baseline = report([
+      endpoint({
+        id: 'GET /api/orders',
+        responseSchema: { type: 'object', properties: { status: { type: 'string' } } },
+      }),
+    ]);
+    const current = report([
+      endpoint({
+        id: 'GET /api/orders',
+        responseSchema: {
+          type: 'object',
+          properties: { status: { type: 'string', enum: ['shipped', 'processing'] } },
+        },
+      }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/orders');
+    expect(change.breaking).toBe(true);
+    expect(change.details.join(' ')).toContain('enum added ("shipped", "processing")');
+  });
+
+  it('reports an enum that is no longer inferred without calling it breaking', () => {
+    const baseline = report([
+      endpoint({
+        id: 'GET /api/orders',
+        responseSchema: {
+          type: 'object',
+          properties: { status: { type: 'string', enum: ['shipped', 'processing'] } },
+        },
+      }),
+    ]);
+    const current = report([
+      endpoint({
+        id: 'GET /api/orders',
+        responseSchema: { type: 'object', properties: { status: { type: 'string' } } },
+      }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/orders');
+    expect(change.breaking).toBe(false);
+    expect(change.details.join(' ')).toContain('enum no longer inferred (was "shipped", "processing")');
+  });
+
+  it('flags a tightened numeric range as breaking', () => {
+    const schemaWith = (minimum: number, maximum: number): JsonSchemaLike => ({
+      type: 'object',
+      properties: { price: { type: 'number', minimum, maximum } },
+    });
+    const baseline = report([endpoint({ id: 'GET /api/products', responseSchema: schemaWith(1, 100) })]);
+    const current = report([endpoint({ id: 'GET /api/products', responseSchema: schemaWith(10, 90) })]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/products');
+    expect(change.breaking).toBe(true);
+    const text = change.details.join(' ');
+    expect(text).toContain('minimum 1 → 10');
+    expect(text).toContain('maximum 100 → 90');
+  });
+
+  it('treats a widened numeric range as non-breaking', () => {
+    const schemaWith = (minimum: number, maximum: number): JsonSchemaLike => ({
+      type: 'object',
+      properties: { price: { type: 'number', minimum, maximum } },
+    });
+    const baseline = report([endpoint({ id: 'GET /api/products', responseSchema: schemaWith(10, 90) })]);
+    const current = report([endpoint({ id: 'GET /api/products', responseSchema: schemaWith(1, 100) })]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/products');
+    expect(change.breaking).toBe(false);
+    const text = change.details.join(' ');
+    expect(text).toContain('minimum 10 → 1');
+    expect(text).toContain('maximum 90 → 100');
+  });
+
   it('flags a field removed from an error body as breaking', () => {
     const baseline = report([
       endpoint({

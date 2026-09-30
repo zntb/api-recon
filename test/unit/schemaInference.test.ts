@@ -51,7 +51,11 @@ describe('inferSchemaFromBodies', () => {
   });
 
   it('widens integer and number to number', () => {
-    expect(props(inferSchemaFromBodies(['{"n":1}', '{"n":1.5}']))['n']).toEqual({ type: 'number' });
+    expect(props(inferSchemaFromBodies(['{"n":1}', '{"n":1.5}']))['n']).toEqual({
+      type: 'number',
+      minimum: 1,
+      maximum: 1.5,
+    });
   });
 
   it('represents conflicting types as a union', () => {
@@ -91,6 +95,75 @@ describe('inferSchemaFromBodies', () => {
 
     const agreed = inferSchemaFromBodies([`{"id":"${UUID}"}`, `{"id":"${UUID}"}`]);
     expect(props(agreed)['id']).toEqual({ type: 'string', description: 'uuid' });
+  });
+
+  it('tags ISO-8601 timestamps, durations, and currencies', () => {
+    const schema = inferSchemaFromBodies([
+      '{"at":"2026-01-01T09:30:00.000Z","day":"2026-01-01","clock":"09:30:00",' +
+        '"ttl":"PT1H30M","code":"USD","amount":"$1,299.00"}',
+    ]);
+    expect(props(schema)['at']).toEqual({ type: 'string', description: 'date-time' });
+    expect(props(schema)['day']).toEqual({ type: 'string', description: 'date' });
+    expect(props(schema)['clock']).toEqual({ type: 'string', description: 'time' });
+    expect(props(schema)['ttl']).toEqual({ type: 'string', description: 'duration' });
+    expect(props(schema)['code']).toEqual({ type: 'string', description: 'currency' });
+    expect(props(schema)['amount']).toEqual({ type: 'string', description: 'currency' });
+  });
+
+  it('does not mistake ordinary words for durations or currencies', () => {
+    const schema = inferSchemaFromBodies(['{"a":"PT","b":"P","c":"Cat","d":"try"}']);
+    expect(props(schema)['a']).toEqual({ type: 'string' });
+    expect(props(schema)['b']).toEqual({ type: 'string' });
+    expect(props(schema)['c']).toEqual({ type: 'string' });
+    expect(props(schema)['d']).toEqual({ type: 'string' });
+  });
+
+  it('collects a small closed set of strings into an enum', () => {
+    const schema = inferSchemaFromBodies([
+      '{"status":"shipped"}',
+      '{"status":"processing"}',
+      '{"status":"shipped"}',
+    ]);
+    expect(props(schema)['status']).toEqual({
+      type: 'string',
+      enum: ['shipped', 'processing'],
+    });
+  });
+
+  it('does not call prose or an identifier-shaped value an enum', () => {
+    const prose = inferSchemaFromBodies(['{"name":"Widget 1"}', '{"name":"Widget 2"}']);
+    expect(props(prose)['name']).toEqual({ type: 'string' });
+
+    // Two uuids still describe a uuid field, not a closed set of two values.
+    const uuid = inferSchemaFromBodies([
+      `{"id":"${UUID}"}`,
+      '{"id":"9b2f4a3e-1c2d-4e5f-8a9b-0c1d2e3f4a5c"}',
+    ]);
+    expect(props(uuid)['id']).toEqual({ type: 'string', description: 'uuid' });
+  });
+
+  it('gives up on an enum once the set grows too large', () => {
+    const bodies = Array.from({ length: 11 }, (_, i) => `{"state":"s${i}"}`);
+    const schema = inferSchemaFromBodies(bodies);
+    expect(props(schema)['state']).toEqual({ type: 'string' });
+  });
+
+  it('derives numeric bounds from the observed range', () => {
+    const schema = inferSchemaFromBodies(['{"price":9.99}', '{"price":12.5}', '{"price":4.5}']);
+    expect(props(schema)['price']).toEqual({ type: 'number', minimum: 4.5, maximum: 12.5 });
+  });
+
+  it('omits bounds when every sample held the same number', () => {
+    const schema = inferSchemaFromBodies(['{"total":2}', '{"total":2}']);
+    expect(props(schema)['total']).toEqual({ type: 'integer' });
+  });
+
+  it('annotates array items across every element and sample', () => {
+    const schema = inferSchemaFromBodies(['{"tags":["tools","sale"]}', '{"tags":["tools","new"]}']);
+    expect(props(schema)['tags']!.items).toEqual({
+      type: 'string',
+      enum: ['tools', 'sale', 'new'],
+    });
   });
 });
 
