@@ -17,6 +17,7 @@ import { runActions, loadActions } from './core/actions.js';
 import { loadLoginFlow, runLoginFlow, validateStorageState } from './core/authenticator.js';
 import { runRecordSession } from './core/record.js';
 import { analyzeCalls, analyzeWebSockets } from './core/analyzer.js';
+import { groupResources } from './core/resources.js';
 import { diffReports, loadBaseline } from './core/diff.js';
 import { buildTelemetry, resolveTelemetryPlan, writeTelemetryFile } from './core/telemetry.js';
 import { detectTechnologies, type TechEvidence } from './core/techStack.js';
@@ -154,6 +155,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     },
     technologies,
     endpoints,
+    resources: groupResources(endpoints),
     pages,
     webSockets,
     safety: {
@@ -245,6 +247,8 @@ export type {
   ReconReport,
   ReportDiff,
   ReportFormat,
+  Resource,
+  ResourceEndpoint,
   ScanOptions,
   ScanResult,
   ScanRef,
@@ -255,4 +259,5 @@ export type {
   WebSocketFrame,
 } from './types.js';
 export { diffReports, loadBaseline, formatDiffSummary } from './core/diff.js';
+export { groupResources } from './core/resources.js';
 export { REPORT_FORMATS, CATEGORIES, BROWSER_ENGINES } from './types.js';

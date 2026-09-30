@@ -322,6 +322,15 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   samples like a REST schema. The Markdown report and dashboard show them, and
   `--diff` treats a selection or argument that is no longer observed as
   breaking, the way it already does for a removed REST response field.
+- **Resource coverage** — the flat endpoint list now also clusters into
+  `resources`, each a collection root (`/api/orders`) with the paths beneath it
+  (`/api/orders/{id}`, `/api/orders/{id}/items`), the verbs observed on each
+  path, and the conventional verbs absent from it. `groupResources` in
+  `src/core/resources.ts` does the grouping, and the result is surfaced in the
+  JSON report, the Markdown report's resource-coverage section, and the
+  dashboard. A resource is only audited for missing verbs when it exposes an
+  item path, so an action endpoint such as `POST /api/login` is not asked for a
+  `GET` it was never meant to have.
 
 **Proposed updates & features**
 
@@ -332,10 +341,6 @@ so it can be scoped without re-reading the source.
 
 **Report accuracy & detail**
 
-- **Group endpoints into resources.** Cluster `/api/orders`, `/api/orders/{id}`,
-  and `/api/orders/{id}/items` into one resource with the verbs observed, and
-  surface the missing ones (say, no `DELETE`). That turns a flat endpoint list
-  into a coverage view where gaps are obvious.
 - **Attribute third-party and analytics traffic to a vendor.** Those categories
   key off host and path heuristics; join them to the `techStack` fingerprints so
   the report says "Stripe" or "Segment" rather than a hostname, and lists the

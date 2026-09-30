@@ -180,4 +180,25 @@ describe('renderMarkdown', () => {
     const md = renderMarkdown(report({ endpoints: [endpoint] }));
     expect(md).toContain('`GetProducts` (query) → products (args: first)');
   });
+
+  it('renders resource coverage with the missing verbs', () => {
+    const md = renderMarkdown(
+      report({
+        resources: [
+          {
+            path: '/api/orders',
+            categories: ['data-fetching'],
+            paths: [
+              { path: '/api/orders', methods: ['GET'], missingMethods: ['POST'] },
+              { path: '/api/orders/{id}', methods: ['GET'], missingMethods: ['PUT', 'PATCH', 'DELETE'] },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(md).toContain('## 10. Resource Coverage');
+    expect(md).toContain('`/api/orders/{id}`');
+    expect(md).toContain('PUT, PATCH, DELETE');
+  });
 });

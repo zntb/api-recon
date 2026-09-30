@@ -279,6 +279,14 @@ An endpoint that was seen failing also carries `errorResponses`, one entry per
 4xx/5xx status with that status's own `bodySample` and `schema`, so the failure
 contract is documented rather than repeated from the success shape.
 
+The flat `endpoints` list is also clustered into `resources`: each is a
+collection root (`/api/orders`) with the paths observed beneath it
+(`/api/orders/{id}`, `/api/orders/{id}/items`), the `methods` seen on each path,
+and the conventional `missingMethods` no call exhibited — so `/api/orders`
+showing no `POST` and `/api/orders/{id}` no `DELETE` is visible at a glance.
+`missingMethods` is only filled in for a resource that exposes an item path, so
+a one-off `POST /api/login` is not reported as missing a `GET` it never had.
+
 Look at [`examples/output/`](examples/output) for a real report generated from
 the bundled fixture site.
 

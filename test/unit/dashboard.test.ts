@@ -146,6 +146,22 @@ describe('renderDashboard', () => {
     expect(html.match(/<\/script>/g)).toHaveLength(2);
   });
 
+  it('embeds resources and exposes the coverage panel', () => {
+    const source = report([endpoint({ id: 'GET /api/orders' })], {
+      resources: [
+        {
+          path: '/api/orders',
+          categories: ['data-fetching'],
+          paths: [{ path: '/api/orders', methods: ['GET'], missingMethods: ['POST'] }],
+        },
+      ],
+    });
+
+    const html = renderDashboard(source);
+    expect(html).toContain('id="resources"');
+    expect(embeddedReport(html).resources).toEqual(source.resources);
+  });
+
   it('says so when no endpoints were captured', () => {
     const html = renderDashboard(report([]));
     expect(html).toContain('No endpoints were captured.');

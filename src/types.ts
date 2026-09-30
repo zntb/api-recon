@@ -135,6 +135,40 @@ export interface ErrorResponse {
   mimeTypes: string[];
 }
 
+/**
+ * The verbs observed for one path of a resource, and the conventional ones the
+ * path did not exhibit.
+ */
+export interface ResourceEndpoint {
+  /** The path as observed, e.g. `/api/orders/{id}`. */
+  path: string;
+  /** Uppercase HTTP verbs observed for this path, sorted. */
+  methods: string[];
+  /**
+   * REST-conventional verbs this path did not exhibit: a collection is expected
+   * to support `GET` and `POST`, an item path `GET`, `PUT`, `PATCH`, and
+   * `DELETE`. Empty for a resource that does not look like CRUD (see
+   * `Resource`).
+   */
+  missingMethods: string[];
+}
+
+/**
+ * A collection root (`/api/orders`) and every path observed beneath it
+ * (`/api/orders/{id}`, `/api/orders/{id}/items`), so the flat endpoint list
+ * reads as a coverage view. `missingMethods` is only filled in for resources
+ * that expose an item path, since only those are expected to be CRUD — a
+ * one-off action endpoint is not asked for a verb it was never meant to have.
+ */
+export interface Resource {
+  /** The collection root, e.g. `/api/orders`. */
+  path: string;
+  /** Categories seen among the resource's endpoints, sorted. */
+  categories: Category[];
+  /** The resource's paths, ordered from the root outward. */
+  paths: ResourceEndpoint[];
+}
+
 /** The kind of a GraphQL operation definition. */
 export type GraphQLOperationType = 'query' | 'mutation' | 'subscription' | 'unknown';
 
@@ -332,6 +366,11 @@ export interface ReconReport {
   meta: ReportMeta;
   technologies: Technology[];
   endpoints: Endpoint[];
+  /**
+   * The endpoints clustered into resources with their observed and missing
+   * verbs, for a coverage view. Absent on reports written before it was added.
+   */
+  resources?: Resource[];
   pages: CapturedPage[];
   /** WebSocket connections observed during the scan, with their frames. */
   webSockets: CapturedWebSocket[];

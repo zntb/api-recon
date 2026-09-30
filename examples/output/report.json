@@ -4,7 +4,7 @@
     "startedAt": "2026-01-01T00:00:00.000Z",
     "durationMs": 280,
     "pagesVisited": 8,
-    "apiReconVersion": "0.3.1",
+    "apiReconVersion": "0.3.2",
     "engine": "chromium"
   },
   "technologies": [
@@ -859,6 +859,156 @@
       ],
       "triggeredBy": [
         "http://127.0.0.1:4610/external.html"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "path": "/api/collect",
+      "categories": [
+        "analytics"
+      ],
+      "paths": [
+        {
+          "path": "/api/collect",
+          "methods": [
+            "POST"
+          ],
+          "missingMethods": []
+        }
+      ]
+    },
+    {
+      "path": "/api/graphql",
+      "categories": [
+        "graphql"
+      ],
+      "paths": [
+        {
+          "path": "/api/graphql",
+          "methods": [
+            "POST"
+          ],
+          "missingMethods": []
+        }
+      ]
+    },
+    {
+      "path": "/api/login",
+      "categories": [
+        "authentication"
+      ],
+      "paths": [
+        {
+          "path": "/api/login",
+          "methods": [
+            "POST"
+          ],
+          "missingMethods": []
+        }
+      ]
+    },
+    {
+      "path": "/api/orders",
+      "categories": [
+        "data-fetching"
+      ],
+      "paths": [
+        {
+          "path": "/api/orders",
+          "methods": [
+            "GET"
+          ],
+          "missingMethods": [
+            "POST"
+          ]
+        },
+        {
+          "path": "/api/orders/{id}",
+          "methods": [
+            "GET"
+          ],
+          "missingMethods": [
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "/api/products",
+      "categories": [
+        "data-fetching"
+      ],
+      "paths": [
+        {
+          "path": "/api/products",
+          "methods": [
+            "GET"
+          ],
+          "missingMethods": []
+        }
+      ]
+    },
+    {
+      "path": "/api/search",
+      "categories": [
+        "mutations"
+      ],
+      "paths": [
+        {
+          "path": "/api/search",
+          "methods": [
+            "POST"
+          ],
+          "missingMethods": []
+        }
+      ]
+    },
+    {
+      "path": "/api/user",
+      "categories": [
+        "data-fetching"
+      ],
+      "paths": [
+        {
+          "path": "/api/user",
+          "methods": [
+            "GET"
+          ],
+          "missingMethods": []
+        }
+      ]
+    },
+    {
+      "path": "/collect",
+      "categories": [
+        "analytics"
+      ],
+      "paths": [
+        {
+          "path": "/collect",
+          "methods": [
+            "POST"
+          ],
+          "missingMethods": []
+        }
+      ]
+    },
+    {
+      "path": "/sdk/config.json",
+      "categories": [
+        "third-party"
+      ],
+      "paths": [
+        {
+          "path": "/sdk/config.json",
+          "methods": [
+            "GET"
+          ],
+          "missingMethods": []
+        }
       ]
     }
   ],

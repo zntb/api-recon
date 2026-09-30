@@ -2,7 +2,7 @@
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { CapturedWebSocket, Endpoint, ReconReport, ReportDiff } from '../types.js';
+import type { CapturedWebSocket, Endpoint, ReconReport, ReportDiff, Resource } from '../types.js';
 import { CATEGORIES } from '../types.js';
 import { describeGapReason } from '../core/schemaInference.js';
 import { formatDuration, truncate } from '../utils/misc.js';
@@ -145,10 +145,41 @@ export function renderMarkdown(report: ReconReport): string {
   // 1–7 never shifts; it is absent unless a baseline was supplied.
   if (report.diff) out.push(...diffSection(report.diff));
 
+  // ---- 10. Resource coverage (derived from the endpoints) ---------------
+  if (report.resources?.length) out.push(...resourceSection(report.resources));
+
   out.push('_api-recon observes and documents only. It does not bypass authentication, CAPTCHAs, or bot protections._');
   out.push('');
 
   return out.join('\n');
+}
+
+function resourceSection(resources: Resource[]): string[] {
+  const out: string[] = [];
+  out.push('## 10. Resource Coverage');
+  out.push('');
+  out.push(
+    `_${resources.length} resource(s), grouped by collection root. A missing verb is one the REST ` +
+      'convention expects for that path shape but no captured call exhibited._',
+  );
+  out.push('');
+  for (const resource of resources) {
+    out.push(`### \`${cell(resource.path)}\``);
+    if (resource.categories.length) out.push('');
+    if (resource.categories.length) out.push(`_Categories: ${cell(resource.categories.join(', '))}_`);
+    out.push('');
+    out.push('| Path | Methods | Missing |');
+    out.push('| --- | --- | --- |');
+    for (const path of resource.paths) {
+      out.push(
+        `| \`${cell(path.path)}\` | ${path.methods.join(', ') || '—'} | ${
+          path.missingMethods.join(', ') || '—'
+        } |`,
+      );
+    }
+    out.push('');
+  }
+  return out;
 }
 
 function webSocketSection(webSockets: CapturedWebSocket[]): string[] {

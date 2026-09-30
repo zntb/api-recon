@@ -20,6 +20,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { startFixtureServer } from '../test/fixtures/server.js';
 import { analyzeCalls, analyzeWebSockets } from '../src/core/analyzer.js';
+import { groupResources } from '../src/core/resources.js';
 import { inferSchemaFromFrames } from '../src/core/schemaInference.js';
 import { diffReports } from '../src/core/diff.js';
 import { detectTechnologies, type TechEvidence } from '../src/core/techStack.js';
@@ -338,6 +339,7 @@ async function main(): Promise<void> {
       await recordWebSocket(`${fixture.url.replace(/^http/, 'ws')}/ws`, `${fixture.url}/websocket`),
     ]);
 
+    const endpoints = analyzeCalls(calls, { seedUrl: fixture.url });
     const report: ReconReport = {
       meta: {
         seedUrl: fixture.url,
@@ -350,7 +352,8 @@ async function main(): Promise<void> {
         engine: 'chromium',
       },
       technologies: detectTechnologies(evidence),
-      endpoints: analyzeCalls(calls, { seedUrl: fixture.url }),
+      endpoints,
+      resources: groupResources(endpoints),
       pages: [...pages.values()],
       webSockets,
       safety: {

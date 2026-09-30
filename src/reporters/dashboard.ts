@@ -249,6 +249,28 @@ const SCRIPT = `
   }
 
   // ---- filter controls -----------------------------------------------------
+  // ---- resource coverage ---------------------------------------------------
+  function renderResources() {
+    var host = document.getElementById('resources');
+    var resources = data.resources || [];
+    if (!resources.length) { host.hidden = true; return; }
+    host.appendChild(el('h2', null, 'Resource coverage'));
+    resources.forEach(function (resource) {
+      var block = el('div', 'block full');
+      var head = resource.path;
+      if ((resource.categories || []).length) head += ' · ' + resource.categories.join(', ');
+      block.appendChild(el('h4', null, head));
+      var list = el('ul');
+      (resource.paths || []).forEach(function (p) {
+        var line = p.path + ' — ' + ((p.methods || []).join(', ') || 'no calls');
+        if ((p.missingMethods || []).length) line += ' · missing: ' + p.missingMethods.join(', ');
+        list.appendChild(el('li', null, line));
+      });
+      block.appendChild(list);
+      host.appendChild(block);
+    });
+  }
+
   function buildControls() {
     var categories = unique(endpoints.concat(sockets).map(function (e) { return e.category; }));
     var methods = unique(allRows.map(function (e) { return e.method; }));
@@ -603,6 +625,7 @@ const SCRIPT = `
 
   buildControls();
   renderStats();
+  renderResources();
   render();
 })();
 `;
@@ -690,6 +713,8 @@ export function renderDashboard(report: ReconReport, title?: string): string {
   </noscript>
 
   <section class="stats" id="stats" aria-label="Summary"></section>
+
+  <section class="panel" id="resources" aria-label="Resource coverage"></section>
 
   <div class="panel">
     <div class="controls">
