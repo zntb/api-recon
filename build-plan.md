@@ -453,6 +453,16 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   `depth: 3`). `preset` is therefore also refused in a config file. `--verbose`
   names the settings a preset applied, and an unknown name lists the
   alternatives.
+- **Open or print the result** — `--open` launches `dashboard.html` in the user's
+  browser when the scan finishes (`src/utils/open.ts`: `open` on macOS, `start`
+  through the shell on Windows, `xdg-open` elsewhere), adding the dashboard to
+  the formats if it was not asked for, and falling back to printing the path when
+  nothing can be launched. `--print [md|json|openapi|html]` writes a report to
+  stdout through the very reporters that write the files, so a pipe sees the same
+  bytes; with `--print`, every human line (progress table, summary, banner) moves
+  to stderr, so `api-recon <url> --print > report.md` holds only the report. Both
+  have `API_RECON_*` variables, and `open` is refused in a config file because it
+  would pop a browser open on whoever runs the command.
 
 **Proposed updates & features**
 
@@ -530,9 +540,6 @@ so it can be scoped without re-reading the source.
 - **Better failure output.** Typed error classes (a safety refusal vs. a runtime
   failure), a short "what to try next" hint on every error, and a `--debug` flag
   that writes a bundle (logs, trace, and the partial report) for a bug report.
-- **Open or print the result.** `--open` to launch the dashboard in a browser and
-  `--print` to send the Markdown report to stdout, so a scan can end in the
-  artifact the user actually wanted.
 - **Shell completion.** Generated `bash`/`zsh`/`fish` completions, which
   `commander` makes cheap now that the flag set is large.
 - **An events API for the library.** Expose the scan as an async iterator

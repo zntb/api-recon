@@ -312,6 +312,64 @@ describe('resolveOptions precedence', () => {
   });
 });
 
+describe('--print and --open as settings', () => {
+  const cli = { print: 'md', open: false, quiet: false, respectRobots: true, redact: true };
+
+  it('accepts only the formats that make sense in a pipe', async () => {
+    const { options } = await resolveOptions({
+      cli,
+      isExplicit: (key) => key === 'print',
+      env: {},
+      cwd: root,
+    });
+    expect(options['print']).toBe('md');
+
+    const viaEnv = await resolveOptions({
+      cli,
+      isExplicit: () => false,
+      env: { API_RECON_PRINT: 'JSON' },
+      cwd: root,
+    });
+    expect(viaEnv.options['print']).toBe('json');
+
+    await expect(
+      resolveOptions({
+        cli: { ...cli, print: 'pdf' },
+        isExplicit: (key) => key === 'print',
+        env: {},
+        cwd: root,
+      }),
+    ).rejects.toThrow(/--print: expected one of md, json, openapi, html — got "pdf"/);
+  });
+
+  it('refuses to let a repository pop open a browser for everyone', async () => {
+    const res = 'open-in-config';
+    await writeConfig(res, '.api-reconrc', { open: true });
+
+    await expect(
+      resolveOptions({ cli, isExplicit: () => false, env: {}, cwd: join(root, res) }),
+    ).rejects.toThrow(/"open" cannot be set in .*pass --open/s);
+  });
+
+  it('still allows --open from a flag or the environment', async () => {
+    const viaFlag = await resolveOptions({
+      cli: { ...cli, open: true },
+      isExplicit: (key) => key === 'open',
+      env: {},
+      cwd: root,
+    });
+    expect(viaFlag.options['open']).toBe(true);
+
+    const viaEnv = await resolveOptions({
+      cli,
+      isExplicit: () => false,
+      env: { API_RECON_OPEN: '1' },
+      cwd: root,
+    });
+    expect(viaEnv.options['open']).toBe(true);
+  });
+});
+
 describe('presets in the precedence chain', () => {
   const cli = {
     depth: 1,
@@ -394,7 +452,9 @@ describe('configKeys', () => {
     // Documented as valid keys; the values that loosen safety are refused above.
     expect(configKeys()).toContain('force');
     expect(configKeys()).toContain('redact');
-    // Listed, but any value for it is refused — see the preset tests.
+    expect(configKeys()).toContain('print');
+    // Listed, but some values for these are refused — see the tests above.
     expect(configKeys()).toContain('preset');
+    expect(configKeys()).toContain('open');
   });
 });

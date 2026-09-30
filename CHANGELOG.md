@@ -5,10 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.9] - 2026-09-30
 
 ### Added
 
+- **`--open` and `--print`** — a scan can end in the artifact you wanted.
+  `--open` launches `dashboard.html` in the browser when the scan finishes
+  (adding the dashboard to the formats if it was not requested), and prints the
+  path instead when nothing can be launched. `--print [md|json|openapi|html]`
+  sends a report to stdout through the same reporters that write the files, so
+  what a pipe receives is what the file would have contained; with `--print`,
+  every human line moves to stderr, so `api-recon <url> --print > report.md`
+  holds only the report. `open` cannot be set in a config file, since it would
+  pop a browser open on whoever runs the command; `API_RECON_OPEN`,
+  `API_RECON_PRINT`, and `API_RECON_NO_OPEN` cover the scripted cases.
 - **Presets** — `--preset quick|deep|ci` bundles the flags people otherwise piece
   together by hand: `quick` looks at one page without a crawl (and without the
   slow PDF render), `deep` crawls further and captures cross-origin traffic, and
@@ -550,7 +560,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
-[Unreleased]: https://github.com/zntb/api-recon/compare/v0.3.8...HEAD
+[0.3.9]: https://github.com/zntb/api-recon/compare/v0.3.8...v0.3.9
 [0.3.8]: https://github.com/zntb/api-recon/compare/v0.3.7...v0.3.8
 [0.3.7]: https://github.com/zntb/api-recon/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/zntb/api-recon/compare/v0.3.5...v0.3.6

@@ -51,7 +51,7 @@ export interface ProjectConfigFile {
   values: Record<string, unknown>;
 }
 
-type OptionKind = 'int' | 'number' | 'bool' | 'string' | 'list' | 'engine' | 'path';
+type OptionKind = 'int' | 'number' | 'bool' | 'string' | 'list' | 'engine' | 'path' | 'format';
 
 interface OptionSpec {
   key: string;
@@ -113,7 +113,21 @@ const OPTION_SPECS: OptionSpec[] = [
   { key: 'quiet', kind: 'bool', env: 'API_RECON_QUIET' },
   { key: 'verbose', kind: 'bool', env: 'API_RECON_VERBOSE' },
   { key: 'jsonProgress', kind: 'bool', env: 'API_RECON_JSON_PROGRESS' },
+  { key: 'print', kind: 'format', env: 'API_RECON_PRINT' },
+  {
+    key: 'open',
+    kind: 'bool',
+    env: 'API_RECON_OPEN',
+    notCommittable: (value) =>
+      value === true
+        ? 'opening a browser happens on whoever runs the command — pass --open (or API_RECON_OPEN=1) for a run'
+        : null,
+  },
 ];
+
+/** What `--print` can send to stdout: the text formats, never the binary one. */
+export const PRINT_FORMATS = ['md', 'json', 'openapi', 'html'] as const;
+type PrintFormat = (typeof PRINT_FORMATS)[number];
 
 const SPEC_BY_KEY = new Map(OPTION_SPECS.map((spec) => [spec.key, spec]));
 
@@ -343,6 +357,16 @@ function validate(spec: OptionSpec, value: unknown, where: string): unknown {
         throw new SafetyError(`${where}: expected one of chromium, firefox, webkit, got ${show(value)}.`);
       }
     }
+    case 'format': {
+      const name = typeof value === 'string' ? value.trim().toLowerCase() : '';
+      if (!(PRINT_FORMATS as readonly string[]).includes(name)) {
+        throw new SafetyError(
+          `${where}: expected one of ${PRINT_FORMATS.join(', ')} — got ${show(value)}.` +
+            ' (The PDF and the dashboard are written to files, not stdout.)',
+        );
+      }
+      return name as PrintFormat;
+    }
     case 'path':
     case 'string': {
       if (typeof value !== 'string' || value.trim() === '') {
@@ -370,6 +394,7 @@ function parseEnv(spec: OptionSpec, raw: string, name: string): unknown {
       throw new SafetyError(`${name}: expected one of 1, 0, true, false, yes, no, on, off — got "${raw}".`);
     }
     case 'list':
+    case 'format':
       return raw;
     case 'engine':
     case 'path':

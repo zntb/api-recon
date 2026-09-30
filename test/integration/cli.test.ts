@@ -26,7 +26,16 @@ let outDir: string;
 let canRunBrowser = false;
 
 // The help/guard tests run without a browser; these two need a real one.
-const NEEDS_BROWSER = ['produces report files', 'diffs', 'telemetry', 'progress', 'config', 'preset'];
+const NEEDS_BROWSER = [
+  'produces report files',
+  'diffs',
+  'telemetry',
+  'progress',
+  'config',
+  'preset',
+  'print',
+  '--open',
+];
 
 beforeEach((ctx) => {
   if (!canRunBrowser && NEEDS_BROWSER.some((name) => ctx.task.name.includes(name))) {
@@ -91,6 +100,8 @@ describe('api-recon CLI', () => {
       '--config',
       '--no-config',
       '--preset',
+      '--open',
+      '--print',
     ]) {
       expect(stdout, `--help should mention ${flag}`).toContain(flag);
     }
@@ -354,6 +365,60 @@ describe('api-recon CLI', () => {
     const unknown = await runCli([fixture.url, '--preset', 'turbo'], {}, projDir);
     expect(unknown.code).toBe(2);
     expect(`${unknown.stdout}${unknown.stderr}`).toMatch(/Unknown preset "turbo"\. Available presets: quick/);
+  }, 240_000);
+
+  it('prints the chosen report to stdout and keeps the commentary on stderr', async () => {
+    const dir = join(outDir, 'cli-print');
+    const base = [fixture.url, '--allow-local', '--depth', '0', '--rate', '0'];
+
+    // 1. The default is Markdown, and stdout must hold nothing else — that is
+    //    what makes `api-recon <url> --print > report.md` safe.
+    const md = await runCli([...base, '--formats', 'json', '--out', dir, '--print'], { NO_COLOR: '1' });
+    expect(md.code, md.stderr).toBe(0);
+    expect(md.stdout.startsWith('# API recon report')).toBe(true);
+    expect(md.stdout).toContain('## 1. Overview');
+    expect(md.stdout).not.toContain('Scan complete in');
+    expect(md.stderr).toContain('Scan complete in');
+
+    // 2. Any of the text formats, and JSON parses as the report itself. The
+    //    products page is the one that calls the API the assertion looks for.
+    const json = await runCli([
+      `${fixture.url}/products`,
+      ...base.slice(1),
+      '--formats',
+      'json',
+      '--out',
+      dir,
+      '--print',
+      'json',
+    ]);
+    expect(json.code, json.stderr).toBe(0);
+    const report = JSON.parse(json.stdout) as { endpoints: { id: string }[]; schemaVersion: number };
+    expect(report.schemaVersion).toBeGreaterThan(0);
+    expect(report.endpoints.some((endpoint) => endpoint.id === 'GET /api/products')).toBe(true);
+
+    // 3. A format that belongs in a file rather than a pipe is refused.
+    const refused = await runCli([...base, '--out', dir, '--print', 'pdf']);
+    expect(refused.code).toBe(2);
+    expect(`${refused.stdout}${refused.stderr}`).toMatch(
+      /--print: expected one of md, json, openapi, html/,
+    );
+  }, 300_000);
+
+  it('writes the dashboard for --open and says where it is when it cannot launch', async () => {
+    const dir = join(outDir, 'cli-open');
+    const { code, stdout, stderr } = await runCli(
+      // Only json was asked for, but --open needs the dashboard to exist.
+      [fixture.url, '--allow-local', '--depth', '0', '--rate', '0', '--formats', 'json', '--out', dir, '--open'],
+      { API_RECON_NO_OPEN: '1' },
+    );
+
+    expect(code, stderr).toBe(0);
+    await expect(readFile(join(dir, 'dashboard.html'), 'utf8')).resolves.toContain(
+      'API recon dashboard',
+    );
+    // Suppressed opening still tells the user where the file is.
+    expect(`${stdout}${stderr}`).toMatch(/Open it yourself: .*dashboard\.html/);
   }, 240_000);
 
   it('refuses --fail-on-diff with no baseline', async () => {

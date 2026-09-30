@@ -97,6 +97,8 @@ api-recon https://example.com --browser firefox
 | `-q, --quiet` / `-v, --verbose` | — | Reduce / increase progress output |
 | `--json-progress` | off | Emit progress as JSON lines on stdout instead of a live table |
 | `--preset <name>` | — | Bundle the flags for a common case: `quick`, `deep`, `ci` (see below) |
+| `--open` | off | Open `dashboard.html` in your browser when the scan finishes |
+| `--print [format]` | — | Print a report to stdout: `md` (default), `json`, `openapi`, or `html` |
 | `--config <file>` | discovered | Project config file (see below) |
 | `--no-config` | — | Ignore any project config file, even one found on the way up |
 
@@ -185,6 +187,35 @@ or the environment, where the choice is explicit for that run. Run with
 
 `scan()` itself reads no config file — the library takes explicit options, so an
 embedding application keeps control.
+
+### The result you wanted
+
+A scan usually ends in something you then go and find. Two flags finish the job
+instead:
+
+```console
+# Look at it: the dashboard opens when the scan finishes
+api-recon https://example.com --open
+
+# Use it: the Markdown report goes to stdout, commentary to stderr
+api-recon https://example.com --print > report.md
+api-recon https://example.com --print json | jq '.endpoints[].id'
+```
+
+`--open` launches `dashboard.html` in whatever the desktop uses (`open` on macOS,
+`start` through the shell on Windows, `xdg-open` elsewhere), adding the dashboard
+to the formats if you had not asked for it. On a headless box, in a container, or
+in WSL without one of those launchers it prints the path instead — a written
+report is a success even if nobody opened it — and `API_RECON_NO_OPEN=1` (or
+`API_RECON_OPENER=<program>`) decides what happens on your machines.
+
+`--print` renders through the same reporters that write the files, so the text a
+pipe receives is the text the file would have contained: `md` (the default), the
+`report.json` document, the OpenAPI YAML, or `report.html`. It is additive to
+`--out`, and while it is on, **every human line moves to stderr** — the progress
+table, the summary, the file list — so redirecting stdout captures only the
+report. The PDF and the dashboard are refused with a message, because they belong
+in a file rather than a pipe.
 
 ### Progress
 

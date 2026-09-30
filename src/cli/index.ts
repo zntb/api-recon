@@ -5,7 +5,12 @@ import chalk from 'chalk';
 import { Command, InvalidArgumentError } from 'commander';
 import { BROWSER_ENGINES, formatDiffSummary, normalizeFormats, scan } from '../index.js';
 import { resolveEngine } from '../core/browser.js';
-import { CONFIG_FILENAMES } from './config.js';
+import { CONFIG_FILENAMES, PRINT_FORMATS } from './config.js';
+import { openFile } from '../utils/open.js';
+import { renderOpenApi } from '../reporters/openapi.js';
+import { renderMarkdown } from '../reporters/markdown.js';
+import { renderHtml } from '../reporters/html.js';
+import type { ReconReport } from '../types.js';
 import { presetHelp } from './presets.js';
 import { formatTelemetry, resolveTelemetryPlan } from '../core/telemetry.js';
 import type { BrowserEngine } from '../types.js';
@@ -50,6 +55,11 @@ program
   .argument('<seedUrl>', 'URL to start from, e.g. https://example.com')
   .option('-d, --depth <n>', 'same-domain crawl depth (0 = seed page only)', intArg, 1)
   .option('-m, --max-pages <n>', 'hard cap on pages visited', intArg, 25)
+  .option('--open', 'open the dashboard in your browser when the scan finishes', false)
+  .option(
+    '--print [format]',
+    `print a report to stdout as well as writing files (${PRINT_FORMATS.join(', ')}; default md). Human output moves to stderr, so it pipes cleanly`,
+  )
   .option(
     '--preset <name>',
     `bundle the flags for a common case — ${presetHelp()}. A flag or an environment variable still wins`,
@@ -112,7 +122,12 @@ program
     let resolved: Awaited<ReturnType<typeof resolveOptions>>;
     try {
       resolved = await resolveOptions({
-        cli: raw as unknown as Record<string, unknown>,
+        // `--print` with no value is the default format, so the resolver only
+        // ever sees a name and can validate it like any other setting.
+        cli: { ...raw, ...(raw.print === true ? { print: 'md' } : {}) } as unknown as Record<
+          string,
+          unknown
+        >,
         isExplicit: (key) => program.getOptionValueSource(key) === 'cli',
       });
       opts = resolved.options as unknown as CliOptions;
@@ -123,7 +138,10 @@ program
       return;
     }
 
-    const logger = new Logger({ quiet: opts.quiet, verbose: opts.verbose });
+    // With --print, stdout belongs to the report: every human line moves to
+    // stderr, so `api-recon <url> --print md > report.md` holds only the report.
+    const outStream: 'stdout' | 'stderr' = opts.print ? 'stderr' : 'stdout';
+    const logger = new Logger({ quiet: opts.quiet, verbose: opts.verbose, stream: outStream });
     showBannerOnce(logger);
     const from = (source: string): string =>
       Object.entries(resolved.provenance)
@@ -152,6 +170,8 @@ program
 
     try {
       const formats = normalizeFormats(opts.formats.split(','));
+      // Opening the dashboard means it has to exist, whatever --formats said.
+      if (opts.open && !formats.includes('dashboard')) formats.push('dashboard');
       // Off unless asked for on the command line or in the environment.
       const telemetry = opts.telemetry || process.env.API_RECON_TELEMETRY === '1';
       const telemetryPlan = resolveTelemetryPlan({
@@ -161,8 +181,10 @@ program
       const started = Date.now();
       // A terminal gets the running table; a pipe gets JSON only when asked for
       // it, and otherwise nothing — redrawn ANSI frames in a log file are noise.
+      const progressStream = outStream === 'stderr' ? process.stderr : process.stdout;
       const progress = new LiveProgress({
-        mode: progressModeFor({ json: opts.jsonProgress, quiet: opts.quiet }),
+        stream: progressStream,
+        mode: progressModeFor({ json: opts.jsonProgress, quiet: opts.quiet, stream: progressStream }),
       });
       if (progress.mode === 'none') {
         logger.info(`Scanning ${chalk.bold(seedUrl)} (depth ${opts.depth}, max ${opts.maxPages} pages)`);
@@ -198,6 +220,22 @@ program
 
       const { report, files, diff } = result;
       logger.always('');
+
+      if (typeof opts.print === 'string') {
+        const text = await renderForPrint(opts.print, report);
+        process.stdout.write(text.endsWith('\n') ? text : `${text}\n`);
+      }
+
+      if (opts.open) {
+        const dashboard = files.find((file) => file.endsWith('dashboard.html'));
+        if (!dashboard) {
+          logger.warn('--open: no dashboard.html was written, so there is nothing to open.');
+        } else if (await openFile(dashboard)) {
+          logger.success(`Opened ${dashboard} in your browser.`);
+        } else {
+          logger.info(`Open it yourself: ${dashboard}`);
+        }
+      }
       logger.success(
         `Scan complete in ${formatDuration(Date.now() - started)} — ` +
           `${report.meta.pagesVisited} page(s) visited, ${report.endpoints.length} endpoint pattern(s) found` +
@@ -271,6 +309,31 @@ interface CliOptions {
   config?: string | boolean;
   /** quick | deep | ci, when --preset was given. */
   preset?: string;
+  /** Open the dashboard when the scan finishes. */
+  open: boolean;
+  /** `--print` (md) or the format it was given. */
+  print?: string | boolean;
+}
+
+/**
+ * The report as text for stdout. Rendered through the same reporters that write
+ * the files, so what a pipe sees is what the file would have contained.
+ */
+async function renderForPrint(format: string, report: ReconReport): Promise<string> {
+  switch (format) {
+    case 'json':
+      return JSON.stringify(report, null, 2);
+    case 'openapi':
+      return renderOpenApi(report);
+    case 'html':
+      return renderHtml(
+        renderMarkdown(report),
+        `API recon — ${report.meta.seedUrl}`,
+        report,
+      );
+    default:
+      return renderMarkdown(report);
+  }
 }
 
 await program.parseAsync(process.argv);

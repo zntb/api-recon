@@ -5,12 +5,25 @@ import { redactLogLine } from './redact.js';
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 
+export interface LoggerOptions {
+  quiet?: boolean;
+  verbose?: boolean;
+  /**
+   * Where human output goes. `stderr` when stdout is carrying a report to
+   * something else — `--print > report.md` must not collect the commentary.
+   * Errors and warnings always use stderr.
+   */
+  stream?: 'stdout' | 'stderr';
+}
+
 export class Logger {
   private level: LogLevel;
+  private readonly stream: 'stdout' | 'stderr';
   private readonly scrub: (line: string) => string;
 
-  constructor(opts: { quiet?: boolean; verbose?: boolean } = {}) {
+  constructor(opts: LoggerOptions = {}) {
     this.level = opts.quiet ? 'error' : opts.verbose ? 'debug' : 'info';
+    this.stream = opts.stream ?? 'stdout';
     this.scrub = redactLogLine;
   }
 
@@ -20,7 +33,8 @@ export class Logger {
 
   private emit(stream: 'log' | 'error', prefix: string, color: (s: string) => string, msg: string): void {
     const line = this.scrub(msg);
-    const write = stream === 'log' ? console.log : console.error;
+    const toStdout = stream === 'log' && this.stream === 'stdout';
+    const write = toStdout ? console.log : console.error;
     write(prefix.length ? color(`${prefix} `) + line : line);
   }
 
