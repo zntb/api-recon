@@ -26,6 +26,8 @@ export interface CrawlOptions {
     headers: Record<string, string>,
   ) => Promise<void> | void;
   runActions?: (page: Page) => Promise<void>;
+  /** Fired for every page recorded, including SPA routes discovered in place. */
+  onPageVisited?: (page: CapturedPage) => void;
   navTimeoutMs?: number;
   settleMs?: number;
 }
@@ -49,7 +51,9 @@ export async function crawl(page: Page, options: CrawlOptions): Promise<CrawlOut
     const normalized = normalizeUrl(url);
     if (seenPages.has(normalized)) return;
     seenPages.add(normalized);
-    pages.push({ url, normalizedUrl: normalized, depth, title, visitedAt: Date.now() });
+    const entry: CapturedPage = { url, normalizedUrl: normalized, depth, title, visitedAt: Date.now() };
+    pages.push(entry);
+    options.onPageVisited?.(entry);
   };
 
   while (queue.length > 0 && visited.size < options.maxPages) {

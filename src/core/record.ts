@@ -29,6 +29,8 @@ export interface RecordSessionOptions {
   logger: Logger;
   /** Override for tests. Defaults to reading process.stdin. */
   waitForStop?: () => Promise<void>;
+  /** Fired for every page the human navigates to, so progress can keep up. */
+  onPage?: (page: CapturedPage) => void;
 }
 
 export async function runRecordSession(options: RecordSessionOptions): Promise<CapturedPage[]> {
@@ -39,13 +41,15 @@ export async function runRecordSession(options: RecordSessionOptions): Promise<C
     if (!url || url === 'about:blank') return;
     const normalized = normalizeUrl(url);
     if (!pages.has(normalized)) {
-      pages.set(normalized, {
+      const entry: CapturedPage = {
         url,
         normalizedUrl: normalized,
         depth: 0,
         title: null,
         visitedAt: Date.now(),
-      });
+      };
+      pages.set(normalized, entry);
+      options.onPage?.(entry);
     }
   };
 

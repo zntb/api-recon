@@ -524,6 +524,25 @@ export interface TelemetryPayload {
 import type { Logger } from './utils/logger.js';
 
 /** Options accepted by `scan()` (library) and the CLI. */
+/**
+ * What a running scan hands to a progress reporter.
+ *
+ * The scan pushes a state on each phase change and each page visited, and the
+ * reporter decides how to draw it — a live table on a terminal, JSON lines for
+ * a machine, or nothing at all. The scan never knows which.
+ */
+export interface ScanProgressState {
+  phase: 'crawling' | 'recording' | 'analyzing';
+  seedUrl: string;
+  /** Pages recorded so far. */
+  pages: CapturedPage[];
+  maxPages: number;
+  /** Every captured call so far — the endpoints are grouped only after the run. */
+  calls: readonly CapturedCall[];
+  /** When the scan began, so the reporter can show a live elapsed time. */
+  startedAt: number;
+}
+
 export interface ScanOptions {
   url: string;
   depth?: number;
@@ -565,6 +584,11 @@ export interface ScanOptions {
   telemetryPreview?: boolean;
   /** Injectable logger (used by the CLI for progress output and tests). */
   logger?: Logger;
+  /**
+   * Called with the scan's state as it changes: once per phase, and once per
+   * page visited. Purely observational — throwing here does not stop the scan.
+   */
+  onProgress?: (state: ScanProgressState) => void;
 }
 
 /** Result of a completed scan. */

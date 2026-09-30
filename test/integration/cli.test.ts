@@ -21,7 +21,7 @@ let outDir: string;
 let canRunBrowser = false;
 
 // The help/guard tests run without a browser; these two need a real one.
-const NEEDS_BROWSER = ['produces report files', 'diffs', 'telemetry'];
+const NEEDS_BROWSER = ['produces report files', 'diffs', 'telemetry', 'progress'];
 
 beforeEach((ctx) => {
   if (!canRunBrowser && NEEDS_BROWSER.some((name) => ctx.task.name.includes(name))) {
@@ -80,6 +80,7 @@ describe('api-recon CLI', () => {
       '--telemetry-preview',
       '--quiet',
       '--verbose',
+      '--json-progress',
     ]) {
       expect(stdout, `--help should mention ${flag}`).toContain(flag);
     }
@@ -228,6 +229,43 @@ describe('api-recon CLI', () => {
     expect(md).toContain('## 9. Changes Since Baseline');
     expect(md).toContain('legacyField');
   }, 240_000);
+
+  it('streams live progress as JSON when asked, and draws nothing when piped', async () => {
+    const dir = join(outDir, 'cli-progress');
+    const base = [fixture.url, '--allow-local', '--depth', '1', '--rate', '0', '--formats', 'json'];
+
+    const { code, stdout } = await runCli([...base, '--out', dir, '--json-progress']);
+    expect(code).toBe(0);
+
+    const events = stdout
+      .split('\n')
+      .filter((line) => line.startsWith('{'))
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+
+    const progress = events.filter((event) => event['event'] === 'progress');
+    expect(progress.length, `expected progress events, got:\n${stdout}`).toBeGreaterThan(0);
+    // The first event is emitted before any page loads; the crawl then reports
+    // as it goes; and the run ends in the analyzing phase with final counts.
+    expect(progress[0]!['phase']).toBe('crawling');
+    expect(progress[0]!['pagesVisited']).toBe(0);
+    expect(progress.some((event) => event['phase'] === 'analyzing')).toBe(true);
+
+    const done = events[events.length - 1]!;
+    expect(done['event']).toBe('done');
+    expect(done['phase']).toBe('analyzing');
+    expect(done['pagesVisited']).toBeGreaterThan(0);
+    expect(done['endpoints']).toBeGreaterThan(0);
+    expect(done['calls']).toBeGreaterThan(0);
+    expect(done['maxPages']).toBeGreaterThan(0);
+
+    // But a consumer of a machine format should never receive cursor tricks.
+    expect(stdout).not.toContain('\u001b[');
+
+    // Without the flag the run is piped and quiet: no table, no JSON.
+    const plain = await runCli([...base, '--out', join(outDir, 'cli-progress-off')]);
+    expect(plain.code).toBe(0);
+    expect(plain.stdout).not.toMatch(/^\{"event"/m);
+  }, 150_000);
 
   it('refuses --fail-on-diff with no baseline', async () => {
     const { code, stderr } = await runCli([fixture.url, '--allow-local', '--fail-on-diff']);

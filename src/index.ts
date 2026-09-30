@@ -7,7 +7,15 @@
  *   await result.writeReports('./out');
  */
 
-import type { CapturedCall, CapturedPage, ReconReport, ReportFormat, ScanOptions, ScanResult } from './types.js';
+import type {
+  CapturedCall,
+  CapturedPage,
+  ReconReport,
+  ReportFormat,
+  ScanOptions,
+  ScanProgressState,
+  ScanResult,
+} from './types.js';
 import { REPORT_FORMATS, REPORT_SCHEMA_VERSION } from './types.js';
 import { TOOL_VERSION } from './version.js';
 import { launchSession, resolveEngine } from './core/browser.js';
@@ -102,11 +110,36 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   let pages: CapturedPage[] = [];
   let blockedByRobots: string[] = [];
 
+  // Progress is push-based and purely observational: the reporter decides how to
+  // draw it, and never gets a say in what the scan does.
+  const publishProgress = (phase: ScanProgressState['phase']): void => {
+    if (!options.onProgress) return;
+    try {
+      options.onProgress({
+        phase,
+        seedUrl,
+        pages,
+        maxPages,
+        calls: interceptor.calls,
+        startedAt,
+      });
+    } catch {
+      // A reporter that throws is a reporter's problem, not the scan's.
+    }
+  };
+
+  publishProgress(record ? 'recording' : 'crawling');
+
   try {
     if (loginFlow) await runLoginFlow(session.context, loginFlow, logger);
 
     if (record) {
-      pages = await runRecordSession({ page: session.page, seedUrl, logger });
+      pages = await runRecordSession({
+        page: session.page,
+        seedUrl,
+        logger,
+        onPage: () => publishProgress('recording'),
+      });
     } else {
       const outcome = await crawl(session.page, {
         seedUrl,
@@ -115,6 +148,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
         limiter,
         robots,
         logger,
+        onPageVisited: () => publishProgress('crawling'),
         ...(actionSteps.length
           ? { runActions: (page) => runActions(page, actionSteps, logger) }
           : {}),
@@ -139,6 +173,8 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   } finally {
     await session.close();
   }
+
+  publishProgress('analyzing');
 
   const captures: CapturedCall[] = interceptor.calls.slice();
   const webSockets = analyzeWebSockets(interceptor.webSockets);

@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Live scan progress** — a terminal now shows a running table while the scan
+  works — phase, seed host, elapsed time, pages visited, requests and endpoints
+  so far, and the last few pages and endpoints — redrawn in place and cleared
+  before the summary. Piped output and `--quiet` stay silent (ANSI frames in a
+  log file are noise), while `--json-progress` streams one JSON object per line,
+  ending with a `done` event, for a machine to read. The library gets the same
+  stream as `onProgress` on `scan()`.
+
 ## [0.3.8] - 2026-09-30
 
 ### Added
@@ -517,6 +529,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[Unreleased]: https://github.com/zntb/api-recon/compare/v0.3.8...HEAD
 [0.3.8]: https://github.com/zntb/api-recon/compare/v0.3.7...v0.3.8
 [0.3.7]: https://github.com/zntb/api-recon/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/zntb/api-recon/compare/v0.3.5...v0.3.6

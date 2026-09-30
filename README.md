@@ -95,9 +95,39 @@ api-recon https://example.com --browser firefox
 | `--telemetry` | off | Write anonymized categorization signals to `telemetry.json` (no host, path, or body data) |
 | `--telemetry-preview` | off | Print that payload to stdout without writing `telemetry.json` |
 | `-q, --quiet` / `-v, --verbose` | — | Reduce / increase progress output |
+| `--json-progress` | off | Emit progress as JSON lines on stdout instead of a live table |
 
 Exit codes: `0` success, `1` runtime failure, `2` refused by a safety guard (`--force`,
 `--allow-local`, a bad `--diff` file, …), `3` `--fail-on-diff` found endpoint changes.
+
+### Progress
+
+On a terminal, the scan replaces its start line with a running table — phase,
+seed host, elapsed time, pages visited, requests and endpoints seen so far, plus
+the last few pages and endpoints — redrawn in place, so a long crawl never looks
+like a hang and never scrolls your terminal. It is cleared before the summary, so
+the result is what stays on screen.
+
+Piped or in CI there is no table, because redrawn ANSI frames in a log file are
+noise; `--quiet` does the same on a terminal. A machine that wants the stream
+passes `--json-progress` for one JSON object per line, ending with a `done`
+event:
+
+```console
+$ api-recon https://example.com --json-progress --formats json | grep '^{"event"'
+{"event":"progress","phase":"crawling","elapsedMs":0,"pagesVisited":0,"maxPages":25,"calls":0,"endpoints":0,"currentPage":null}
+{"event":"progress","phase":"crawling","elapsedMs":1240,"pagesVisited":1,"maxPages":25,"calls":3,"endpoints":2,"currentPage":"/products"}
+{"event":"done","phase":"analyzing","elapsedMs":4210,"pagesVisited":6,"maxPages":25,"calls":31,"endpoints":14,"currentPage":"/dashboard"}
+```
+
+In the library, the same stream is `onProgress`:
+
+```ts
+await scan({
+  url: 'https://example.com',
+  onProgress: (s) => console.error(`${s.phase}: ${s.pages.length} pages, ${s.calls.length} calls`),
+});
+```
 
 ## What it captures
 

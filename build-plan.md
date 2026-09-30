@@ -423,6 +423,15 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   roles aliasing it, so dark mode moves the ramp rather than restating thirteen
   colour tokens, and print pins the ramp to its light values so a report printed
   from a dark desktop cannot put dark ink on a black tile.
+- **Live progress** — the scan no longer prints a start line and then goes
+  quiet. On a terminal it redraws a fixed-height table in place (phase, seed
+  host, elapsed time, pages visited, requests, endpoints, and the last few pages
+  and endpoints), cleared just before the summary so the result is what stays on
+  screen. A pipe or CI log gets nothing — redrawn ANSI frames there are noise —
+  and `--json-progress` streams one JSON object per line, ending in a `done`
+  event, for a machine. The library gets the same stream as `onProgress` on
+  `scan()`. Rendering is pure and separated from the timer (`src/utils/progress.ts`),
+  and the scan only ever pushes state, so a reporter cannot fail a scan.
 
 **Proposed updates & features**
 
@@ -494,9 +503,6 @@ so it can be scoped without re-reading the source.
 
 **User experience**
 
-- **Progress that is actually live.** Print a running table of pages visited and
-  endpoints found on a TTY (and `--json-progress` for machines), rather than a
-  start line and an end line.
 - **A project config file.** `.api-reconrc` (or `api-recon.config.ts`) so a team
   can commit the flags and login/action paths it always uses, with a documented
   precedence of CLI > env > config > defaults.

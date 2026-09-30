@@ -9,6 +9,7 @@ import { formatTelemetry, resolveTelemetryPlan } from '../core/telemetry.js';
 import type { BrowserEngine } from '../types.js';
 import { showBannerOnce } from '../utils/banner.js';
 import { Logger } from '../utils/logger.js';
+import { LiveProgress, progressModeFor } from '../utils/progress.js';
 import { SafetyError } from '../utils/safety.js';
 import { formatDuration } from '../utils/misc.js';
 import { TOOL_VERSION } from '../version.js';
@@ -85,6 +86,11 @@ program
   .option('--max-body-mb <n>', 'maximum response body / WebSocket frame size to keep, in MB', numberArg, 1)
   .option('-q, --quiet', 'suppress progress output (errors only)', false)
   .option('-v, --verbose', 'verbose progress output', false)
+  .option(
+    '--json-progress',
+    'emit progress as JSON lines on stdout (one object per event) instead of a live table',
+    false,
+  )
   .action(async (seedUrl: string, opts: CliOptions) => {
     const logger = new Logger({ quiet: opts.quiet, verbose: opts.verbose });
     showBannerOnce(logger);
@@ -112,7 +118,14 @@ program
         telemetryPreview: opts.telemetryPreview,
       });
       const started = Date.now();
-      logger.info(`Scanning ${chalk.bold(seedUrl)} (depth ${opts.depth}, max ${opts.maxPages} pages)`);
+      // A terminal gets the running table; a pipe gets JSON only when asked for
+      // it, and otherwise nothing — redrawn ANSI frames in a log file are noise.
+      const progress = new LiveProgress({
+        mode: progressModeFor({ json: opts.jsonProgress, quiet: opts.quiet }),
+      });
+      if (progress.mode === 'none') {
+        logger.info(`Scanning ${chalk.bold(seedUrl)} (depth ${opts.depth}, max ${opts.maxPages} pages)`);
+      }
 
       const result = await scan({
         url: seedUrl,
@@ -136,7 +149,11 @@ program
         telemetryPreview: opts.telemetryPreview,
         maxBodyBytes: Math.round(opts.maxBodyMb * 1024 * 1024),
         logger,
+        onProgress: (state) => progress.render(state),
       });
+      // Hands the terminal back: the table is replaced by the summary rather
+      // than left above it.
+      progress.stop();
 
       const { report, files, diff } = result;
       logger.always('');
@@ -208,6 +225,7 @@ interface CliOptions {
   maxBodyMb: number;
   quiet: boolean;
   verbose: boolean;
+  jsonProgress: boolean;
 }
 
 await program.parseAsync(process.argv);
