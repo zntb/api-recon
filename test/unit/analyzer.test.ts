@@ -261,3 +261,53 @@ describe('analyzeWebSockets schema gaps', () => {
     expect(cut!.receivedSchemaReason).toBe('truncated');
   });
 });
+
+describe('analyzeCalls performance roll-up', () => {
+  it('summarises latency and payload sizes, and keeps cache headers', () => {
+    const endpoint = endpointOf([
+      call({
+        url: `${SEED}/api/report`,
+        durationMs: 10,
+        responseBodySample: 'ab',
+        requestBodySample: 'x',
+        responseHeaders: {
+          'cache-control': 'public, max-age=60',
+          etag: 'W/"1"',
+          age: '12',
+          vary: 'accept-encoding',
+        },
+      }),
+      call({ url: `${SEED}/api/report`, durationMs: 20, responseBodySample: 'abcd', requestBodySample: 'xx' }),
+      call({ url: `${SEED}/api/report`, durationMs: 30, responseBodySample: 'abc', requestBodySample: 'xxx' }),
+      call({ url: `${SEED}/api/report`, durationMs: 40, responseBodySample: 'a', requestBodySample: 'xxxx' }),
+    ]);
+
+    expect(endpoint.timing).toEqual({ p50: 20, p95: 40, max: 40 });
+    // Sizes are the captured bytes: 1/2/3/4 in sorted order.
+    expect(endpoint.responseBytes).toEqual({ p50: 2, p95: 4, max: 4 });
+    expect(endpoint.requestBytes).toEqual({ p50: 2, p95: 4, max: 4 });
+    expect(endpoint.cache).toEqual({
+      control: 'public, max-age=60',
+      etag: 'W/"1"',
+      age: 12,
+      vary: 'accept-encoding',
+    });
+  });
+
+  it('still records timing when no bodies were captured, and omits the rest', () => {
+    const endpoint = endpointOf([call({ url: `${SEED}/api/x`, durationMs: 5 })]);
+
+    expect(endpoint.timing).toEqual({ p50: 5, p95: 5, max: 5 });
+    expect(endpoint.responseBytes).toBeUndefined();
+    expect(endpoint.requestBytes).toBeUndefined();
+    expect(endpoint.cache).toBeUndefined();
+  });
+
+  it('finds cache headers regardless of capture casing', () => {
+    const endpoint = endpointOf([
+      call({ url: `${SEED}/api/x`, responseHeaders: { 'Cache-Control': 'no-store' } }),
+    ]);
+
+    expect(endpoint.cache).toEqual({ control: 'no-store' });
+  });
+});

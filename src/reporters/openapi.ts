@@ -114,6 +114,24 @@ function buildOperation(endpoint: Endpoint): Json {
     responses,
     'x-observed-count': endpoint.count,
     'x-observed-origins': endpoint.origins,
+    ...(endpoint.timing
+      ? {
+          'x-observed-latency-ms': {
+            p50: endpoint.timing.p50,
+            p95: endpoint.timing.p95,
+            max: endpoint.timing.max,
+          },
+        }
+      : {}),
+    ...(endpoint.responseBytes
+      ? {
+          'x-observed-response-bytes': {
+            p50: endpoint.responseBytes.p50,
+            p95: endpoint.responseBytes.p95,
+            max: endpoint.responseBytes.max,
+          },
+        }
+      : {}),
     ...(endpoint.vendor
       ? {
           'x-vendor': endpoint.vendor.name,

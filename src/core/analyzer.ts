@@ -7,6 +7,7 @@
  */
 
 import type {
+  CacheInfo,
   CapturedCall,
   CapturedWebSocket,
   CategorizationHeuristic,
@@ -14,11 +15,13 @@ import type {
   Endpoint,
   ErrorResponse,
   JsonSchemaLike,
+  PercentileStats,
   QueryParam,
   SchemaGapReason,
   VendorAttribution,
 } from '../types.js';
 import { analyzeGraphQL, mergeGraphQL } from './graphql.js';
+import { summarize } from './performance.js';
 import { attributeVendor, isTrackingHost, trackingVendorDomains } from './vendors.js';
 import {
   absentBodyReason,
@@ -101,6 +104,10 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
   const queryParams = collectQueryParams(samples);
   const requestSchema = inferSchemaFromBodies(samples.map((s) => s.requestBodySample));
   const vendor = vendorFor(category, origins, requestSchema, queryParams);
+  const timing = summarize(samples.map((s) => s.durationMs));
+  const requestBytes = sizeStats(samples.map((s) => s.requestBodySample));
+  const responseBytes = sizeStats(samples.map((s) => s.responseBodySample));
+  const cache = firstCache(samples);
 
   return {
     id,
@@ -123,9 +130,71 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
     ...(errors.length ? { errorResponses: errors } : {}),
     mimeTypes: unique(samples.map((s) => s.mimeType).filter(Boolean)),
     triggeredBy: unique(samples.map((s) => s.triggeredBy)),
+    timing,
+    ...(requestBytes ? { requestBytes } : {}),
+    ...(responseBytes ? { responseBytes } : {}),
+    ...(cache ? { cache } : {}),
     ...(graphql ? { graphql } : {}),
     ...(vendor ? { vendor } : {}),
   };
+}
+
+/**
+ * p50/p95/max body size in bytes, or null when no sample carried a body. A
+ * captured body may be capped, so a size can be a lower bound — the report says
+ * as much rather than implying every body fits the cap.
+ */
+function sizeStats(samples: (string | null)[]): PercentileStats | null {
+  const sizes = samples
+    .filter((sample): sample is string => sample !== null)
+    .map((sample) => Buffer.byteLength(sample, 'utf8'));
+  return sizes.length > 0 ? summarize(sizes) : null;
+}
+
+/** The first sample whose response headers say anything about caching. */
+function firstCache(samples: CapturedCall[]): CacheInfo | null {
+  for (const sample of samples) {
+    const cache = cacheFromHeaders(sample.responseHeaders);
+    if (cache) return cache;
+  }
+  return null;
+}
+
+function cacheFromHeaders(headers: Record<string, string>): CacheInfo | null {
+  const control = headerValue(headers, 'cache-control');
+  const etag = headerValue(headers, 'etag');
+  const lastModified = headerValue(headers, 'last-modified');
+  const vary = headerValue(headers, 'vary');
+  const status = headerValue(headers, 'x-cache') ?? headerValue(headers, 'cf-cache-status');
+  const ageText = headerValue(headers, 'age');
+  const age = ageText !== undefined && Number.isFinite(Number(ageText)) ? Number(ageText) : undefined;
+
+  if (
+    control === undefined &&
+    etag === undefined &&
+    lastModified === undefined &&
+    vary === undefined &&
+    status === undefined &&
+    age === undefined
+  ) {
+    return null;
+  }
+  return {
+    ...(control !== undefined ? { control } : {}),
+    ...(etag !== undefined ? { etag } : {}),
+    ...(lastModified !== undefined ? { lastModified } : {}),
+    ...(age !== undefined ? { age } : {}),
+    ...(vary !== undefined ? { vary } : {}),
+    ...(status !== undefined ? { status } : {}),
+  };
+}
+
+/** Case-insensitive header lookup, since capture casing is not guaranteed. */
+function headerValue(headers: Record<string, string>, name: string): string | undefined {
+  const direct = headers[name];
+  if (direct !== undefined) return direct;
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === name);
+  return key ? headers[key] : undefined;
 }
 
 /**

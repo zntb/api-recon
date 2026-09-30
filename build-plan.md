@@ -351,6 +351,16 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   Matched by host suffix only, so `notstripe.com` is not mistaken for Stripe;
   the Markdown report, dashboard, and `openapi.yaml` (`x-vendor*`) surface it,
   and `--diff` reports vendor or payload-key drift as non-breaking.
+- **Latency and size roll-up** — the `durationMs` and body sizes the interceptor
+  already records are now aggregated per endpoint with nearest-rank percentiles
+  (`src/core/performance.ts`): `timing` (p50/p95/max in ms), `requestBytes` /
+  `responseBytes` (p50/p95/max in bytes), and `cache` (the cache-control, etag,
+  last-modified, age, vary, and CDN-status headers when present). The Markdown
+  report gains a **Performance** section listing the slowest endpoints and
+  largest responses, the dashboard gains a `Time (p95)` column and the figures
+  in its expanded row, and `openapi.yaml` carries `x-observed-latency-ms` /
+  `x-observed-response-bytes`. `--diff` flags a response whose p95 grew by both
+  50% and at least 5 KB, as a performance regression rather than an API break.
 
 **Proposed updates & features**
 
@@ -361,10 +371,6 @@ so it can be scoped without re-reading the source.
 
 **Report accuracy & detail**
 
-- **Roll up latency and size.** The interceptor already records `durationMs` per
-  call; aggregate per endpoint (count, p50, p95, max) and include payload sizes
-  and cache headers. The report then doubles as a performance overview, and
-  `--diff` gains a way to flag a response that grew sharply.
 - **Close with findings and next steps.** End the report with what a reader
   should act on: endpoints reached without auth, PII-shaped fields in samples,
   missing security headers, verbose error bodies, and endpoints whose shape was

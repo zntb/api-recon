@@ -5,7 +5,7 @@
     "startedAt": "2026-01-01T00:00:00.000Z",
     "durationMs": 280,
     "pagesVisited": 8,
-    "apiReconVersion": "0.3.4",
+    "apiReconVersion": "0.3.5",
     "engine": "chromium"
   },
   "technologies": [
@@ -76,7 +76,20 @@
       ],
       "triggeredBy": [
         "http://127.0.0.1:4610/products"
-      ]
+      ],
+      "timing": {
+        "p50": 7,
+        "p95": 7,
+        "max": 7
+      },
+      "requestBytes": {
+        "p50": 39,
+        "p95": 39,
+        "max": 39
+      },
+      "cache": {
+        "control": "no-store"
+      }
     },
     {
       "id": "POST /collect",
@@ -123,7 +136,17 @@
       "mimeTypes": [],
       "triggeredBy": [
         "http://127.0.0.1:4610/external.html"
-      ]
+      ],
+      "timing": {
+        "p50": 7,
+        "p95": 7,
+        "max": 7
+      },
+      "requestBytes": {
+        "p50": 30,
+        "p95": 30,
+        "max": 30
+      }
     },
     {
       "id": "POST /api/login",
@@ -225,7 +248,25 @@
       ],
       "triggeredBy": [
         "http://127.0.0.1:4610/login"
-      ]
+      ],
+      "timing": {
+        "p50": 7,
+        "p95": 7,
+        "max": 7
+      },
+      "requestBytes": {
+        "p50": 55,
+        "p95": 55,
+        "max": 55
+      },
+      "responseBytes": {
+        "p50": 31,
+        "p95": 78,
+        "max": 78
+      },
+      "cache": {
+        "control": "no-store"
+      }
     },
     {
       "id": "GET /api/orders",
@@ -312,7 +353,20 @@
       ],
       "triggeredBy": [
         "http://127.0.0.1:4610/dashboard"
-      ]
+      ],
+      "timing": {
+        "p50": 7,
+        "p95": 7,
+        "max": 7
+      },
+      "responseBytes": {
+        "p50": 204,
+        "p95": 204,
+        "max": 204
+      },
+      "cache": {
+        "control": "no-store"
+      }
     },
     {
       "id": "GET /api/orders/{id}",
@@ -394,7 +448,20 @@
       ],
       "triggeredBy": [
         "http://127.0.0.1:4610/dashboard"
-      ]
+      ],
+      "timing": {
+        "p50": 7,
+        "p95": 7,
+        "max": 7
+      },
+      "responseBytes": {
+        "p50": 89,
+        "p95": 89,
+        "max": 89
+      },
+      "cache": {
+        "control": "no-store"
+      }
     },
     {
       "id": "GET /api/products",
@@ -498,7 +565,20 @@
       ],
       "triggeredBy": [
         "http://127.0.0.1:4610/products"
-      ]
+      ],
+      "timing": {
+        "p50": 7,
+        "p95": 7,
+        "max": 7
+      },
+      "responseBytes": {
+        "p50": 244,
+        "p95": 244,
+        "max": 244
+      },
+      "cache": {
+        "control": "no-store"
+      }
     },
     {
       "id": "GET /api/user",
@@ -574,7 +654,20 @@
       ],
       "triggeredBy": [
         "http://127.0.0.1:4610/dashboard"
-      ]
+      ],
+      "timing": {
+        "p50": 7,
+        "p95": 7,
+        "max": 7
+      },
+      "responseBytes": {
+        "p50": 189,
+        "p95": 189,
+        "max": 189
+      },
+      "cache": {
+        "control": "no-store"
+      }
     },
     {
       "id": "POST /api/graphql",
@@ -695,6 +788,24 @@
       "triggeredBy": [
         "http://127.0.0.1:4610/graphql"
       ],
+      "timing": {
+        "p50": 7,
+        "p95": 7,
+        "max": 7
+      },
+      "requestBytes": {
+        "p50": 109,
+        "p95": 127,
+        "max": 127
+      },
+      "responseBytes": {
+        "p50": 52,
+        "p95": 63,
+        "max": 63
+      },
+      "cache": {
+        "control": "no-store"
+      },
       "graphql": {
         "introspection": true,
         "operations": [
@@ -798,7 +909,25 @@
       ],
       "triggeredBy": [
         "http://127.0.0.1:4610/products"
-      ]
+      ],
+      "timing": {
+        "p50": 7,
+        "p95": 7,
+        "max": 7
+      },
+      "requestBytes": {
+        "p50": 14,
+        "p95": 14,
+        "max": 14
+      },
+      "responseBytes": {
+        "p50": 88,
+        "p95": 88,
+        "max": 88
+      },
+      "cache": {
+        "control": "no-store"
+      }
     },
     {
       "id": "GET /sdk/config.json",
@@ -860,7 +989,17 @@
       ],
       "triggeredBy": [
         "http://127.0.0.1:4610/external.html"
-      ]
+      ],
+      "timing": {
+        "p50": 7,
+        "p95": 7,
+        "max": 7
+      },
+      "responseBytes": {
+        "p50": 58,
+        "p95": 58,
+        "max": 58
+      }
     }
   ],
   "resources": [

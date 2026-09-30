@@ -88,6 +88,41 @@ export interface VendorAttribution {
   payloadKeys: string[];
 }
 
+/**
+ * A p50/p95/max summary of a set of numeric observations — response time in
+ * milliseconds, or a payload size in bytes. Percentiles use the nearest-rank
+ * method, so every value is one that was actually observed rather than an
+ * interpolation between two of them.
+ */
+export interface PercentileStats {
+  /** Median observation. */
+  p50: number;
+  /** 95th-percentile observation. */
+  p95: number;
+  /** Largest observation. */
+  max: number;
+}
+
+/**
+ * Cache-relevant response headers observed for an endpoint. Only the headers
+ * that were present are set, so an absent field means the endpoint did not
+ * advertise it — not that caching was disabled.
+ */
+export interface CacheInfo {
+  /** `cache-control`, e.g. `public, max-age=60`. */
+  control?: string;
+  /** Entity validator, e.g. `W/"abc123"`. */
+  etag?: string;
+  /** `last-modified` as observed. */
+  lastModified?: string;
+  /** `age` in seconds, when numeric. */
+  age?: number;
+  /** `vary`, which affects cache correctness. */
+  vary?: string;
+  /** Edge cache status, from `x-cache` or `cf-cache-status`. */
+  status?: string;
+}
+
 /** A deduplicated endpoint grouped by (method, urlPattern). */
 export interface Endpoint {
   id: string;
@@ -126,6 +161,23 @@ export interface Endpoint {
   /** MIME types observed across samples. */
   mimeTypes: string[];
   triggeredBy: string[];
+  /**
+   * Response-time summary over every captured sample, in milliseconds. Present
+   * on every observed endpoint, so the report doubles as a performance view.
+   */
+  timing?: PercentileStats;
+  /**
+   * Request-body size summary in bytes, over the samples that carried one.
+   * Omitted when no request body was captured.
+   */
+  requestBytes?: PercentileStats;
+  /**
+   * Response-body size summary in bytes, over the samples that carried one.
+   * Omitted when no response body was captured.
+   */
+  responseBytes?: PercentileStats;
+  /** Cache-relevant response headers, when any were present. */
+  cache?: CacheInfo;
   /** GraphQL detection; omitted when this endpoint is not GraphQL. */
   graphql?: GraphQLInfo;
   /**

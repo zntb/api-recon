@@ -483,6 +483,38 @@ describe('diffReports', () => {
     expect(text).toContain('vendor payload keys added: context');
   });
 
+  it('flags a response that grew sharply, without calling it breaking', () => {
+    const size = (p50: number, p95: number, max: number) => ({ p50, p95, max });
+    const baseline = report([
+      endpoint({ id: 'GET /api/report', responseBytes: size(8_000, 10_000, 12_000) }),
+    ]);
+    const current = report([
+      endpoint({ id: 'GET /api/report', responseBytes: size(20_000, 40_000, 44_000) }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'GET /api/report');
+    expect(change.breaking).toBe(false);
+    const text = change.details.join(' ');
+    expect(text).toContain('response payload grew sharply');
+    expect(text).toContain('(+300%)');
+  });
+
+  it('does not flag ordinary or merely-large growth', () => {
+    // +20%: a real increase, but not a sharp one.
+    const modest = diffReports(
+      report([endpoint({ id: 'GET /api/report', responseBytes: { p50: 9_000, p95: 10_000, max: 11_000 } })]),
+      report([endpoint({ id: 'GET /api/report', responseBytes: { p50: 10_000, p95: 12_000, max: 13_000 } })]),
+    );
+    expect(modest.hasChanges).toBe(false);
+
+    // Tripled, but still tiny — below the absolute floor.
+    const tiny = diffReports(
+      report([endpoint({ id: 'GET /api/small', responseBytes: { p50: 900, p95: 1_000, max: 1_100 } })]),
+      report([endpoint({ id: 'GET /api/small', responseBytes: { p50: 2_500, p95: 3_000, max: 3_200 } })]),
+    );
+    expect(tiny.hasChanges).toBe(false);
+  });
+
   it('reports a new GraphQL operation as non-breaking', () => {
     const baseline = report([
       endpoint({

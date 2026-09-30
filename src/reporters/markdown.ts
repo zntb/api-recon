@@ -2,10 +2,18 @@
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { CapturedWebSocket, Endpoint, ReconReport, ReportDiff, Resource } from '../types.js';
+import type {
+  CacheInfo,
+  CapturedWebSocket,
+  Endpoint,
+  PercentileStats,
+  ReconReport,
+  ReportDiff,
+  Resource,
+} from '../types.js';
 import { CATEGORIES } from '../types.js';
 import { describeGapReason } from '../core/schemaInference.js';
-import { formatDuration, truncate } from '../utils/misc.js';
+import { formatBytes, formatDuration, truncate } from '../utils/misc.js';
 import { FORMAT_FILENAMES } from './json.js';
 
 const MAX_SAMPLE_CHARS = 2000;
@@ -150,6 +158,9 @@ export function renderMarkdown(report: ReconReport): string {
   // ---- 10. Resource coverage (derived from the endpoints) ---------------
   if (report.resources?.length) out.push(...resourceSection(report.resources));
 
+  // ---- 11. Performance (derived from the endpoints) ---------------------
+  if (report.endpoints.some((e) => e.timing)) out.push(...performanceSection(report.endpoints));
+
   out.push('_api-recon observes and documents only. It does not bypass authentication, CAPTCHAs, or bot protections._');
   out.push('');
 
@@ -181,6 +192,80 @@ function resourceSection(resources: Resource[]): string[] {
     }
     out.push('');
   }
+  return out;
+}
+
+/** Format `p50 / p95 / max` of a latency summary, in milliseconds. */
+function formatMs(stats: PercentileStats): string {
+  return `${stats.p50}ms / ${stats.p95}ms / ${stats.max}ms`;
+}
+
+/** Format `p50 / p95 / max` of a size summary. */
+function formatSize(stats: PercentileStats): string {
+  return `${formatBytes(stats.p50)} / ${formatBytes(stats.p95)} / ${formatBytes(stats.max)}`;
+}
+
+/** One line describing the cache-relevant headers that were present. */
+function cacheSummary(cache: CacheInfo): string {
+  const parts: string[] = [];
+  if (cache.control) parts.push(`cache-control \`${cache.control}\``);
+  if (cache.etag) parts.push(`etag \`${cache.etag}\``);
+  if (cache.lastModified) parts.push(`last-modified \`${cache.lastModified}\``);
+  if (cache.age !== undefined) parts.push(`age ${cache.age}s`);
+  if (cache.vary) parts.push(`vary \`${cache.vary}\``);
+  if (cache.status) parts.push(`status \`${cache.status}\``);
+  return parts.map(cell).join(' · ');
+}
+
+/**
+ * A performance overview: the slowest endpoints and the largest responses. The
+ * numbers come from whatever traffic the scan triggered, so they describe the
+ * observed samples rather than a benchmark.
+ */
+function performanceSection(endpoints: Endpoint[]): string[] {
+  const out: string[] = [];
+  out.push('## 11. Performance');
+  out.push('');
+  out.push(
+    '_Observed, not benchmarked: a scan samples whatever traffic it triggered. ' +
+      'Body sizes are the captured bytes, so a size-capped body is a lower bound._',
+  );
+  out.push('');
+
+  const slowest = endpoints
+    .filter((e): e is Endpoint & { timing: PercentileStats } => e.timing !== undefined)
+    .sort((a, b) => b.timing.p95 - a.timing.p95)
+    .slice(0, 10);
+  out.push('### Slowest endpoints (by p95)');
+  out.push('');
+  out.push('| Method | Path | p50 | p95 | max | Calls |');
+  out.push('| --- | --- | --- | --- | --- | --- |');
+  for (const endpoint of slowest) {
+    out.push(
+      `| ${endpoint.method} | \`${cell(endpoint.urlPattern)}\` | ${endpoint.timing.p50}ms | ` +
+        `${endpoint.timing.p95}ms | ${endpoint.timing.max}ms | ${endpoint.count} |`,
+    );
+  }
+  out.push('');
+
+  const largest = endpoints
+    .filter((e): e is Endpoint & { responseBytes: PercentileStats } => e.responseBytes !== undefined)
+    .sort((a, b) => b.responseBytes.p95 - a.responseBytes.p95)
+    .slice(0, 10);
+  if (largest.length > 0) {
+    out.push('### Largest responses (by p95)');
+    out.push('');
+    out.push('| Method | Path | p50 | p95 | max |');
+    out.push('| --- | --- | --- | --- | --- |');
+    for (const endpoint of largest) {
+      out.push(
+        `| ${endpoint.method} | \`${cell(endpoint.urlPattern)}\` | ` +
+          `${formatSize(endpoint.responseBytes)} |`,
+      );
+    }
+    out.push('');
+  }
+
   return out;
 }
 
@@ -317,6 +402,14 @@ function detailedEndpoint(endpoint: Endpoint): string[] {
   lines.push(`| Occurrences | ${endpoint.count} |`);
   lines.push(`| Status codes | ${endpoint.statusCodes.join(', ')} |`);
   lines.push(`| MIME types | ${cell(endpoint.mimeTypes.join(', ') || 'unknown')} |`);
+  if (endpoint.timing) lines.push(`| Timing (p50 / p95 / max) | ${formatMs(endpoint.timing)} |`);
+  if (endpoint.requestBytes) {
+    lines.push(`| Request size (p50 / p95 / max) | ${formatSize(endpoint.requestBytes)} |`);
+  }
+  if (endpoint.responseBytes) {
+    lines.push(`| Response size (p50 / p95 / max) | ${formatSize(endpoint.responseBytes)} |`);
+  }
+  if (endpoint.cache) lines.push(`| Cache | ${cacheSummary(endpoint.cache)} |`);
   lines.push(`| Origins | ${cell(endpoint.origins.join(', '))} |`);
   lines.push(`| Triggered by | ${cell(endpoint.triggeredBy.join(', '))} |`);
   if (endpoint.graphql) {

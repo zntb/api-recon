@@ -309,6 +309,7 @@ const SCRIPT = `
       (e.triggeredBy || []).join(' '),
       (e.queryParams || []).map(function (p) { return p.name; }).join(' '),
       e.vendor ? e.vendor.name + ' ' + e.vendor.category + ' ' + (e.vendor.payloadKeys || []).join(' ') : '',
+      e.cache ? [e.cache.control, e.cache.etag, e.cache.status].filter(Boolean).join(' ') : '',
       e.graphql ? 'graphql ' + (e.graphql.introspection ? 'introspection ' : '') + (e.graphql.operations || []).map(function (o) {
         return (o.name || 'anonymous') + ' ' + o.type;
       }).join(' ') : '',
@@ -323,6 +324,7 @@ const SCRIPT = `
       case 'category': return e.category;
       case 'status': return (e.statusCodes && e.statusCodes.length) ? Math.min.apply(null, e.statusCodes) : -1;
       case 'count': return typeof e.count === 'number' ? e.count : -1;
+      case 'time': return e.timing ? e.timing.p95 : -1;
       case 'pages': return e.removed ? -1 : (e.triggeredBy || []).length;
       case 'change': {
         var change = changeById[e.id];
@@ -407,6 +409,26 @@ const SCRIPT = `
     });
   }
 
+  function fmtBytes(bytes) {
+    if (typeof bytes !== 'number' || !isFinite(bytes) || bytes <= 0) return '0 B';
+    if (bytes < 1024) return Math.round(bytes) + ' B';
+    var kb = bytes / 1024;
+    if (kb < 1024) return (kb < 10 ? kb.toFixed(1) : Math.round(kb)) + ' KB';
+    var mb = kb / 1024;
+    return (mb < 10 ? mb.toFixed(1) : Math.round(mb)) + ' MB';
+  }
+
+  function cacheLines(cache) {
+    var out = [];
+    if (cache.control) out.push('cache-control: ' + cache.control);
+    if (cache.etag) out.push('etag: ' + cache.etag);
+    if (cache.lastModified) out.push('last-modified: ' + cache.lastModified);
+    if (typeof cache.age === 'number') out.push('age: ' + cache.age + 's');
+    if (cache.vary) out.push('vary: ' + cache.vary);
+    if (cache.status) out.push('cache status: ' + cache.status);
+    return out;
+  }
+
   function details(e) {
     var row = el('tr', 'details');
     var cell = el('td');
@@ -477,6 +499,10 @@ const SCRIPT = `
       return p.name + ' = ' + (p.sampleValues || []).join(', ');
     })));
     blocks.appendChild(kv('MIME types', e.mimeTypes || []));
+    if (e.timing) blocks.appendChild(kv('Timing (p50 / p95 / max)', [e.timing.p50 + ' ms / ' + e.timing.p95 + ' ms / ' + e.timing.max + ' ms']));
+    if (e.requestBytes) blocks.appendChild(kv('Request size (p50 / p95 / max)', [fmtBytes(e.requestBytes.p50) + ' / ' + fmtBytes(e.requestBytes.p95) + ' / ' + fmtBytes(e.requestBytes.max)]));
+    if (e.responseBytes) blocks.appendChild(kv('Response size (p50 / p95 / max)', [fmtBytes(e.responseBytes.p50) + ' / ' + fmtBytes(e.responseBytes.p95) + ' / ' + fmtBytes(e.responseBytes.max)]));
+    if (e.cache) blocks.appendChild(kv('Cache', cacheLines(e.cache)));
     if (e.graphql) {
       blocks.appendChild(kv('GraphQL introspection', [e.graphql.introspection ? 'observed' : 'not observed']));
       blocks.appendChild(kv('GraphQL operations', (e.graphql.operations || []).map(function (o) {
@@ -539,6 +565,9 @@ const SCRIPT = `
     row.appendChild(categoryCell);
     row.appendChild(statusCell(e.statusCodes));
     row.appendChild(numberCell(e.count));
+    var timeCell = el('td', 'num');
+    timeCell.textContent = (!e.removed && e.timing) ? e.timing.p95 + ' ms' : '—';
+    row.appendChild(timeCell);
     row.appendChild(numberCell(e.removed ? null : (e.triggeredBy || []).length));
 
     var change = changeById[e.id];
@@ -677,6 +706,7 @@ export function renderDashboard(report: ReconReport, title?: string): string {
     { key: 'category', label: 'Category' },
     { key: 'status', label: 'Status' },
     { key: 'count', label: 'Calls' },
+    { key: 'time', label: 'Time (p95)' },
     { key: 'pages', label: 'Pages' },
     ...(hasDiff ? [{ key: 'change', label: 'Change' }] : []),
   ];

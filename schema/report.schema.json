@@ -104,6 +104,28 @@
         "payloadKeys": { "type": "array", "items": { "type": "string" } }
       }
     },
+    "percentileStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p50", "p95", "max"],
+      "properties": {
+        "p50": { "type": "number" },
+        "p95": { "type": "number" },
+        "max": { "type": "number" }
+      }
+    },
+    "cacheInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "control": { "type": "string" },
+        "etag": { "type": "string" },
+        "lastModified": { "type": "string" },
+        "age": { "type": "number" },
+        "vary": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    },
     "queryParam": {
       "type": "object",
       "additionalProperties": false,
@@ -204,6 +226,10 @@
         },
         "mimeTypes": { "type": "array", "items": { "type": "string" } },
         "triggeredBy": { "type": "array", "items": { "type": "string" } },
+        "timing": { "$ref": "#/definitions/percentileStats" },
+        "requestBytes": { "$ref": "#/definitions/percentileStats" },
+        "responseBytes": { "$ref": "#/definitions/percentileStats" },
+        "cache": { "$ref": "#/definitions/cacheInfo" },
         "graphql": { "$ref": "#/definitions/graphQLInfo" },
         "vendor": { "$ref": "#/definitions/vendorAttribution" }
       }

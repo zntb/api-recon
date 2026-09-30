@@ -182,6 +182,41 @@ describe('renderMarkdown', () => {
     expect(md).toContain('`GetProducts` (query) → products (args: first)');
   });
 
+  it('rolls latency, sizes, and cache into a performance view', () => {
+    const endpoint: Endpoint = {
+      id: 'GET /api/report',
+      method: 'GET',
+      urlPattern: '/api/report',
+      origins: ['https://example.com'],
+      category: 'data-fetching',
+      count: 3,
+      statusCodes: [200],
+      requestHeaders: {},
+      responseHeaders: { 'cache-control': 'public, max-age=60' },
+      requestBodySample: null,
+      responseBodySample: '{"ok":true}',
+      pathParams: [],
+      queryParams: [],
+      requestBodySchema: null,
+      responseSchema: null,
+      timing: { p50: 20, p95: 40, max: 55 },
+      responseBytes: { p50: 1_024, p95: 4_096, max: 8_192 },
+      cache: { control: 'public, max-age=60', etag: 'W/"1"' },
+      mimeTypes: ['application/json'],
+      triggeredBy: ['https://example.com/'],
+    };
+
+    const md = renderMarkdown(report({ endpoints: [endpoint] }));
+
+    expect(md).toContain('| Timing (p50 / p95 / max) | 20ms / 40ms / 55ms |');
+    expect(md).toContain('| Response size (p50 / p95 / max) | 1.0 KB / 4.0 KB / 8.0 KB |');
+    expect(md).toContain('cache-control `public, max-age=60`');
+    expect(md).toContain('## 11. Performance');
+    expect(md).toContain('### Slowest endpoints (by p95)');
+    expect(md).toContain('| GET | `/api/report` | 20ms | 40ms | 55ms | 3 |');
+    expect(md).toContain('### Largest responses (by p95)');
+  });
+
   it('renders resource coverage with the missing verbs', () => {
     const md = renderMarkdown(
       report({

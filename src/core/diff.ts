@@ -26,6 +26,7 @@ import type {
   GraphQLInfo,
   GraphQLOperation,
   JsonSchemaLike,
+  PercentileStats,
   ReconReport,
   ReportDiff,
   ScanRef,
@@ -35,6 +36,7 @@ import type {
 import { REPORT_SCHEMA_VERSION } from '../types.js';
 import { describeGapReason, inferSchemaFromFrames } from './schemaInference.js';
 import { SafetyError } from '../utils/safety.js';
+import { formatBytes } from '../utils/misc.js';
 
 interface Detail {
   text: string;
@@ -222,6 +224,7 @@ function compareEndpoints(before: Endpoint, after: Endpoint): Detail[] {
   }
 
   details.push(...diffVendor(before.vendor, after.vendor));
+  details.push(...diffResponseSize(before.responseBytes, after.responseBytes));
 
   details.push(
     ...diffSchema(before.responseSchema, after.responseSchema, 'response', {
@@ -254,6 +257,35 @@ function compareEndpoints(before: Endpoint, after: Endpoint): Detail[] {
   details.push(...diffGraphQL(before.graphql, after.graphql));
 
   return details;
+}
+
+/**
+ * How much a response has to grow before it is worth flagging: a 50% jump that
+ * is also at least 5 KB. The absolute floor keeps a 200 B → 400 B response from
+ * tripping the same alarm as a multi-megabyte one.
+ */
+const SHARP_GROWTH_RATIO = 1.5;
+const SHARP_GROWTH_MIN_BYTES = 5_000;
+
+/**
+ * Flag a response that grew sharply between scans. This is a performance
+ * regression, not an API break — a larger body does not break a client — so it
+ * is reported in plain language and left non-breaking. The p95 is compared
+ * rather than the max so one outlier does not raise the alarm on its own.
+ */
+function diffResponseSize(before?: PercentileStats, after?: PercentileStats): Detail[] {
+  if (!before || !after || before.p95 <= 0) return [];
+  const grew = after.p95 - before.p95;
+  if (grew < SHARP_GROWTH_MIN_BYTES || after.p95 < before.p95 * SHARP_GROWTH_RATIO) return [];
+  const percent = Math.round((grew / before.p95) * 100);
+  return [
+    {
+      text:
+        `response payload grew sharply: p95 ${formatBytes(before.p95)} → ` +
+        `${formatBytes(after.p95)} (+${percent}%)`,
+      breaking: false,
+    },
+  ];
 }
 
 /**

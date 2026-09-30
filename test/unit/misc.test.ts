@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractEnvRefs, formatDuration, substituteEnv } from '../../src/utils/misc.js';
+import { extractEnvRefs, formatBytes, formatDuration, substituteEnv } from '../../src/utils/misc.js';
 import { loadConfig } from '../../src/utils/config.js';
 
 describe('env refs', () => {
@@ -24,6 +24,20 @@ describe('formatDuration', () => {
     expect(formatDuration(400)).toBe('400ms');
     expect(formatDuration(1500)).toBe('1.5s');
     expect(formatDuration(125_000)).toBe('2m 5s');
+  });
+});
+
+describe('formatBytes', () => {
+  it('scales B, KB, and MB with binary units', () => {
+    expect(formatBytes(0)).toBe('0 B');
+    expect(formatBytes(512)).toBe('512 B');
+    expect(formatBytes(1536)).toBe('1.5 KB');
+    expect(formatBytes(1024 * 1024 * 2)).toBe('2.0 MB');
+  });
+
+  it('treats a negative or non-finite size as zero', () => {
+    expect(formatBytes(-1)).toBe('0 B');
+    expect(formatBytes(Number.NaN)).toBe('0 B');
   });
 });
 

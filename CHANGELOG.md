@@ -5,6 +5,25 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Latency and size roll-up** — the interceptor already recorded `durationMs`
+  per call and the bodies themselves, but nothing aggregated them. Every
+  endpoint now carries `timing` (p50/p95/max response time in ms) and, when a
+  body was captured, `requestBytes` / `responseBytes` (p50/p95/max in bytes),
+  computed with nearest-rank percentiles so every figure is an observation
+  rather than an interpolation. Cache-relevant response headers are kept in
+  `cache` (`cache-control`, `etag`, `last-modified`, `age`, `vary`, and a CDN
+  status) when present. The Markdown report gains a **Performance** section
+  listing the slowest endpoints and largest responses, the dashboard gains a
+  `Time (p95)` column and shows the figures in its expanded row, and
+  `openapi.yaml` carries them as `x-observed-latency-ms` /
+  `x-observed-response-bytes`. `--diff` flags a response whose p95 grew by at
+  least 50% *and* 5 KB as a performance regression — reported in plain language,
+  not as an API break.
+
 ## [0.3.5] - 2026-09-30
 
 ### Added
@@ -418,6 +437,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[Unreleased]: https://github.com/zntb/api-recon/compare/v0.3.5...HEAD
 [0.3.5]: https://github.com/zntb/api-recon/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/zntb/api-recon/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/zntb/api-recon/compare/v0.3.2...v0.3.3

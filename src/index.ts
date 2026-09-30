@@ -232,6 +232,7 @@ export { SafetyError } from './utils/safety.js';
 export { Logger } from './utils/logger.js';
 export type {
   BrowserEngine,
+  CacheInfo,
   CapturedCall,
   ChangeKind,
   EndpointChange,
@@ -244,6 +245,7 @@ export type {
   GraphQLOperation,
   GraphQLOperationType,
   JsonSchemaLike,
+  PercentileStats,
   QueryParam,
   ReconReport,
   ReportDiff,

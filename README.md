@@ -234,6 +234,9 @@ you only care about the API surface, Chromium is the safer default.
       "requestBodySchema": null,
       "requestBodySchemaReason": "no-body",
       "responseSchema": { "type": "object", "properties": { "orders": { "type": "array", "items": { "type": "object", "properties": { "id": { "type": "integer" } } } } } },
+      "timing": { "p50": 42, "p95": 180, "max": 310 },
+      "responseBytes": { "p50": 1200, "p95": 8400, "max": 12000 },
+      "cache": { "control": "public, max-age=60", "etag": "W/\"abc\"" },
       "mimeTypes": ["application/json"],
       "triggeredBy": ["https://example.com/dashboard"]
     }
@@ -294,6 +297,17 @@ and the conventional `missingMethods` no call exhibited — so `/api/orders`
 showing no `POST` and `/api/orders/{id}` no `DELETE` is visible at a glance.
 `missingMethods` is only filled in for a resource that exposes an item path, so
 a one-off `POST /api/login` is not reported as missing a `GET` it never had.
+
+Every endpoint also carries `timing` — the p50, p95, and `max` of its
+`durationMs` — and, when a body was captured, `requestBytes` / `responseBytes`
+with the same shape, so the report doubles as a performance overview. Nearest-
+rank percentiles are used, so every figure is an observation rather than an
+interpolation. `cache` keeps the cache-relevant response headers (`cache-control`,
+`etag`, `last-modified`, `age`, `vary`, and a CDN status) when any were present.
+The Markdown report gains a **Performance** section listing the slowest endpoints
+and largest responses, and `--diff` flags a response whose p95 grew by at least
+50% *and* 5 KB — a performance regression, reported in plain language rather
+than as an API break.
 
 An endpoint categorized `analytics` or `third-party` whose host belongs to a
 known vendor also carries `vendor`: the vendor's `name` and `category` (matched
