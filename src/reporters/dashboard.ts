@@ -18,7 +18,35 @@ import type { ReconReport } from '../types.js';
 import { FORMAT_FILENAMES } from './json.js';
 
 const STYLE = `
-  :root { color-scheme: light; --line: #e3e7ee; --muted: #5b6675; --ink: #1c2430; }
+  /* One token set, themed once. A report rendered on a laptop at night should
+     be as comfortable as report.html, and a dark reader should not be handed a
+     wall of white. */
+  :root {
+    color-scheme: light;
+    --line: #e3e7ee; --muted: #5b6675; --ink: #1c2430;
+    --bg: #f6f7f9; --panel: #ffffff; --panel-2: #fbfcfe; --head: #f4f6fa;
+    --head-hover: #e9eef7; --row-hover: #f7f9fd; --row-open: #f2f5fd;
+    --row-removed: #fff7f6; --row-removed-hover: #fdeceb;
+    --chip: #eef1f6; --chip-ink: #404a5c; --input-border: #cbd3df;
+    --ok: #027a48; --ok-bg: #e7f6ef; --warn: #b54708; --warn-bg: #fdf2e4;
+    --bad: #b42318; --bad-bg: #fdeceb; --info: #0552b5; --info-bg: #e8f0fe;
+    --accent: #4f6ef7; --shadow: 0 1px 2px rgba(16,24,40,.04);
+    --pre-bg: #0f172a; --pre-ink: #e2e8f0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --line: #2a3342; --muted: #97a3b4; --ink: #e6ebf2;
+      --bg: #0e131b; --panel: #161d27; --panel-2: #131a23; --head: #1b2330;
+      --head-hover: #243043; --row-hover: #1b2330; --row-open: #1d2738;
+      --row-removed: #2a1a1c; --row-removed-hover: #361f22;
+      --chip: #232d3b; --chip-ink: #c4cfdd; --input-border: #38445a;
+      --ok: #4ade80; --ok-bg: #10301f; --warn: #fbbf24; --warn-bg: #33260d;
+      --bad: #f87171; --bad-bg: #3a1a1c; --info: #7dd3fc; --info-bg: #10263a;
+      --accent: #8da2ff; --shadow: 0 1px 2px rgba(0,0,0,.45);
+      --pre-bg: #0b1018; --pre-ink: #e2e8f0;
+    }
+  }
   * { box-sizing: border-box; }
   /* The hidden attribute has to beat the component rules below that set an
      explicit display, or hiding an element from script silently does nothing. */
@@ -26,7 +54,7 @@ const STYLE = `
   body {
     margin: 0; padding: 2rem 1.5rem 4rem;
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: #f6f7f9; color: var(--ink); line-height: 1.5;
+    background: var(--bg); color: var(--ink); line-height: 1.5;
   }
   .wrap { max-width: 1200px; margin: 0 auto; }
   header.top { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: flex-end;
@@ -41,72 +69,116 @@ const STYLE = `
   dl.meta dd { margin: 0; color: var(--ink); font-weight: 600; }
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: .75rem; margin-bottom: 1.25rem; }
-  .tile { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: .7rem .85rem; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: .7rem .85rem; }
   .tile .n { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
   .tile .l { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-  .tile.warn .n { color: #b42318; }
-  .tile.good .n { color: #027a48; }
-  .panel { background: #fff; border: 1px solid var(--line); border-radius: 12px;
-    box-shadow: 0 1px 2px rgba(16,24,40,.04); overflow: hidden; }
+  /* A severity tile wears its tone on the number and the edge, so the eye lands
+     on the count before it reads the label. */
+  .tile.good { border-left: 3px solid var(--ok); }
+  .tile.good .n { color: var(--ok); }
+  .tile.warn { border-left: 3px solid var(--warn); }
+  .tile.warn .n { color: var(--warn); }
+  .tile.bad { border-left: 3px solid var(--bad); }
+  .tile.bad .n { color: var(--bad); }
+  .tile.info { border-left: 3px solid var(--info); }
+  .tile.info .n { color: var(--info); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow); overflow: hidden; }
   .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
-    padding: .85rem; border-bottom: 1px solid var(--line); background: #fbfcfe; }
+    padding: .85rem; border-bottom: 1px solid var(--line); background: var(--panel-2); }
   input[type=search], select { font: inherit; font-size: .87rem; padding: .4rem .55rem;
-    border: 1px solid #cbd3df; border-radius: 7px; background: #fff; color: inherit; }
+    border: 1px solid var(--input-border); border-radius: 7px; background: var(--panel);
+    color: inherit; }
   input[type=search] { flex: 1 1 240px; min-width: 180px; }
+  input[type=search]:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   label.check { display: inline-flex; align-items: center; gap: .35rem; font-size: .84rem;
     color: var(--muted); user-select: none; }
   button { font: inherit; font-size: .84rem; padding: .4rem .7rem; border-radius: 7px;
-    border: 1px solid #cbd3df; background: #fff; color: inherit; cursor: pointer; }
-  button:hover { background: #f2f5fa; }
+    border: 1px solid var(--input-border); background: var(--panel); color: inherit; cursor: pointer; }
+  button:hover { background: var(--row-hover); }
   .count { margin-left: auto; font-size: .8rem; color: var(--muted); white-space: nowrap; }
+  /* The table scrolls inside its own box so the header row and the method column
+     can stay pinned while you scroll a long report. */
+  .tablewrap { overflow: auto; max-height: 72vh; }
   table { width: 100%; border-collapse: collapse; font-size: .86rem; }
   th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line);
     vertical-align: top; }
-  th { background: #f4f6fa; font-weight: 600; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+  th { background: var(--head); font-weight: 600; white-space: nowrap;
+    position: sticky; top: 0; z-index: 2; }
   th.sortable { cursor: pointer; user-select: none; }
-  th.sortable:hover { background: #e9eef7; }
+  th.sortable:hover { background: var(--head-hover); }
   th .arrow { color: var(--muted); font-size: .7rem; margin-left: .25rem; }
   tbody tr.row { cursor: pointer; }
-  tbody tr.row:hover td { background: #f7f9fd; }
-  tbody tr.row:focus-visible { outline: 2px solid #4f6ef7; outline-offset: -2px; }
-  tbody tr.row.open td { background: #f2f5fd; }
+  tbody tr.row:hover td { background: var(--row-hover); }
+  tbody tr.row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  tbody tr.row.open td { background: var(--row-open); }
+  /* Pin the method column too, so a wide row stays anchored. */
+  th:first-child, td:first-child { position: sticky; left: 0; z-index: 1;
+    background: var(--panel); }
+  th:first-child { z-index: 3; }
+  tbody tr.row:hover td:first-child { background: var(--row-hover); }
+  tbody tr.row.open td:first-child { background: var(--row-open); }
   /* Removed endpoints keep the loudest treatment: gone from this scan is the
      change most likely to break something. */
-  tbody tr.row.removed td { background: #fff7f6; }
-  tbody tr.row.removed:hover td, tbody tr.row.removed.open td { background: #fdeceb; }
+  tbody tr.row.removed td { background: var(--row-removed); }
+  tbody tr.row.removed:hover td, tbody tr.row.removed.open td { background: var(--row-removed-hover); }
+  tbody tr.row.removed td:first-child { background: var(--row-removed); }
+  tbody tr.row.removed:hover td:first-child, tbody tr.row.removed.open td:first-child {
+    background: var(--row-removed-hover); }
   tbody tr.row.removed td.path { text-decoration: line-through; opacity: .75; }
   td.path { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     word-break: break-all; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
   .method { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: .76rem; font-weight: 700; letter-spacing: .02em; padding: .1rem .4rem;
-    border-radius: 5px; background: #eef1f6; white-space: nowrap; }
-  .m-GET { color: #0552b5; background: #e8f0fe; }
-  .m-POST { color: #027a48; background: #e7f6ef; }
-  .m-PUT, .m-PATCH { color: #b54708; background: #fdf2e4; }
-  .m-DELETE { color: #b42318; background: #fdeceb; }
+    border-radius: 5px; background: var(--chip); white-space: nowrap; }
+  .m-GET { color: var(--info); background: var(--info-bg); }
+  .m-POST { color: var(--ok); background: var(--ok-bg); }
+  .m-PUT, .m-PATCH { color: var(--warn); background: var(--warn-bg); }
+  .m-DELETE { color: var(--bad); background: var(--bad-bg); }
   .badge { font-size: .74rem; padding: .1rem .45rem; border-radius: 99px;
-    background: #eef1f6; color: #404a5c; white-space: nowrap; }
-  .badge.breaking { background: #fdeceb; color: #b42318; font-weight: 600; }
-  .badge.added { background: #e7f6ef; color: #027a48; }
-  .badge.removed { background: #fdeceb; color: #b42318; }
-  .badge.changed { background: #fdf2e4; color: #b54708; }
-  .status-ok { color: #027a48; }
-  .status-warn { color: #b54708; }
-  .status-bad { color: #b42318; }
-  tr.details > td { background: #fbfcfe; padding: 1rem 1.1rem 1.25rem; }
+    background: var(--chip); color: var(--chip-ink); white-space: nowrap; }
+  .badge.breaking { background: var(--bad-bg); color: var(--bad); font-weight: 600; }
+  .badge.added { background: var(--ok-bg); color: var(--ok); }
+  .badge.removed { background: var(--bad-bg); color: var(--bad); }
+  .badge.changed { background: var(--warn-bg); color: var(--warn); }
+  .status-ok { color: var(--ok); }
+  .status-warn { color: var(--warn); }
+  .status-bad { color: var(--bad); }
+  tr.details > td { background: var(--panel-2); padding: 1rem 1.1rem 1.25rem;
+    position: static; }
   .blocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
   .block h4 { margin: 0 0 .4rem; font-size: .72rem; text-transform: uppercase;
     letter-spacing: .07em; color: var(--muted); }
   .block.full { grid-column: 1 / -1; }
   .block ul { margin: 0; padding-left: 1.1rem; }
   .block li { margin: .1rem 0; word-break: break-all; }
-  pre { margin: 0; background: #0f172a; color: #e2e8f0; padding: .7rem .8rem;
+  pre { margin: 0; background: var(--pre-bg); color: var(--pre-ink); padding: .7rem .8rem;
     border-radius: 7px; overflow-x: auto; font-size: .76rem; line-height: 1.4;
     max-height: 22rem; }
   .hint { color: var(--muted); font-size: .8rem; margin: 0; }
   .empty { text-align: center; color: var(--muted); padding: 2.5rem 1rem; margin: 0; }
   noscript .panel { display: block; padding: 1.25rem; }
+  /* Print: the dashboard should print as usefully as report.html. Drop the
+     interactive chrome, unpin the table, and keep rows off page breaks. */
+  @media print {
+    :root {
+      color-scheme: light;
+      --line: #cccccc; --muted: #444444; --ink: #000000;
+      --bg: #ffffff; --panel: #ffffff; --panel-2: #ffffff; --head: #ffffff;
+      --head-hover: #ffffff; --row-hover: #ffffff; --row-open: #ffffff;
+      --row-removed: #ffffff; --row-removed-hover: #ffffff;
+      --chip: #f0f0f0; --chip-ink: #000000; --shadow: none;
+    }
+    body { background: #fff; padding: 0; }
+    .controls, .count { display: none !important; }
+    .tablewrap { overflow: visible; max-height: none; }
+    .panel { box-shadow: none; }
+    th, th:first-child, td:first-child { position: static; }
+    tbody tr.row { break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
 `;
 
 /** Client script. Deliberately avoids template literals: this is a `...` string. */
@@ -245,6 +317,17 @@ const SCRIPT = `
       statsEl.appendChild(tile('Removed', diff.counts.removed, diff.counts.removed ? 'warn' : ''));
       statsEl.appendChild(tile('Changed', diff.counts.changed));
       statsEl.appendChild(tile('Breaking', diff.counts.breaking, diff.counts.breaking ? 'warn' : ''));
+    }
+    var findings = data.findings || [];
+    if (findings.length) {
+      // Severity-coloured, so the count to act on first reads loudest.
+      var bySeverity = { high: 0, medium: 0, low: 0, info: 0 };
+      findings.forEach(function (finding) {
+        if (bySeverity[finding.severity] !== undefined) bySeverity[finding.severity] += 1;
+      });
+      statsEl.appendChild(tile('High', bySeverity.high, bySeverity.high ? 'bad' : ''));
+      statsEl.appendChild(tile('Medium', bySeverity.medium, bySeverity.medium ? 'warn' : ''));
+      statsEl.appendChild(tile('Low', bySeverity.low, bySeverity.low ? 'info' : ''));
     }
   }
 
@@ -663,6 +746,34 @@ const SCRIPT = `
     render();
   });
 
+  function isTyping(node) {
+    if (!node) return false;
+    var tag = node.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || node.isContentEditable === true;
+  }
+
+  // Keyboard shortcuts: the slash key jumps to search, and the arrow keys walk
+  // the rows (Enter/Space already toggles the focused one). Skipped while typing
+  // so the shortcuts never eat a keystroke meant for a filter.
+  document.addEventListener('keydown', function (event) {
+    if (event.key === '/' && !isTyping(event.target)) {
+      event.preventDefault();
+      qEl.focus();
+      if (qEl.select) qEl.select();
+      return;
+    }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    if (isTyping(event.target)) return;
+    var rows = rowsEl.querySelectorAll('tr.row');
+    if (!rows.length) return;
+    var current = event.target.closest ? event.target.closest('tr.row') : null;
+    var index = Array.prototype.indexOf.call(rows, current);
+    var next = index === -1 ? 0 : index + (event.key === 'ArrowDown' ? 1 : -1);
+    next = Math.max(0, Math.min(rows.length - 1, next));
+    event.preventDefault();
+    rows[next].focus();
+  });
+
   document.querySelectorAll('thead th.sortable').forEach(function (th) {
     th.addEventListener('click', function () {
       var key = th.getAttribute('data-sort');
@@ -790,14 +901,16 @@ export function renderDashboard(report: ReconReport, title?: string): string {
       <button type="button" id="reset">Reset</button>
       <span class="count" id="count"></span>
     </div>
-    <table>
-      <thead>
-        <tr>
-        ${head}
-        </tr>
-      </thead>
-      <tbody id="rows"></tbody>
-    </table>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+          ${head}
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
     <p class="empty" id="empty" hidden>No endpoints match the current filters.</p>
   </div>
 </div>

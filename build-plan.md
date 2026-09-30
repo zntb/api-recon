@@ -370,6 +370,13 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   the Markdown report groups them under **12. Findings & Next Steps** and the
   dashboard lists them in a findings panel. They are heuristics over the traffic
   a scan triggered, framed as review cues rather than an audit.
+- **Dashboard design pass** — the dashboard's styles are now one token set in
+  `src/reporters/dashboard.ts`. Findings appear as severity-coloured summary
+  tiles (and the findings panel), the table scrolls inside its own box so the
+  header row and method column stay pinned, `/` focuses search and the arrow
+  keys walk the rows, `prefers-color-scheme` themes the whole page (including a
+  dark `pre` block), and a print stylesheet drops the controls and unpins the
+  table so the dashboard prints as usefully as `report.html`.
 
 **Proposed updates & features**
 
@@ -407,10 +414,6 @@ so it can be scoped without re-reading the source.
 
 **Aesthetics**
 
-- **A dashboard design pass.** Severity-coloured summary tiles, a sticky header
-  and first column, keyboard navigation (arrow keys, `/` to focus search),
-  `prefers-color-scheme` dark mode, and a print stylesheet so the dashboard
-  prints as well as `report.html` does.
 - **Group and navigate the dashboard.** Collapsible groups by category, resource,
   or change kind, with a left-hand nav and per-group counts, so a report with a
   hundred endpoints stays legible instead of becoming one long table.

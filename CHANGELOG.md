@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Dashboard design pass** — the dashboard's styles are now a single token set,
+  themed once. Findings show as severity-coloured summary tiles beside the
+  existing counts, the table scrolls inside its own box so the header row and
+  the method column stay pinned, `/` focuses search and the arrow keys walk the
+  rows (Enter/Space still expands one), `prefers-color-scheme` themes the whole
+  page — including a dark code block — and a print stylesheet drops the
+  controls and unpins the table so the dashboard prints as a readable static
+  report. No data or flags change.
+
 ## [0.3.6] - 2026-09-30
 
 ### Added
@@ -448,6 +461,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[Unreleased]: https://github.com/zntb/api-recon/compare/v0.3.6...HEAD
 [0.3.6]: https://github.com/zntb/api-recon/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/zntb/api-recon/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/zntb/api-recon/compare/v0.3.3...v0.3.4

@@ -361,6 +361,17 @@ open ./reports/dashboard.html
   and searches like any other, and there is a `Removed (baseline)` filter to
   isolate the endpoints that disappeared. Only such rows carry no request or
   response detail, and they say so instead of showing empty sections.
+- **Findings at a glance** — when the report carries findings, the summary tiles
+  show their counts coloured by severity and a panel lists every cue, so the
+  things to act on are the first thing you see.
+- **Keyboard** — `/` focuses search, the arrow keys move between rows, and
+  Enter/Space expands the focused one.
+- **Dark mode** — the theme follows `prefers-color-scheme`, so the page darkens
+  with the rest of your desktop rather than flashing white.
+- **Sticky table** — the header row and the method column stay pinned while you
+  scroll a long report.
+- **Prints like `report.html`** — a print stylesheet drops the interactive
+  controls and unpins the table, so the dashboard prints as a readable report.
 
 It is a single self-contained file: all CSS, the report JSON, and the rendering
 script are inlined, so nothing is fetched at open time and it works from

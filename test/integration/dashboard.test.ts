@@ -278,6 +278,61 @@ describe('dashboard', () => {
     expect(pageErrors).toEqual([]);
   }, 90_000);
 
+  it('colours finding tiles and supports keyboard navigation', async () => {
+    const withFindings: ReconReport = {
+      ...REPORT,
+      diff: undefined,
+      findings: [
+        {
+          kind: 'unauthenticated',
+          severity: 'high',
+          title: 'Sensitive-looking endpoints answered without credentials',
+          endpoints: ['GET /api/products'],
+          details: ['GET /api/products — no Authorization or Cookie header; observed 200'],
+        },
+        {
+          kind: 'pii',
+          severity: 'medium',
+          title: 'PII-shaped fields appear in captured samples',
+          endpoints: ['GET /api/products'],
+          details: ['GET /api/products — email'],
+        },
+      ],
+    };
+    const file = await writeDashboardReport(withFindings, join(outDir, 'findings'));
+    page = await browser!.newPage();
+    pageErrors = [];
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+
+    await page.goto(pathToFileURL(file).href);
+
+    // --- severity-coloured tiles -------------------------------------------
+    const stats = (await page.textContent('#stats')) ?? '';
+    expect(stats).toContain('High');
+    expect(stats).toContain('Medium');
+    expect(await page.locator('.tile.bad').count()).toBe(1);
+    expect(await page.locator('.tile.warn').count()).toBe(1);
+
+    // --- findings panel ----------------------------------------------------
+    const findings = (await page.textContent('#findings')) ?? '';
+    expect(findings).toContain('Sensitive-looking endpoints');
+
+    // --- keyboard: slash focuses search ------------------------------------
+    await page.locator('h1').click();
+    await page.keyboard.press('/');
+    expect(await page.evaluate(() => (document.activeElement as HTMLElement | null)?.id)).toBe('q');
+
+    // --- keyboard: arrow keys walk the rows ---------------------------------
+    await page.locator('#rows tr.row').first().focus();
+    const first = await page.evaluate(() => document.activeElement?.getAttribute('data-id'));
+    await page.keyboard.press('ArrowDown');
+    const next = await page.evaluate(() => document.activeElement?.getAttribute('data-id'));
+    expect(next).not.toBe(first);
+    expect(next).not.toBeNull();
+
+    expect(pageErrors).toEqual([]);
+  }, 90_000);
+
   it('hides the diff-only filters when there is no baseline', async () => {
     const file = await writeDashboardReport({ ...REPORT, diff: undefined }, join(outDir, 'nodiff'));
     page = await browser!.newPage();

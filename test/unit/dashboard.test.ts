@@ -180,6 +180,30 @@ describe('renderDashboard', () => {
     expect(embeddedReport(html).findings).toEqual(findings);
   });
 
+  it('ships a dark theme and a print stylesheet', () => {
+    const html = renderDashboard(report([endpoint({ id: 'GET /api/products' })]));
+
+    expect(html).toContain('@media (prefers-color-scheme: dark)');
+    expect(html).toContain('color-scheme: dark');
+    expect(html).toContain('@media print');
+  });
+
+  it('pins the header and first column inside a scroll box', () => {
+    const html = renderDashboard(report([endpoint({ id: 'GET /api/products' })]));
+
+    expect(html).toContain('class="tablewrap"');
+    expect(html).toContain('th:first-child, td:first-child { position: sticky; left: 0;');
+  });
+
+  it('colours finding counts by severity and wires keyboard shortcuts', () => {
+    const html = renderDashboard(report([endpoint({ id: 'GET /api/products' })]));
+
+    expect(html).toContain("tile('High', bySeverity.high");
+    expect(html).toContain("tile('Medium', bySeverity.medium");
+    expect(html).toContain("event.key === '/'");
+    expect(html).toContain("event.key !== 'ArrowDown' && event.key !== 'ArrowUp'");
+  });
+
   it('says so when no endpoints were captured', () => {
     const html = renderDashboard(report([]));
     expect(html).toContain('No endpoints were captured.');
