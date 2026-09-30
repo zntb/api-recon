@@ -295,6 +295,15 @@ showing no `POST` and `/api/orders/{id}` no `DELETE` is visible at a glance.
 `missingMethods` is only filled in for a resource that exposes an item path, so
 a one-off `POST /api/login` is not reported as missing a `GET` it never had.
 
+An endpoint categorized `analytics` or `third-party` whose host belongs to a
+known vendor also carries `vendor`: the vendor's `name` and `category` (matched
+from a catalog shared with the technology fingerprints, so a `Segment` script
+and a call to `api.segment.io` name the same vendor), plus the `payloadKeys`
+observed being sent — the request body's top-level field names and the query
+parameter names, sorted. The report says `Stripe` or `Segment` rather than a
+hostname; a host that is not a known vendor stays unattributed, and an empty
+`payloadKeys` means the payload was not observed rather than that none was sent.
+
 Look at [`examples/output/`](examples/output) for a real report generated from
 the bundled fixture site.
 

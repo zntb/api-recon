@@ -341,6 +341,16 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   build. `loadBaseline` — and therefore `--diff` — refuses a baseline whose
   `schemaVersion` it cannot read, naming the expected and found versions,
   instead of comparing a shape it does not understand.
+- **Vendor attribution** — a network call to a known third-party or analytics
+  vendor is no longer just a hostname under `third-party`. `src/core/vendors.ts`
+  holds one catalog of vendor names, categories, and hosts; the analyzer uses it
+  both to categorize a tracking host and to attach a `vendor` to the endpoint
+  (`name`, `category`, and the `payloadKeys` observed being sent — the request
+  body's top-level fields plus query parameters). `techStack.ts` reads the same
+  catalog, so a `Segment` script and a call to `api.segment.io` name one vendor.
+  Matched by host suffix only, so `notstripe.com` is not mistaken for Stripe;
+  the Markdown report, dashboard, and `openapi.yaml` (`x-vendor*`) surface it,
+  and `--diff` reports vendor or payload-key drift as non-breaking.
 
 **Proposed updates & features**
 
@@ -351,10 +361,6 @@ so it can be scoped without re-reading the source.
 
 **Report accuracy & detail**
 
-- **Attribute third-party and analytics traffic to a vendor.** Those categories
-  key off host and path heuristics; join them to the `techStack` fingerprints so
-  the report says "Stripe" or "Segment" rather than a hostname, and lists the
-  payload keys each vendor receives.
 - **Roll up latency and size.** The interceptor already records `durationMs` per
   call; aggregate per endpoint (count, p50, p95, max) and include payload sizes
   and cache headers. The report then doubles as a performance overview, and

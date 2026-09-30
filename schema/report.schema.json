@@ -94,6 +94,16 @@
         "example": {}
       }
     },
+    "vendorAttribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "category", "payloadKeys"],
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "payloadKeys": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "queryParam": {
       "type": "object",
       "additionalProperties": false,
@@ -194,7 +204,8 @@
         },
         "mimeTypes": { "type": "array", "items": { "type": "string" } },
         "triggeredBy": { "type": "array", "items": { "type": "string" } },
-        "graphql": { "$ref": "#/definitions/graphQLInfo" }
+        "graphql": { "$ref": "#/definitions/graphQLInfo" },
+        "vendor": { "$ref": "#/definitions/vendorAttribution" }
       }
     },
     "headers": {

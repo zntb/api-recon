@@ -1,6 +1,15 @@
 /** Lightweight technology fingerprinting from headers, HTML, scripts, and cookies. */
 
 import type { Technology } from '../types.js';
+import { vendorByName } from './vendors.js';
+
+/**
+ * A vendor's category is defined once, in the vendor catalog, so the name in the
+ * technologies table and the name attributed to its traffic can never disagree.
+ */
+function vendorCategory(name: string, fallback: string): string {
+  return vendorByName(name)?.category ?? fallback;
+}
 
 export interface TechEvidence {
   url: string;
@@ -97,34 +106,34 @@ const SIGNATURES: Signature[] = [
   },
   {
     name: 'Google Analytics',
-    category: 'analytics',
+    category: vendorCategory('Google Analytics', 'analytics'),
     match: (e) =>
       (e.scripts.some((s) => /googletagmanager\.com|google-analytics\.com|gtag\/js/.test(s)) && 'script: gtag') ||
       (e.html.includes('gtag(') && 'html: gtag()'),
   },
   {
     name: 'Google Tag Manager',
-    category: 'analytics',
+    category: vendorCategory('Google Tag Manager', 'analytics'),
     match: (e) => (e.scripts.some((s) => s.includes('googletagmanager.com/gtm')) ? 'script: gtm' : null),
   },
   {
     name: 'Segment',
-    category: 'analytics',
+    category: vendorCategory('Segment', 'analytics'),
     match: (e) => (e.scripts.some((s) => s.includes('cdn.segment.com')) ? 'script: segment' : null),
   },
   {
     name: 'Mixpanel',
-    category: 'analytics',
+    category: vendorCategory('Mixpanel', 'analytics'),
     match: (e) => (e.scripts.some((s) => s.includes('cdn.mxpnl.com')) ? 'script: mixpanel' : null),
   },
   {
     name: 'Hotjar',
-    category: 'analytics',
+    category: vendorCategory('Hotjar', 'analytics'),
     match: (e) => (e.scripts.some((s) => s.includes('static.hotjar.com')) ? 'script: hotjar' : null),
   },
   {
     name: 'Sentry',
-    category: 'monitoring',
+    category: vendorCategory('Sentry', 'monitoring'),
     match: (e) =>
       (e.scripts.some((s) => s.includes('browser.sentry-cdn.com') || s.includes('sentry.io')) && 'script: sentry') ||
       (e.html.includes('Sentry.init') && 'html: Sentry.init'),

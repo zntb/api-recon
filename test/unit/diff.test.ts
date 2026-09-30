@@ -445,6 +445,44 @@ describe('diffReports', () => {
     expect(change.details).toContain('category mutations → analytics');
   });
 
+  it('reports a vendor change without calling it breaking', () => {
+    const vendor = (name: string): Endpoint['vendor'] => ({
+      name,
+      category: 'analytics',
+      payloadKeys: ['event'],
+    });
+    const baseline = report([
+      endpoint({ id: 'POST /track', category: 'analytics', vendor: vendor('Segment') }),
+    ]);
+    const current = report([
+      endpoint({ id: 'POST /track', category: 'analytics', vendor: vendor('Mixpanel') }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'POST /track');
+    expect(change.breaking).toBe(false);
+    expect(change.details.join(' ')).toContain('vendor Segment → Mixpanel');
+  });
+
+  it('reports vendor payload key drift without calling it breaking', () => {
+    const withKeys = (payloadKeys: string[]): Endpoint['vendor'] => ({
+      name: 'Segment',
+      category: 'analytics',
+      payloadKeys,
+    });
+    const baseline = report([
+      endpoint({ id: 'POST /track', category: 'analytics', vendor: withKeys(['event', 'userId']) }),
+    ]);
+    const current = report([
+      endpoint({ id: 'POST /track', category: 'analytics', vendor: withKeys(['event', 'context']) }),
+    ]);
+
+    const change = changeFor(diffReports(baseline, current), 'POST /track');
+    expect(change.breaking).toBe(false);
+    const text = change.details.join(' ');
+    expect(text).toContain('vendor payload keys not observed this time: userId');
+    expect(text).toContain('vendor payload keys added: context');
+  });
+
   it('reports a new GraphQL operation as non-breaking', () => {
     const baseline = report([
       endpoint({

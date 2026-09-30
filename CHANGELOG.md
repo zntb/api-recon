@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2026-09-30
+
+### Added
+
+- **Vendor attribution** — third-party and analytics traffic used to be a
+  `category` plus a hostname. Endpoints in those categories now carry a
+  `vendor` when their host belongs to a known vendor: its `name`, `category`,
+  and the `payloadKeys` observed being sent (the request body's top-level field
+  names and the query parameter names). One catalog in `src/core/vendors.ts`
+  defines every vendor's name, category, and hosts, and both the analyzer and
+  the technology fingerprints read it, so a `Segment` script and a call to
+  `api.segment.io` name the same vendor and the `analytics` host list can no
+  longer drift from the names it attributes. Hosts match by suffix only, so
+  `notstripe.com` is not mistaken for Stripe. The Markdown report, dashboard,
+  and `openapi.yaml` (`x-vendor`, `x-vendor-category`, `x-vendor-payload-keys`)
+  surface it, and `--diff` reports vendor or payload-key drift as non-breaking.
+
 ## [0.3.4] - 2026-09-30
 
 ### Added
@@ -401,6 +418,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[0.3.5]: https://github.com/zntb/api-recon/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/zntb/api-recon/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/zntb/api-recon/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/zntb/api-recon/compare/v0.3.1...v0.3.2

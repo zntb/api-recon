@@ -72,6 +72,22 @@ export interface CapturedCall {
   triggeredBy: string;
 }
 
+/**
+ * The third-party or analytics vendor an endpoint belongs to, recognized from
+ * its host and joined to the same names used by technology fingerprinting.
+ */
+export interface VendorAttribution {
+  /** Vendor name, e.g. `Stripe` or `Segment`. */
+  name: string;
+  /** The vendor's discipline, e.g. `payments`, `analytics`, `monitoring`. */
+  category: string;
+  /**
+   * The top-level keys observed being sent to the vendor: the request body's
+   * JSON field names plus the query parameter names, sorted and deduplicated.
+   */
+  payloadKeys: string[];
+}
+
 /** A deduplicated endpoint grouped by (method, urlPattern). */
 export interface Endpoint {
   id: string;
@@ -112,6 +128,12 @@ export interface Endpoint {
   triggeredBy: string[];
   /** GraphQL detection; omitted when this endpoint is not GraphQL. */
   graphql?: GraphQLInfo;
+  /**
+   * The recognized third-party/analytics vendor, when the endpoint's host
+   * matches one. Omitted for first-party traffic and unknown hosts, so a host
+   * that is not a known vendor stays a hostname rather than a guess.
+   */
+  vendor?: VendorAttribution;
 }
 
 export interface QueryParam {

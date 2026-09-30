@@ -308,6 +308,7 @@ const SCRIPT = `
       (e.pathParams || []).join(' '),
       (e.triggeredBy || []).join(' '),
       (e.queryParams || []).map(function (p) { return p.name; }).join(' '),
+      e.vendor ? e.vendor.name + ' ' + e.vendor.category + ' ' + (e.vendor.payloadKeys || []).join(' ') : '',
       e.graphql ? 'graphql ' + (e.graphql.introspection ? 'introspection ' : '') + (e.graphql.operations || []).map(function (o) {
         return (o.name || 'anonymous') + ' ' + o.type;
       }).join(' ') : '',
@@ -465,6 +466,10 @@ const SCRIPT = `
       return row;
     }
 
+    if (e.vendor) {
+      blocks.appendChild(kv('Vendor', [e.vendor.name + ' (' + e.vendor.category + ')']));
+      blocks.appendChild(kv('Vendor payload keys', e.vendor.payloadKeys || []));
+    }
     blocks.appendChild(kv('Origins', e.origins || []));
     blocks.appendChild(kv('Triggered by', e.triggeredBy || []));
     blocks.appendChild(kv('Path params', e.pathParams || []));
@@ -528,7 +533,10 @@ const SCRIPT = `
     row.appendChild(method);
 
     row.appendChild(el('td', 'path', e.urlPattern));
-    row.appendChild(el('td', null, e.removed ? '—' : e.category));
+    var categoryCell = el('td');
+    categoryCell.textContent = e.removed ? '—' : e.category;
+    if (e.vendor) categoryCell.appendChild(el('span', 'vendor', ' · ' + e.vendor.name));
+    row.appendChild(categoryCell);
     row.appendChild(statusCell(e.statusCodes));
     row.appendChild(numberCell(e.count));
     row.appendChild(numberCell(e.removed ? null : (e.triggeredBy || []).length));

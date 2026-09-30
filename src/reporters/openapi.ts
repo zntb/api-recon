@@ -114,6 +114,15 @@ function buildOperation(endpoint: Endpoint): Json {
     responses,
     'x-observed-count': endpoint.count,
     'x-observed-origins': endpoint.origins,
+    ...(endpoint.vendor
+      ? {
+          'x-vendor': endpoint.vendor.name,
+          'x-vendor-category': endpoint.vendor.category,
+          ...(endpoint.vendor.payloadKeys.length
+            ? { 'x-vendor-payload-keys': endpoint.vendor.payloadKeys }
+            : {}),
+        }
+      : {}),
     ...(endpoint.graphql
       ? {
           'x-graphql-operations': endpoint.graphql.operations.map((op) =>

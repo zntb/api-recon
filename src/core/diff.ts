@@ -30,6 +30,7 @@ import type {
   ReportDiff,
   ScanRef,
   SchemaGapReason,
+  VendorAttribution,
 } from '../types.js';
 import { REPORT_SCHEMA_VERSION } from '../types.js';
 import { describeGapReason, inferSchemaFromFrames } from './schemaInference.js';
@@ -220,6 +221,8 @@ function compareEndpoints(before: Endpoint, after: Endpoint): Detail[] {
     details.push({ text: `category ${before.category} → ${after.category}`, breaking: false });
   }
 
+  details.push(...diffVendor(before.vendor, after.vendor));
+
   details.push(
     ...diffSchema(before.responseSchema, after.responseSchema, 'response', {
       before: before.responseSchemaReason,
@@ -250,6 +253,44 @@ function compareEndpoints(before: Endpoint, after: Endpoint): Detail[] {
 
   details.push(...diffGraphQL(before.graphql, after.graphql));
 
+  return details;
+}
+
+/**
+ * Compare the vendor an endpoint was attributed to and the payload keys it was
+ * seen sending. None of this breaks a client — the endpoint is unchanged — so
+ * it is reported for the reviewer, not flagged. A vendor that appears or
+ * disappears is the loudest signal; category and key drift follow it.
+ */
+function diffVendor(before?: VendorAttribution, after?: VendorAttribution): Detail[] {
+  if (!before && !after) return [];
+  if (before?.name !== after?.name) {
+    return [
+      {
+        text: `vendor ${before?.name ?? 'unattributed'} → ${after?.name ?? 'unattributed'}`,
+        breaking: false,
+      },
+    ];
+  }
+
+  const details: Detail[] = [];
+  if (before!.category !== after!.category) {
+    details.push({ text: `vendor category ${before!.category} → ${after!.category}`, breaking: false });
+  }
+
+  const beforeKeys = new Set(before!.payloadKeys);
+  const afterKeys = new Set(after!.payloadKeys);
+  const added = [...afterKeys].filter((key) => !beforeKeys.has(key));
+  const removed = [...beforeKeys].filter((key) => !afterKeys.has(key));
+  if (added.length > 0) {
+    details.push({ text: `vendor payload keys added: ${added.join(', ')}`, breaking: false });
+  }
+  if (removed.length > 0) {
+    details.push({
+      text: `vendor payload keys not observed this time: ${removed.join(', ')}`,
+      breaking: false,
+    });
+  }
   return details;
 }
 

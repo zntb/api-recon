@@ -256,6 +256,7 @@ export type {
   Technology,
   TelemetryPayload,
   TelemetrySignal,
+  VendorAttribution,
   WebSocketDirection,
   WebSocketFrame,
 } from './types.js';

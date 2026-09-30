@@ -5,7 +5,7 @@
     "startedAt": "2026-01-01T00:00:00.000Z",
     "durationMs": 280,
     "pagesVisited": 8,
-    "apiReconVersion": "0.3.3",
+    "apiReconVersion": "0.3.4",
     "engine": "chromium"
   },
   "technologies": [

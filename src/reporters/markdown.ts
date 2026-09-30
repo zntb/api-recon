@@ -113,11 +113,13 @@ export function renderMarkdown(report: ReconReport): string {
   if (thirdParty.length > 0) {
     out.push('## 6. Third-party Calls');
     out.push('');
-    out.push('| Method | Path | Origins | Count |');
-    out.push('| --- | --- | --- | --- |');
+    out.push('| Method | Path | Vendor | Origins | Count |');
+    out.push('| --- | --- | --- | --- | --- |');
     for (const e of thirdParty) {
       out.push(
-        `| ${e.method} | \`${cell(e.urlPattern)}\` | ${cell(e.origins.join(', '))} | ${e.count} |`,
+        `| ${e.method} | \`${cell(e.urlPattern)}\` | ${cell(e.vendor?.name ?? '—')} | ${cell(
+          e.origins.join(', '),
+        )} | ${e.count} |`,
       );
     }
     out.push('');
@@ -302,6 +304,16 @@ function detailedEndpoint(endpoint: Endpoint): string[] {
   lines.push('| Field | Value |');
   lines.push('| --- | --- |');
   lines.push(`| Category | ${endpoint.category} |`);
+  if (endpoint.vendor) {
+    lines.push(`| Vendor | ${cell(endpoint.vendor.name)} (${cell(endpoint.vendor.category)}) |`);
+    lines.push(
+      `| Vendor payload keys | ${
+        endpoint.vendor.payloadKeys.length
+          ? endpoint.vendor.payloadKeys.map((key) => `\`${cell(key)}\``).join(', ')
+          : 'not observed'
+      } |`,
+    );
+  }
   lines.push(`| Occurrences | ${endpoint.count} |`);
   lines.push(`| Status codes | ${endpoint.statusCodes.join(', ')} |`);
   lines.push(`| MIME types | ${cell(endpoint.mimeTypes.join(', ') || 'unknown')} |`);

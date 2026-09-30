@@ -13,10 +13,13 @@ import type {
   Category,
   Endpoint,
   ErrorResponse,
+  JsonSchemaLike,
   QueryParam,
   SchemaGapReason,
+  VendorAttribution,
 } from '../types.js';
 import { analyzeGraphQL, mergeGraphQL } from './graphql.js';
+import { attributeVendor, isTrackingHost, trackingVendorDomains } from './vendors.js';
 import {
   absentBodyReason,
   framesGapReason,
@@ -27,27 +30,12 @@ import {
 } from './schemaInference.js';
 import { isSameDomain, toUrlPattern } from '../utils/url.js';
 
-/** Hosts that are almost always telemetry/analytics vendors. */
-export const ANALYTICS_HOSTS = [
-  'google-analytics.com',
-  'analytics.google.com',
-  'googletagmanager.com',
-  'doubleclick.net',
-  'segment.io',
-  'segment.com',
-  'mixpanel.com',
-  'amplitude.com',
-  'hotjar.com',
-  'fullstory.com',
-  'clarity.ms',
-  'plausible.io',
-  'posthog.com',
-  'matomo.cloud',
-  'sentry.io',
-  'snowplow',
-  'datadoghq.com',
-  'newrelic.com',
-];
+/**
+ * Host suffixes of the tracking vendors in the shared catalog, so the list of
+ * hosts that categorize as `analytics` stays in step with the vendor names
+ * attributed to their traffic.
+ */
+export const ANALYTICS_HOSTS: string[] = trackingVendorDomains();
 
 const AUTH_PATH_RE =
   /(^|\/)(login|logout|signin|signout|sign-in|sign-out|auth|authorize|oauth|token|tokens|session|register|signup|sign-up|sso|password|mfa|otp)(\/|$)/;
@@ -108,13 +96,18 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
   const responseSamples = responseSampleSet(samples);
   const requestReason = worstGapReason(samples.map(requestGapReason));
   const responseReason = worstGapReason(responseSamples.map(responseGapReason));
+  const origins = unique(samples.map((s) => safeOrigin(s.url)));
+  const category = categorize(first, seedUrl, graphql !== null);
+  const queryParams = collectQueryParams(samples);
+  const requestSchema = inferSchemaFromBodies(samples.map((s) => s.requestBodySample));
+  const vendor = vendorFor(category, origins, requestSchema, queryParams);
 
   return {
     id,
     method: first.method,
     urlPattern: pattern,
-    origins: unique(samples.map((s) => safeOrigin(s.url))),
-    category: categorize(first, seedUrl, graphql !== null),
+    origins,
+    category,
     count: samples.length,
     statusCodes: unique(samples.map((s) => s.status)).sort((a, b) => a - b),
     requestHeaders: representative.requestHeaders,
@@ -122,8 +115,8 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
     requestBodySample: firstNonNull(samples.map((s) => s.requestBodySample)),
     responseBodySample: firstNonNull(samples.map((s) => s.responseBodySample)),
     pathParams: uniquePathParams(pattern),
-    queryParams: collectQueryParams(samples),
-    requestBodySchema: inferSchemaFromBodies(samples.map((s) => s.requestBodySample)),
+    queryParams,
+    requestBodySchema: requestSchema,
     ...(requestReason ? { requestBodySchemaReason: requestReason } : {}),
     responseSchema: inferSchemaFromBodies(responseSamples.map((s) => s.responseBodySample)),
     ...(responseReason ? { responseSchemaReason: responseReason } : {}),
@@ -131,7 +124,34 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
     mimeTypes: unique(samples.map((s) => s.mimeType).filter(Boolean)),
     triggeredBy: unique(samples.map((s) => s.triggeredBy)),
     ...(graphql ? { graphql } : {}),
+    ...(vendor ? { vendor } : {}),
   };
+}
+
+/**
+ * Attribute an endpoint to a vendor, but only for the categories whose traffic
+ * is third-party or analytics — a first-party endpoint that happens to sit on a
+ * vendor's host is not an integration worth naming.
+ */
+function vendorFor(
+  category: Category,
+  origins: string[],
+  requestSchema: JsonSchemaLike | null,
+  queryParams: QueryParam[],
+): VendorAttribution | null {
+  if (category !== 'analytics' && category !== 'third-party') return null;
+  return attributeVendor(origins, vendorPayloadKeys(requestSchema, queryParams));
+}
+
+/**
+ * The keys a vendor receives: the request body's top-level JSON field names
+ * plus the query parameter names. An empty list means the payload keys were
+ * not observed (no body, or a non-JSON body), not that none were sent.
+ */
+function vendorPayloadKeys(schema: JsonSchemaLike | null, queryParams: QueryParam[]): string[] {
+  const keys = new Set<string>(Object.keys(schema?.properties ?? {}));
+  for (const param of queryParams) keys.add(param.name);
+  return [...keys].sort();
 }
 
 export interface Categorization {
@@ -159,7 +179,7 @@ export function categorizeWithReason(
   const host = parsed.host.toLowerCase();
 
   if (AUTH_PATH_RE.test(path)) return { category: 'authentication', heuristic: 'auth-path' };
-  if (ANALYTICS_HOSTS.some((h) => host.includes(h))) {
+  if (isTrackingHost(host)) {
     return { category: 'analytics', heuristic: 'analytics-host' };
   }
   if (ANALYTICS_PATH_RE.test(path)) return { category: 'analytics', heuristic: 'analytics-path' };
