@@ -37,6 +37,10 @@ const STYLE = `${THEME_TOKENS}${CODE_STYLE}
     main { border: none; box-shadow: none; padding: 0; max-width: none; }
     h2, h3 { break-after: avoid; }
     table, pre, tr { break-inside: avoid; }
+    /* One endpoint's detail stays on one page: a heading stranded at the foot
+       of a page, or a table split across two, is what makes a printed report
+       hard to follow. Best-effort — a detail taller than a page still breaks. */
+    section.detail { break-inside: avoid; }
   }
 `;
 
@@ -51,6 +55,19 @@ function wrapTables(html: string): string {
     .replace(/<\/table>/g, '</table></div>');
 }
 
+/**
+ * Wrap each `###` block — one endpoint's detail, one resource, one finding
+ * group — in a `section.detail`, so the print rules can keep it whole. Markdown
+ * has no way to express "keep this together", and a heading is the only signal
+ * for where one unit ends and the next begins.
+ */
+export function wrapDetailSections(html: string): string {
+  const parts = html.split(/(?=<h3[\s>])/);
+  if (parts.length < 2) return html;
+  const [head, ...sections] = parts;
+  return `${head}${sections.map((section) => `<section class="detail">${section}</section>`).join('')}`;
+}
+
 export async function renderHtml(markdown: string, title: string): Promise<string> {
   const body = await marked.parse(markdown, { async: true, gfm: true });
   return `<!doctype html>
@@ -63,13 +80,13 @@ export async function renderHtml(markdown: string, title: string): Promise<strin
 </head>
 <body>
 <main>
-${wrapTables(body)}
+${wrapDetailSections(wrapTables(body))}
 </main>
 </body>
 </html>
 `;
 }
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

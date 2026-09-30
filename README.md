@@ -204,7 +204,7 @@ you only care about the API surface, Chromium is the safer default.
 | `report.json` | Machine-readable source of truth |
 | `report.md` | A one-line scorecard and a linked table of contents, then overview, technologies, endpoint tables with category badges, detailed endpoints, auth flows, third-party calls, safety notes, WebSocket traffic |
 | `report.html` | Styled standalone version of the Markdown |
-| `report.pdf` | Rendered from the HTML with Playwright's `page.pdf()` |
+| `report.pdf` | Rendered from the HTML with Playwright's `page.pdf()`: a cover page, running header/footer with page numbers, and an endpoint's detail kept whole |
 | `openapi.yaml` | Best-effort OpenAPI 3.0 spec from inferred paths, methods, params, and schemas |
 | `dashboard.html` | Interactive dashboard: search, filter, sort, and expand endpoints |
 | `telemetry.json` | Opt-in anonymized categorization signals (see [Telemetry](#telemetry-opt-in)); never written unless enabled |
@@ -214,6 +214,12 @@ the same colours, typography, spacing, and code blocks, and both follow your
 `prefers-color-scheme`. Content that cannot wrap — a long URL, a payload —
 scrolls horizontally inside its table or code block instead of widening the
 page.
+
+`report.pdf` is `report.html` plus the page furniture a document needs: a cover
+naming the seed host, capture time, tool and report-schema version; a running
+header and footer carrying the seed host and `Page N of M`; and break rules that
+keep each `###` detail section — one endpoint, resource, or finding group — on a
+single page.
 
 `report.json` shape:
 

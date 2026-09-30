@@ -90,6 +90,10 @@
     main { border: none; box-shadow: none; padding: 0; max-width: none; }
     h2, h3 { break-after: avoid; }
     table, pre, tr { break-inside: avoid; }
+    /* One endpoint's detail stays on one page: a heading stranded at the foot
+       of a page, or a table split across two, is what makes a printed report
+       hard to follow. Best-effort — a detail taller than a page still breaks. */
+    section.detail { break-inside: avoid; }
   }
 </style>
 </head>
@@ -178,7 +182,7 @@
 </tbody></table></div>
 <p><a id="3-endpoint-summary-by-category"></a></p>
 <h2>3. Endpoint Summary by Category</h2>
-<h3><span class="cat-badge cat-authentication">authentication</span> (1)</h3>
+<section class="detail"><h3><span class="cat-badge cat-authentication">authentication</span> (1)</h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -195,7 +199,7 @@
 <td>2</td>
 </tr>
 </tbody></table></div>
-<h3><span class="cat-badge cat-data-fetching">data-fetching</span> (4)</h3>
+</section><section class="detail"><h3><span class="cat-badge cat-data-fetching">data-fetching</span> (4)</h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -230,7 +234,7 @@
 <td>1</td>
 </tr>
 </tbody></table></div>
-<h3><span class="cat-badge cat-mutations">mutations</span> (1)</h3>
+</section><section class="detail"><h3><span class="cat-badge cat-mutations">mutations</span> (1)</h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -247,7 +251,7 @@
 <td>1</td>
 </tr>
 </tbody></table></div>
-<h3><span class="cat-badge cat-analytics">analytics</span> (2)</h3>
+</section><section class="detail"><h3><span class="cat-badge cat-analytics">analytics</span> (2)</h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -270,7 +274,7 @@
 <td>1</td>
 </tr>
 </tbody></table></div>
-<h3><span class="cat-badge cat-third-party">third-party</span> (1)</h3>
+</section><section class="detail"><h3><span class="cat-badge cat-third-party">third-party</span> (1)</h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -287,7 +291,7 @@
 <td>1</td>
 </tr>
 </tbody></table></div>
-<h3><span class="cat-badge cat-graphql">graphql</span> (1)</h3>
+</section><section class="detail"><h3><span class="cat-badge cat-graphql">graphql</span> (1)</h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -306,7 +310,7 @@
 </tbody></table></div>
 <p><a id="4-detailed-endpoints"></a></p>
 <h2>4. Detailed Endpoints</h2>
-<h3><code>POST /api/collect</code></h3>
+</section><section class="detail"><h3><code>POST /api/collect</code></h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -367,7 +371,7 @@ x-powered-by: Express
 <pre><code class="language-json">{&quot;event&quot;:&quot;pageview&quot;,&quot;path&quot;:&quot;/products&quot;}
 </code></pre>
 <p><em>Response schema not inferred — no body captured.</em></p>
-<h3><code>POST /collect</code></h3>
+</section><section class="detail"><h3><code>POST /collect</code></h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -425,7 +429,7 @@ x-powered-by: Express
 <pre><code class="language-json">{&quot;event&quot;:&quot;partner_impression&quot;}
 </code></pre>
 <p><em>Response schema not inferred — no body captured.</em></p>
-<h3><code>POST /api/login</code></h3>
+</section><section class="detail"><h3><code>POST /api/login</code></h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -539,7 +543,7 @@ x-powered-by: Express
   ]
 }
 </code></pre>
-<h3><code>GET /api/orders</code></h3>
+</section><section class="detail"><h3><code>GET /api/orders</code></h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -651,7 +655,7 @@ x-powered-by: Express
   ]
 }
 </code></pre>
-<h3><code>GET /api/orders/{id}</code></h3>
+</section><section class="detail"><h3><code>GET /api/orders/{id}</code></h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -760,7 +764,7 @@ x-powered-by: Express
   ]
 }
 </code></pre>
-<h3><code>GET /api/products</code></h3>
+</section><section class="detail"><h3><code>GET /api/products</code></h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -886,7 +890,7 @@ x-powered-by: Express
   ]
 }
 </code></pre>
-<h3><code>GET /api/user</code></h3>
+</section><section class="detail"><h3><code>GET /api/user</code></h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -987,7 +991,7 @@ x-powered-by: Express
   ]
 }
 </code></pre>
-<h3><code>POST /api/graphql</code></h3>
+</section><section class="detail"><h3><code>POST /api/graphql</code></h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -1119,7 +1123,7 @@ x-powered-by: Express
   ]
 }
 </code></pre>
-<h3><code>POST /api/search</code></h3>
+</section><section class="detail"><h3><code>POST /api/search</code></h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -1227,7 +1231,7 @@ x-powered-by: Express
   ]
 }
 </code></pre>
-<h3><code>GET /sdk/config.json</code></h3>
+</section><section class="detail"><h3><code>GET /sdk/config.json</code></h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -1351,7 +1355,7 @@ x-powered-by: Express
 <p><a id="8-websocket-traffic"></a></p>
 <h2>8. WebSocket Traffic</h2>
 <p><em>1 connection(s) observed. Frames are redacted and size-capped like request and response bodies.</em></p>
-<h3><code>ws://127.0.0.1:4610/ws</code></h3>
+</section><section class="detail"><h3><code>ws://127.0.0.1:4610/ws</code></h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -1444,7 +1448,7 @@ x-powered-by: Express
 <p><a id="10-resource-coverage"></a></p>
 <h2>10. Resource Coverage</h2>
 <p><em>9 resource(s), grouped by collection root. A missing verb is one the REST convention expects for that path shape but no captured call exhibited.</em></p>
-<h3><code>/api/collect</code></h3>
+</section><section class="detail"><h3><code>/api/collect</code></h3>
 <p><em>Categories: analytics</em></p>
 <div class="table-scroll"><table>
 <thead>
@@ -1460,7 +1464,7 @@ x-powered-by: Express
 <td>—</td>
 </tr>
 </tbody></table></div>
-<h3><code>/api/graphql</code></h3>
+</section><section class="detail"><h3><code>/api/graphql</code></h3>
 <p><em>Categories: graphql</em></p>
 <div class="table-scroll"><table>
 <thead>
@@ -1476,7 +1480,7 @@ x-powered-by: Express
 <td>—</td>
 </tr>
 </tbody></table></div>
-<h3><code>/api/login</code></h3>
+</section><section class="detail"><h3><code>/api/login</code></h3>
 <p><em>Categories: authentication</em></p>
 <div class="table-scroll"><table>
 <thead>
@@ -1492,7 +1496,7 @@ x-powered-by: Express
 <td>—</td>
 </tr>
 </tbody></table></div>
-<h3><code>/api/orders</code></h3>
+</section><section class="detail"><h3><code>/api/orders</code></h3>
 <p><em>Categories: data-fetching</em></p>
 <div class="table-scroll"><table>
 <thead>
@@ -1513,7 +1517,7 @@ x-powered-by: Express
 <td>PUT, PATCH, DELETE</td>
 </tr>
 </tbody></table></div>
-<h3><code>/api/products</code></h3>
+</section><section class="detail"><h3><code>/api/products</code></h3>
 <p><em>Categories: data-fetching</em></p>
 <div class="table-scroll"><table>
 <thead>
@@ -1529,7 +1533,7 @@ x-powered-by: Express
 <td>—</td>
 </tr>
 </tbody></table></div>
-<h3><code>/api/search</code></h3>
+</section><section class="detail"><h3><code>/api/search</code></h3>
 <p><em>Categories: mutations</em></p>
 <div class="table-scroll"><table>
 <thead>
@@ -1545,7 +1549,7 @@ x-powered-by: Express
 <td>—</td>
 </tr>
 </tbody></table></div>
-<h3><code>/api/user</code></h3>
+</section><section class="detail"><h3><code>/api/user</code></h3>
 <p><em>Categories: data-fetching</em></p>
 <div class="table-scroll"><table>
 <thead>
@@ -1561,7 +1565,7 @@ x-powered-by: Express
 <td>—</td>
 </tr>
 </tbody></table></div>
-<h3><code>/collect</code></h3>
+</section><section class="detail"><h3><code>/collect</code></h3>
 <p><em>Categories: analytics</em></p>
 <div class="table-scroll"><table>
 <thead>
@@ -1577,7 +1581,7 @@ x-powered-by: Express
 <td>—</td>
 </tr>
 </tbody></table></div>
-<h3><code>/sdk/config.json</code></h3>
+</section><section class="detail"><h3><code>/sdk/config.json</code></h3>
 <p><em>Categories: third-party</em></p>
 <div class="table-scroll"><table>
 <thead>
@@ -1596,7 +1600,7 @@ x-powered-by: Express
 <p><a id="11-performance"></a></p>
 <h2>11. Performance</h2>
 <p><em>Observed, not benchmarked: a scan samples whatever traffic it triggered. Body sizes are the captured bytes, so a size-capped body is a lower bound.</em></p>
-<h3>Slowest endpoints (by p95)</h3>
+</section><section class="detail"><h3>Slowest endpoints (by p95)</h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -1689,7 +1693,7 @@ x-powered-by: Express
 <td>1</td>
 </tr>
 </tbody></table></div>
-<h3>Largest responses (by p95)</h3>
+</section><section class="detail"><h3>Largest responses (by p95)</h3>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -1760,14 +1764,14 @@ x-powered-by: Express
 <p><a id="12-findings-next-steps"></a></p>
 <h2>12. Findings &amp; Next Steps</h2>
 <p><em>Heuristic review cues from this capture, not a security audit. Each is derived from the observations above.</em></p>
-<h3>Medium</h3>
+</section><section class="detail"><h3>Medium</h3>
 <ul>
 <li><strong>PII-shaped fields appear in captured samples</strong> (1 endpoint)<ul>
 <li>GET /api/user — email</li>
 </ul>
 </li>
 </ul>
-<h3>Low</h3>
+</section><section class="detail"><h3>Low</h3>
 <ul>
 <li><strong>Security headers not observed on any response</strong> (site-wide)<ul>
 <li>strict-transport-security was not present on any captured response</li>
@@ -1780,7 +1784,7 @@ x-powered-by: Express
 </li>
 </ul>
 <p><em>api-recon observes and documents only. It does not bypass authentication, CAPTCHAs, or bot protections.</em></p>
-
+</section>
 </main>
 </body>
 </html>

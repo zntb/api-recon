@@ -226,8 +226,12 @@ function sectionSlug(text: string): string {
     .replace(/\s+/g, '-');
 }
 
-/** One line a reader can scan before the detail: what this scan found. */
-function scorecardLine(report: ReconReport): string {
+/**
+ * One line a reader can scan before the detail: what this scan found.
+ * Exported because the PDF's cover page carries the same summary, and the two
+ * must not drift.
+ */
+export function scorecardSummary(report: ReconReport): string {
   const plural = (count: number, singular: string, pluralForm = `${singular}s`): string =>
     `${count} ${count === 1 ? singular : pluralForm}`;
   const parts: string[] = [plural(report.endpoints.length, 'endpoint')];
@@ -240,7 +244,11 @@ function scorecardLine(report: ReconReport): string {
   else if (report.findings?.length) parts.push(plural(report.findings.length, 'finding'));
   if (report.diff) parts.push(plural(report.diff.counts.breaking, 'breaking change'));
   parts.push(`${plural(report.meta.pagesVisited, 'page')} in ${formatDuration(report.meta.durationMs)}`);
-  return `_Scorecard — ${parts.join(' · ')}._`;
+  return `Scorecard — ${parts.join(' · ')}`;
+}
+
+function scorecardLine(report: ReconReport): string {
+  return `_${scorecardSummary(report)}._`;
 }
 
 function resourceSection(resources: Resource[]): string[] {

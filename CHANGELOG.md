@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in `report.html` — `marked` does not add heading ids on its own. Categories
   render as badges (styled by the shared theme, plain labels elsewhere), and
   tables scroll horizontally instead of widening the page.
+- **Print-ready PDF** — `report.pdf` gains a cover page naming the seed host,
+  capture time, tool version, report-schema version, and the same scorecard line
+  as the Markdown report, plus a running header and footer that carry the seed
+  host and `Page N of M`. Each `###` block — one endpoint's detail, resource, or
+  finding group — is wrapped so it is not split across a page boundary, in the
+  PDF and when printing `report.html`.
 
 ## [0.3.7] - 2026-09-30
 

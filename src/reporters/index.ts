@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { ReconReport, ReportFormat } from '../types.js';
 import type { Logger } from '../utils/logger.js';
 import { writeJsonReport, FORMAT_FILENAMES } from './json.js';
-import { renderMarkdown, writeMarkdownReport } from './markdown.js';
+import { renderMarkdown, scorecardSummary, writeMarkdownReport } from './markdown.js';
 import { renderHtml } from './html.js';
 import { writePdfReport } from './pdf.js';
 import { writeOpenApiReport } from './openapi.js';
@@ -43,7 +43,13 @@ export async function writeReports(
   if (formats.includes('pdf') && html) {
     await mkdir(outDir, { recursive: true });
     const file = join(outDir, FORMAT_FILENAMES.pdf);
-    const ok = await writePdfReport(html, file);
+    const ok = await writePdfReport(html, file, {
+      seedUrl: report.meta.seedUrl,
+      startedAt: report.meta.startedAt,
+      toolVersion: report.meta.apiReconVersion,
+      schemaVersion: report.schemaVersion,
+      summary: scorecardSummary(report),
+    });
     if (ok) files.push(file);
     else {
       logger?.warn(

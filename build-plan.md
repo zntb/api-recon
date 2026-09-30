@@ -397,6 +397,13 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   `marked` does not add heading ids by itself. Categories render as badges
   (styled by the shared theme, plain labels elsewhere), and — as with the shared
   theme — tables scroll horizontally rather than widening the page.
+- **Print-ready PDF** — `report.pdf` now carries a cover page (seed host, capture
+  time, tool and report-schema version, and the same scorecard line as the
+  Markdown) and a running header/footer naming the seed host with `Page N of M`,
+  supplied as Chromium header/footer templates. Every `###` block — one
+  endpoint's detail, resource, or finding group — is wrapped in a
+  `section.detail` with `break-inside: avoid`, so a detail is not split across a
+  page boundary when printed from the PDF or from `report.html`.
 
 **Proposed updates & features**
 
@@ -434,9 +441,6 @@ so it can be scoped without re-reading the source.
 
 **Aesthetics**
 
-- **Polish the PDF.** A cover page, running headers/footers with page numbers
-  and the seed host, and page-break control so an endpoint's detail is never
-  split across two pages.
 - **Draw the graph the crawler already knows.** Render the page → request
   relationships as Mermaid in Markdown and inline SVG in HTML/dashboard, so a
   reader can see which page produced which call without scanning the tables.
