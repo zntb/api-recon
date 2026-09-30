@@ -377,6 +377,12 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   keys walk the rows, `prefers-color-scheme` themes the whole page (including a
   dark `pre` block), and a print stylesheet drops the controls and unpins the
   table so the dashboard prints as usefully as `report.html`.
+- **Dashboard grouping** — a Group control clusters the table by category,
+  resource, or change kind. Each group carries a collapsible header with its
+  count and a left-hand nav lists the groups with per-group counts; first-seen
+  order keeps a sorted table's order inside each group, and search/filters still
+  narrow what each group shows. Endpoints with paths a report's `resources`
+  cover group by resource, with anything unrecognized under "Other endpoints".
 
 **Proposed updates & features**
 
@@ -414,9 +420,6 @@ so it can be scoped without re-reading the source.
 
 **Aesthetics**
 
-- **Group and navigate the dashboard.** Collapsible groups by category, resource,
-  or change kind, with a left-hand nav and per-group counts, so a report with a
-  hundred endpoints stays legible instead of becoming one long table.
 - **One shared theme for every HTML artifact.** `report.html` and
   `dashboard.html` each carry their own CSS; extract a single token set (colours,
   spacing, typography, code blocks) so the two look like one product and a

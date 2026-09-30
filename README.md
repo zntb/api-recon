@@ -347,6 +347,11 @@ open ./reports/dashboard.html
 
 - **Search** across paths, methods, categories, status codes, hosts, params,
   MIME types, and the pages that triggered each call.
+- **Group** by category, resource, or change kind. Each group gets a
+  collapsible header with its count, and a left-hand nav lists the groups with
+  per-group counts while you are grouped — so a hundred endpoints read as a
+  handful of sections instead of one long table. Search and filters still apply,
+  and a group only shows the rows that pass them.
 - **Filter** by category, HTTP method, and status code.
 - **Sort** by any column; the default order is discovery order.
 - **Expand** a row for its headers, query and path params, and the inferred

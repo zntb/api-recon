@@ -333,6 +333,59 @@ describe('dashboard', () => {
     expect(pageErrors).toEqual([]);
   }, 90_000);
 
+  it('groups endpoints with a left-hand nav and collapses a group', async () => {
+    const file = await writeDashboardReport(REPORT, join(outDir, 'grouped'));
+    page = await browser!.newPage();
+    pageErrors = [];
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+
+    await page.goto(pathToFileURL(file).href);
+
+    // Grouping off: no header rows and no nav.
+    expect(await page.locator('#rows tr.group').count()).toBe(0);
+    expect(await page.isHidden('#groupnav')).toBe(true);
+
+    // --- group by category -------------------------------------------------
+    await page.selectOption('#group', 'category');
+    // data-fetching, authentication, analytics, and the baseline-only row's
+    // pseudo-category.
+    expect(await page.locator('#rows tr.group').count()).toBe(4);
+    expect(await page.locator('#rows tr.row').count()).toBe(4);
+    expect(await page.isHidden('#groupnav')).toBe(false);
+    expect(await page.locator('#groupnav .groupnav-item').count()).toBe(4);
+    const nav = (await page.textContent('#groupnav')) ?? '';
+    expect(nav).toContain('data-fetching');
+    expect(nav).toContain('__removed');
+
+    // Collapsing the first group hides exactly its rows, then restores them.
+    const firstGroup = page.locator('#rows tr.group').first();
+    await firstGroup.click();
+    expect(await page.locator('#rows tr.row').count()).toBe(3);
+    await firstGroup.click();
+    expect(await page.locator('#rows tr.row').count()).toBe(4);
+
+    // The nav toggles the same groups.
+    await page.locator('#groupnav .groupnav-item').first().click();
+    expect(await page.locator('#rows tr.row').count()).toBe(3);
+    await page.locator('#groupnav .groupnav-item').first().click();
+    expect(await page.locator('#rows tr.row').count()).toBe(4);
+
+    // --- group by change ---------------------------------------------------
+    await page.selectOption('#group', 'change');
+    expect(await page.locator('#rows tr.group').count()).toBe(3);
+    const byChange = (await page.textContent('#rows')) ?? '';
+    expect(byChange).toContain('unchanged');
+    expect(byChange).toContain('changed');
+    expect(byChange).toContain('removed');
+
+    // --- filtering still narrows the groups --------------------------------
+    await page.fill('#q', 'login');
+    expect(await page.locator('#rows tr.group').count()).toBe(1);
+    expect(await page.locator('#rows tr.row').count()).toBe(1);
+
+    expect(pageErrors).toEqual([]);
+  }, 90_000);
+
   it('hides the diff-only filters when there is no baseline', async () => {
     const file = await writeDashboardReport({ ...REPORT, diff: undefined }, join(outDir, 'nodiff'));
     page = await browser!.newPage();

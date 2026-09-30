@@ -160,6 +160,24 @@ const STYLE = `
   .hint { color: var(--muted); font-size: .8rem; margin: 0; }
   .empty { text-align: center; color: var(--muted); padding: 2.5rem 1rem; margin: 0; }
   noscript .panel { display: block; padding: 1.25rem; }
+  /* Grouping: a left-hand nav beside the table, and a full-width header row per
+     group that collapses. The nav stays put while the table scrolls. */
+  .main { display: flex; gap: 1rem; align-items: flex-start; }
+  .tablearea { flex: 1 1 auto; min-width: 0; }
+  nav.groupnav { flex: 0 0 210px; padding: .6rem; position: sticky; top: 1rem; }
+  nav.groupnav h3 { margin: .1rem .3rem .5rem; font-size: .72rem; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--muted); }
+  .groupnav-item { display: flex; justify-content: space-between; align-items: center; gap: .5rem;
+    width: 100%; margin: 0 0 .2rem; padding: .35rem .5rem; border: 1px solid transparent;
+    border-radius: 7px; background: transparent; color: inherit; font: inherit;
+    font-size: .82rem; text-align: left; cursor: pointer; }
+  .groupnav-item:hover { background: var(--row-hover); }
+  .groupnav-item[aria-pressed="true"] { color: var(--muted); }
+  .groupnav-item .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+  tr.group > td { background: var(--panel-2); font-weight: 600; cursor: pointer;
+    padding-top: .55rem; padding-bottom: .55rem; }
+  tr.group .caret { display: inline-block; width: 1rem; color: var(--muted); }
+  tr.group .n { color: var(--muted); font-weight: 400; }
   /* Print: the dashboard should print as usefully as report.html. Drop the
      interactive chrome, unpin the table, and keep rows off page breaks. */
   @media print {
@@ -172,7 +190,8 @@ const STYLE = `
       --chip: #f0f0f0; --chip-ink: #000000; --shadow: none;
     }
     body { background: #fff; padding: 0; }
-    .controls, .count { display: none !important; }
+    .controls, .count, nav.groupnav { display: none !important; }
+    .main { display: block; }
     .tablewrap { overflow: visible; max-height: none; }
     .panel { box-shadow: none; }
     th, th:first-child, td:first-child { position: static; }
@@ -257,8 +276,16 @@ const SCRIPT = `
   });
   var allRows = endpoints.concat(removed).concat(sockets);
 
-  var state = { q: '', category: 'all', method: 'all', status: 'all', breaking: false, changed: false, sort: null, dir: 1 };
+  // Which resource each path belongs to, so the table can group by it. A report
+  // written before resources existed simply groups every endpoint as "Other".
+  var resourceByPath = {};
+  (data.resources || []).forEach(function (resource) {
+    (resource.paths || []).forEach(function (entry) { resourceByPath[entry.path] = resource.path; });
+  });
+
+  var state = { q: '', category: 'all', method: 'all', status: 'all', group: 'none', breaking: false, changed: false, sort: null, dir: 1 };
   var expanded = {};
+  var collapsed = {};
 
   var statsEl = document.getElementById('stats');
   var rowsEl = document.getElementById('rows');
@@ -270,6 +297,8 @@ const SCRIPT = `
   var statusEl = document.getElementById('status');
   var breakingEl = document.getElementById('breaking');
   var changedEl = document.getElementById('changed');
+  var groupEl = document.getElementById('group');
+  var groupNavEl = document.getElementById('groupnav');
   var resetEl = document.getElementById('reset');
 
   function el(tag, className, text) {
@@ -391,6 +420,11 @@ const SCRIPT = `
 
     statusEl.appendChild(option('all', 'All statuses'));
     statuses.forEach(function (s) { statusEl.appendChild(option(s)); });
+
+    groupEl.appendChild(option('none', 'No grouping'));
+    groupEl.appendChild(option('category', 'Group by category'));
+    if ((data.resources || []).length) groupEl.appendChild(option('resource', 'Group by resource'));
+    groupEl.appendChild(option('change', 'Group by change'));
 
     if (!diff) {
       // Nothing to compare against, so the diff-only filters are meaningless.
@@ -688,6 +722,86 @@ const SCRIPT = `
     return row;
   }
 
+  function groupOf(e) {
+    if (state.group === 'category') return { key: e.category, label: e.category };
+    if (state.group === 'change') {
+      var change = changeById[e.id];
+      var kind = change ? change.kind : 'unchanged';
+      return { key: kind, label: kind };
+    }
+    if (state.group === 'resource') {
+      var resource = resourceByPath[e.urlPattern];
+      return resource ? { key: resource, label: resource } : { key: '__other', label: 'Other endpoints' };
+    }
+    return { key: '__all', label: 'All endpoints' };
+  }
+
+  // Group the (already filtered and sorted) rows, keeping first-seen order so a
+  // sorted table keeps that order inside each group.
+  function grouped(list) {
+    var order = [];
+    var byKey = {};
+    list.forEach(function (e) {
+      var group = groupOf(e);
+      if (!byKey[group.key]) {
+        byKey[group.key] = { key: group.key, label: group.label, rows: [] };
+        order.push(group.key);
+      }
+      byKey[group.key].rows.push(e);
+    });
+    return order.map(function (key) { return byKey[key]; });
+  }
+
+  function toggleGroup(key) {
+    collapsed[key] = !collapsed[key];
+    render();
+  }
+
+  function groupRowFor(group) {
+    var row = el('tr', 'group');
+    var cell = el('td');
+    cell.colSpan = document.querySelectorAll('thead th').length;
+    cell.appendChild(el('span', 'caret', collapsed[group.key] ? '\u25b8' : '\u25be'));
+    cell.appendChild(el('span', null, group.label));
+    cell.appendChild(el('span', 'n', ' \u00b7 ' + group.rows.length));
+    row.appendChild(cell);
+    row.tabIndex = 0;
+    row.setAttribute('data-group', group.key);
+    row.setAttribute('aria-expanded', collapsed[group.key] ? 'false' : 'true');
+    row.addEventListener('click', function () { toggleGroup(group.key); });
+    row.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      toggleGroup(group.key);
+    });
+    return row;
+  }
+
+  function renderGroupNav(groups) {
+    groupNavEl.hidden = false;
+    groupNavEl.textContent = '';
+    groupNavEl.appendChild(el('h3', null, 'Groups'));
+    groups.forEach(function (group) {
+      var button = el('button', 'groupnav-item');
+      button.type = 'button';
+      button.setAttribute('aria-pressed', collapsed[group.key] ? 'true' : 'false');
+      button.appendChild(el('span', null, group.label));
+      button.appendChild(el('span', 'n', group.rows.length));
+      button.addEventListener('click', function () {
+        toggleGroup(group.key);
+        // Keep the group in view when it re-renders from the nav.
+        var headers = rowsEl.querySelectorAll('tr.group');
+        for (var i = 0; i < headers.length; i += 1) {
+          if (headers[i].getAttribute('data-group') === group.key) {
+            if (headers[i].scrollIntoView) headers[i].scrollIntoView({ block: 'nearest' });
+            break;
+          }
+        }
+      });
+      groupNavEl.appendChild(button);
+    });
+  }
+
   function render() {
     var list = visible();
     rowsEl.textContent = '';
@@ -695,14 +809,30 @@ const SCRIPT = `
     countEl.textContent = list.length + ' of ' + allRows.length + ' shown' +
       (removed.length ? ' (' + removed.length + ' only in the baseline)' : '');
 
-    list.forEach(function (e) {
-      rowsEl.appendChild(rowFor(e));
-      if (expanded[e.id]) rowsEl.appendChild(details(e));
-    });
     if (!allRows.length) {
       emptyEl.hidden = false;
       emptyEl.textContent = 'No endpoints were captured.';
     }
+
+    if (state.group === 'none') {
+      groupNavEl.hidden = true;
+      list.forEach(function (e) {
+        rowsEl.appendChild(rowFor(e));
+        if (expanded[e.id]) rowsEl.appendChild(details(e));
+      });
+      return;
+    }
+
+    var groups = grouped(list);
+    renderGroupNav(groups);
+    groups.forEach(function (group) {
+      rowsEl.appendChild(groupRowFor(group));
+      if (collapsed[group.key]) return;
+      group.rows.forEach(function (e) {
+        rowsEl.appendChild(rowFor(e));
+        if (expanded[e.id]) rowsEl.appendChild(details(e));
+      });
+    });
   }
 
   // ---- events --------------------------------------------------------------
@@ -728,17 +858,20 @@ const SCRIPT = `
   categoryEl.addEventListener('change', function () { state.category = categoryEl.value; render(); });
   methodEl.addEventListener('change', function () { state.method = methodEl.value; render(); });
   statusEl.addEventListener('change', function () { state.status = statusEl.value; render(); });
+  groupEl.addEventListener('change', function () { state.group = groupEl.value; collapsed = {}; render(); });
   breakingEl.addEventListener('change', function () { state.breaking = breakingEl.checked; render(); });
   changedEl.addEventListener('change', function () { state.changed = changedEl.checked; render(); });
   resetEl.addEventListener('click', function () {
-    state = { q: '', category: 'all', method: 'all', status: 'all', breaking: false, changed: false, sort: null, dir: 1 };
+    state = { q: '', category: 'all', method: 'all', status: 'all', group: 'none', breaking: false, changed: false, sort: null, dir: 1 };
     qEl.value = '';
     categoryEl.value = 'all';
     methodEl.value = 'all';
     statusEl.value = 'all';
+    groupEl.value = 'none';
     breakingEl.checked = false;
     changedEl.checked = false;
     expanded = {};
+    collapsed = {};
     document.querySelectorAll('thead th.sortable').forEach(function (th) {
       var arrow = th.querySelector('.arrow');
       if (arrow) arrow.textContent = '';
@@ -889,29 +1022,33 @@ export function renderDashboard(report: ReconReport, title?: string): string {
 
   <section class="panel" id="resources" aria-label="Resource coverage"></section>
 
-  <div class="panel">
-    <div class="controls">
-      <input type="search" id="q" placeholder="Search path, method, category, status, host…"
-        aria-label="Search endpoints" autocomplete="off" />
-      <select id="category" aria-label="Filter by category"></select>
-      <select id="method" aria-label="Filter by method"></select>
-      <select id="status" aria-label="Filter by status"></select>
-      <label class="check"><input type="checkbox" id="changed" /> Changed only</label>
-      <label class="check"><input type="checkbox" id="breaking" /> Breaking only</label>
-      <button type="button" id="reset">Reset</button>
-      <span class="count" id="count"></span>
+  <div class="main">
+    <nav class="groupnav panel" id="groupnav" aria-label="Endpoint groups" hidden></nav>
+    <div class="panel tablearea">
+      <div class="controls">
+        <input type="search" id="q" placeholder="Search path, method, category, status, host…"
+          aria-label="Search endpoints" autocomplete="off" />
+        <select id="category" aria-label="Filter by category"></select>
+        <select id="method" aria-label="Filter by method"></select>
+        <select id="status" aria-label="Filter by status"></select>
+        <select id="group" aria-label="Group endpoints"></select>
+        <label class="check"><input type="checkbox" id="changed" /> Changed only</label>
+        <label class="check"><input type="checkbox" id="breaking" /> Breaking only</label>
+        <button type="button" id="reset">Reset</button>
+        <span class="count" id="count"></span>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+            ${head}
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="empty" id="empty" hidden>No endpoints match the current filters.</p>
     </div>
-    <div class="tablewrap">
-      <table>
-        <thead>
-          <tr>
-          ${head}
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </div>
-    <p class="empty" id="empty" hidden>No endpoints match the current filters.</p>
   </div>
 </div>
 <script type="application/json" id="report-data">${jsonForScript(report)}</script>

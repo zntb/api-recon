@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Dashboard grouping** — a Group control clusters the table by category,
+  resource, or change kind. Each group renders as a collapsible header with its
+  count, and a left-hand nav lists the groups and their counts; filtering and
+  search still narrow what each group shows, and first-seen order keeps a sorted
+  table's order inside a group. Paths covered by the report's `resources` group
+  by resource, and anything unrecognized (including baseline-only rows) falls
+  under "Other endpoints".
+
 ### Changed
 
 - **Dashboard design pass** — the dashboard's styles are now a single token set,

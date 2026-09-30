@@ -122,6 +122,15 @@ describe('renderDashboard', () => {
     expect(embedded.diff?.changes[0]?.details).toEqual(['removed field user.id']);
   });
 
+  it('offers grouping with a left-hand nav', () => {
+    const html = renderDashboard(report([endpoint({ id: 'GET /api/products' })]));
+
+    expect(html).toContain('id="group"');
+    expect(html).toContain('id="groupnav"');
+    expect(html).toContain("option('category', 'Group by category')");
+    expect(html).toContain("option('change', 'Group by change')");
+  });
+
   it('cannot be broken out of by site-controlled strings', () => {
     const hostile = '/api/x</script><script>alert(1)</script>';
     const html = renderDashboard(

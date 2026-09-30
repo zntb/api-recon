@@ -147,6 +147,24 @@
   .hint { color: var(--muted); font-size: .8rem; margin: 0; }
   .empty { text-align: center; color: var(--muted); padding: 2.5rem 1rem; margin: 0; }
   noscript .panel { display: block; padding: 1.25rem; }
+  /* Grouping: a left-hand nav beside the table, and a full-width header row per
+     group that collapses. The nav stays put while the table scrolls. */
+  .main { display: flex; gap: 1rem; align-items: flex-start; }
+  .tablearea { flex: 1 1 auto; min-width: 0; }
+  nav.groupnav { flex: 0 0 210px; padding: .6rem; position: sticky; top: 1rem; }
+  nav.groupnav h3 { margin: .1rem .3rem .5rem; font-size: .72rem; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--muted); }
+  .groupnav-item { display: flex; justify-content: space-between; align-items: center; gap: .5rem;
+    width: 100%; margin: 0 0 .2rem; padding: .35rem .5rem; border: 1px solid transparent;
+    border-radius: 7px; background: transparent; color: inherit; font: inherit;
+    font-size: .82rem; text-align: left; cursor: pointer; }
+  .groupnav-item:hover { background: var(--row-hover); }
+  .groupnav-item[aria-pressed="true"] { color: var(--muted); }
+  .groupnav-item .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+  tr.group > td { background: var(--panel-2); font-weight: 600; cursor: pointer;
+    padding-top: .55rem; padding-bottom: .55rem; }
+  tr.group .caret { display: inline-block; width: 1rem; color: var(--muted); }
+  tr.group .n { color: var(--muted); font-weight: 400; }
   /* Print: the dashboard should print as usefully as report.html. Drop the
      interactive chrome, unpin the table, and keep rows off page breaks. */
   @media print {
@@ -159,7 +177,8 @@
       --chip: #f0f0f0; --chip-ink: #000000; --shadow: none;
     }
     body { background: #fff; padding: 0; }
-    .controls, .count { display: none !important; }
+    .controls, .count, nav.groupnav { display: none !important; }
+    .main { display: block; }
     .tablewrap { overflow: visible; max-height: none; }
     .panel { box-shadow: none; }
     th, th:first-child, td:first-child { position: static; }
@@ -197,23 +216,26 @@
 
   <section class="panel" id="resources" aria-label="Resource coverage"></section>
 
-  <div class="panel">
-    <div class="controls">
-      <input type="search" id="q" placeholder="Search path, method, category, status, host…"
-        aria-label="Search endpoints" autocomplete="off" />
-      <select id="category" aria-label="Filter by category"></select>
-      <select id="method" aria-label="Filter by method"></select>
-      <select id="status" aria-label="Filter by status"></select>
-      <label class="check"><input type="checkbox" id="changed" /> Changed only</label>
-      <label class="check"><input type="checkbox" id="breaking" /> Breaking only</label>
-      <button type="button" id="reset">Reset</button>
-      <span class="count" id="count"></span>
-    </div>
-    <div class="tablewrap">
-      <table>
-        <thead>
-          <tr>
-          <th class="sortable" data-sort="method" scope="col">Method<span class="arrow" aria-hidden="true"></span></th>
+  <div class="main">
+    <nav class="groupnav panel" id="groupnav" aria-label="Endpoint groups" hidden></nav>
+    <div class="panel tablearea">
+      <div class="controls">
+        <input type="search" id="q" placeholder="Search path, method, category, status, host…"
+          aria-label="Search endpoints" autocomplete="off" />
+        <select id="category" aria-label="Filter by category"></select>
+        <select id="method" aria-label="Filter by method"></select>
+        <select id="status" aria-label="Filter by status"></select>
+        <select id="group" aria-label="Group endpoints"></select>
+        <label class="check"><input type="checkbox" id="changed" /> Changed only</label>
+        <label class="check"><input type="checkbox" id="breaking" /> Breaking only</label>
+        <button type="button" id="reset">Reset</button>
+        <span class="count" id="count"></span>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+            <th class="sortable" data-sort="method" scope="col">Method<span class="arrow" aria-hidden="true"></span></th>
         <th class="sortable" data-sort="path" scope="col">Path<span class="arrow" aria-hidden="true"></span></th>
         <th class="sortable" data-sort="category" scope="col">Category<span class="arrow" aria-hidden="true"></span></th>
         <th class="sortable" data-sort="status" scope="col">Status<span class="arrow" aria-hidden="true"></span></th>
@@ -221,12 +243,13 @@
         <th class="sortable" data-sort="time" scope="col">Time (p95)<span class="arrow" aria-hidden="true"></span></th>
         <th class="sortable" data-sort="pages" scope="col">Pages<span class="arrow" aria-hidden="true"></span></th>
         <th class="sortable" data-sort="change" scope="col">Change<span class="arrow" aria-hidden="true"></span></th>
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="empty" id="empty" hidden>No endpoints match the current filters.</p>
     </div>
-    <p class="empty" id="empty" hidden>No endpoints match the current filters.</p>
   </div>
 </div>
 <script type="application/json" id="report-data">{"schemaVersion":1,"meta":{"seedUrl":"http://127.0.0.1:4610","startedAt":"2026-01-01T00:00:00.000Z","durationMs":280,"pagesVisited":8,"apiReconVersion":"0.3.6","engine":"chromium"},"technologies":[{"name":"Express","category":"framework","evidence":"x-powered-by: Express"},{"name":"FixtureKit 1.0","category":"generator","evidence":"meta: generator"},{"name":"React","category":"ui-library","evidence":"html: data-reactroot"}],"endpoints":[{"id":"POST /api/collect","method":"POST","urlPattern":"/api/collect","origins":["http://127.0.0.1:4610"],"category":"analytics","count":1,"statusCodes":[204],"requestHeaders":{"accept":"application/json","content-type":"application/json"},"responseHeaders":{"cache-control":"no-store","connection":"keep-alive","content-type":"application/json; charset=utf-8","date":"Thu, 01 Jan 2026 00:00:00 GMT","keep-alive":"timeout=5","x-powered-by":"Express"},"requestBodySample":"{\"event\":\"pageview\",\"path\":\"/products\"}","responseBodySample":null,"pathParams":[],"queryParams":[],"requestBodySchema":{"type":"object","properties":{"event":{"type":"string"},"path":{"type":"string"}},"required":["event","path"]},"responseSchema":null,"responseSchemaReason":"no-body","mimeTypes":["application/json"],"triggeredBy":["http://127.0.0.1:4610/products"],"timing":{"p50":7,"p95":7,"max":7},"requestBytes":{"p50":39,"p95":39,"max":39},"cache":{"control":"no-store"}},{"id":"POST /collect","method":"POST","urlPattern":"/collect","origins":["http://127.0.0.1:4611"],"category":"analytics","count":1,"statusCodes":[204],"requestHeaders":{"accept":"application/json","content-type":"application/json"},"responseHeaders":{"access-control-allow-headers":"Content-Type","access-control-allow-methods":"POST, GET, OPTIONS","access-control-allow-origin":"*","connection":"keep-alive","date":"Thu, 01 Jan 2026 00:00:00 GMT","keep-alive":"timeout=5","x-powered-by":"Express"},"requestBodySample":"{\"event\":\"partner_impression\"}","responseBodySample":null,"pathParams":[],"queryParams":[],"requestBodySchema":{"type":"object","properties":{"event":{"type":"string"}},"required":["event"]},"responseSchema":null,"responseSchemaReason":"no-body","mimeTypes":[],"triggeredBy":["http://127.0.0.1:4610/external.html"],"timing":{"p50":7,"p95":7,"max":7},"requestBytes":{"p50":30,"p95":30,"max":30}},{"id":"POST /api/login","method":"POST","urlPattern":"/api/login","origins":["http://127.0.0.1:4610"],"category":"authentication","count":2,"statusCodes":[200,401],"requestHeaders":{"accept":"application/json","content-type":"application/json"},"responseHeaders":{"cache-control":"no-store","connection":"keep-alive","content-type":"application/json; charset=utf-8","date":"Thu, 01 Jan 2026 00:00:00 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked","x-powered-by":"Express"},"requestBodySample":"{\"username\":\"demo@example.com\",\"password\":\"[REDACTED]\"}","responseBodySample":"{\"ok\":true,\"token\":\"fixture-token-123\",\"user\":{\"username\":\"demo@example.com\"}}","pathParams":[],"queryParams":[],"requestBodySchema":{"type":"object","properties":{"username":{"type":"string","description":"email"},"password":{"type":"string"}},"required":["username","password"]},"responseSchema":{"type":"object","properties":{"ok":{"type":"boolean"},"token":{"type":"string"},"user":{"type":"object","properties":{"username":{"type":"string","description":"email"}},"required":["username"]}},"required":["ok","token","user"]},"errorResponses":[{"status":401,"count":1,"bodySample":"{\"error\":\"invalid_credentials\"}","schema":{"type":"object","properties":{"error":{"type":"string"}},"required":["error"]},"mimeTypes":["application/json"]}],"mimeTypes":["application/json"],"triggeredBy":["http://127.0.0.1:4610/login"],"timing":{"p50":7,"p95":7,"max":7},"requestBytes":{"p50":55,"p95":55,"max":55},"responseBytes":{"p50":31,"p95":78,"max":78},"cache":{"control":"no-store"}},{"id":"GET /api/orders","method":"GET","urlPattern":"/api/orders","origins":["http://127.0.0.1:4610"],"category":"data-fetching","count":1,"statusCodes":[200],"requestHeaders":{"accept":"application/json","cookie":"[REDACTED]"},"responseHeaders":{"cache-control":"no-store","connection":"keep-alive","content-type":"application/json; charset=utf-8","date":"Thu, 01 Jan 2026 00:00:00 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked","x-powered-by":"Express"},"requestBodySample":null,"responseBodySample":"{\"orders\":[{\"id\":1042,\"total\":59.9,\"status\":\"shipped\",\"items\":[{\"sku\":\"W-1\",\"qty\":2,\"price\":19.95}]},{\"id\":1043,\"total\":12.5,\"status\":\"processing\",\"items\":[{\"sku\":\"G-7\",\"qty\":1,\"price\":12.5}]}],\"total\":2}","pathParams":[],"queryParams":[],"requestBodySchema":null,"requestBodySchemaReason":"no-body","responseSchema":{"type":"object","properties":{"orders":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","minimum":1042,"maximum":1043},"total":{"type":"number","minimum":12.5,"maximum":59.9},"status":{"type":"string","enum":["shipped","processing"]},"items":{"type":"array","items":{"type":"object"}}},"required":["id","total","status","items"]}},"total":{"type":"integer"}},"required":["orders","total"]},"mimeTypes":["application/json"],"triggeredBy":["http://127.0.0.1:4610/dashboard"],"timing":{"p50":7,"p95":7,"max":7},"responseBytes":{"p50":204,"p95":204,"max":204},"cache":{"control":"no-store"}},{"id":"GET /api/orders/{id}","method":"GET","urlPattern":"/api/orders/{id}","origins":["http://127.0.0.1:4610"],"category":"data-fetching","count":1,"statusCodes":[200],"requestHeaders":{"accept":"application/json","cookie":"[REDACTED]"},"responseHeaders":{"cache-control":"no-store","connection":"keep-alive","content-type":"application/json; charset=utf-8","date":"Thu, 01 Jan 2026 00:00:00 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked","x-powered-by":"Express"},"requestBodySample":null,"responseBodySample":"{\"id\":1042,\"total\":59.9,\"status\":\"shipped\",\"items\":[{\"sku\":\"W-1\",\"qty\":2,\"price\":19.95}]}","pathParams":["id"],"queryParams":[],"requestBodySchema":null,"requestBodySchemaReason":"no-body","responseSchema":{"type":"object","properties":{"id":{"type":"integer"},"total":{"type":"number"},"status":{"type":"string"},"items":{"type":"array","items":{"type":"object","properties":{"sku":{"type":"string"},"qty":{"type":"integer"},"price":{"type":"number"}},"required":["sku","qty","price"]}}},"required":["id","total","status","items"]},"mimeTypes":["application/json"],"triggeredBy":["http://127.0.0.1:4610/dashboard"],"timing":{"p50":7,"p95":7,"max":7},"responseBytes":{"p50":89,"p95":89,"max":89},"cache":{"control":"no-store"}},{"id":"GET /api/products","method":"GET","urlPattern":"/api/products","origins":["http://127.0.0.1:4610"],"category":"data-fetching","count":2,"statusCodes":[200],"requestHeaders":{"accept":"application/json"},"responseHeaders":{"cache-control":"no-store","connection":"keep-alive","content-type":"application/json; charset=utf-8","date":"Thu, 01 Jan 2026 00:00:00 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked","x-powered-by":"Express"},"requestBodySample":null,"responseBodySample":"{\"page\":1,\"pageSize\":3,\"hasMore\":true,\"products\":[{\"id\":1,\"name\":\"Widget 1\",\"price\":9.99,\"tags\":[\"tools\",\"sale\"]},{\"id\":2,\"name\":\"Widget 2\",\"price\":10.99,\"tags\":[\"tools\",\"new\"]},{\"id\":3,\"name\":\"Widget 3\",\"price\":11.99,\"tags\":[\"tools\",\"sale\"]}]}","pathParams":[],"queryParams":[{"name":"page","sampleValues":["2"]}],"requestBodySchema":null,"requestBodySchemaReason":"no-body","responseSchema":{"type":"object","properties":{"page":{"type":"integer","minimum":1,"maximum":2},"pageSize":{"type":"integer"},"hasMore":{"type":"boolean"},"products":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer","minimum":1,"maximum":6},"name":{"type":"string"},"price":{"type":"number","minimum":9.99,"maximum":11.99},"tags":{"type":"array","items":{"type":"string","enum":["tools","sale","new"]}}},"required":["id","name","price","tags"]}}},"required":["page","pageSize","hasMore","products"]},"mimeTypes":["application/json"],"triggeredBy":["http://127.0.0.1:4610/products"],"timing":{"p50":7,"p95":7,"max":7},"responseBytes":{"p50":244,"p95":244,"max":244},"cache":{"control":"no-store"}},{"id":"GET /api/user","method":"GET","urlPattern":"/api/user","origins":["http://127.0.0.1:4610"],"category":"data-fetching","count":1,"statusCodes":[200],"requestHeaders":{"accept":"application/json","cookie":"[REDACTED]"},"responseHeaders":{"cache-control":"no-store","connection":"keep-alive","content-type":"application/json; charset=utf-8","date":"Thu, 01 Jan 2026 00:00:00 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked","x-powered-by":"Express"},"requestBodySample":null,"responseBodySample":"{\"id\":\"9b2f4a3e-1c2d-4e5f-8a9b-0c1d2e3f4a5b\",\"username\":\"demo@example.com\",\"email\":\"demo@example.com\",\"roles\":[\"customer\",\"beta\"],\"avatarUrl\":\"https://cdn.example.com/avatars/9b2f4a3e.png\"}","pathParams":[],"queryParams":[],"requestBodySchema":null,"requestBodySchemaReason":"no-body","responseSchema":{"type":"object","properties":{"id":{"type":"string","description":"uuid"},"username":{"type":"string","description":"email"},"email":{"type":"string","description":"email"},"roles":{"type":"array","items":{"type":"string","enum":["customer","beta"]}},"avatarUrl":{"type":"string","description":"uri"}},"required":["id","username","email","roles","avatarUrl"]},"mimeTypes":["application/json"],"triggeredBy":["http://127.0.0.1:4610/dashboard"],"timing":{"p50":7,"p95":7,"max":7},"responseBytes":{"p50":189,"p95":189,"max":189},"cache":{"control":"no-store"}},{"id":"POST /api/graphql","method":"POST","urlPattern":"/api/graphql","origins":["http://127.0.0.1:4610"],"category":"graphql","count":2,"statusCodes":[200],"requestHeaders":{"accept":"application/json","content-type":"application/json"},"responseHeaders":{"cache-control":"no-store","connection":"keep-alive","content-type":"application/json; charset=utf-8","date":"Thu, 01 Jan 2026 00:00:00 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked","x-powered-by":"Express"},"requestBodySample":"{\"operationName\":\"IntrospectionQuery\",\"query\":\"query IntrospectionQuery { __schema { queryType { name } } }\"}","responseBodySample":"{\"data\":{\"__schema\":{\"queryType\":{\"name\":\"Query\"}}}}","pathParams":[],"queryParams":[],"requestBodySchema":{"type":"object","properties":{"operationName":{"type":"string","enum":["IntrospectionQuery","GetProducts"]},"query":{"type":"string"},"variables":{"type":"object","properties":{"first":{"type":"integer"}},"required":["first"]}},"required":["operationName","query"]},"responseSchema":{"type":"object","properties":{"data":{"type":"object","properties":{"__schema":{"type":"object","properties":{"queryType":{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}},"required":["queryType"]},"products":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"price":{"type":"number"}},"required":["id","name","price"]}}}}},"required":["data"]},"mimeTypes":["application/json"],"triggeredBy":["http://127.0.0.1:4610/graphql"],"timing":{"p50":7,"p95":7,"max":7},"requestBytes":{"p50":109,"p95":127,"max":127},"responseBytes":{"p50":52,"p95":63,"max":63},"cache":{"control":"no-store"},"graphql":{"introspection":true,"operations":[{"name":"GetProducts","type":"query","selections":["products"]},{"name":"IntrospectionQuery","type":"query","selections":["__schema"]}]}},{"id":"POST /api/search","method":"POST","urlPattern":"/api/search","origins":["http://127.0.0.1:4610"],"category":"mutations","count":1,"statusCodes":[200],"requestHeaders":{"accept":"application/json","content-type":"application/json"},"responseHeaders":{"cache-control":"no-store","connection":"keep-alive","content-type":"application/json; charset=utf-8","date":"Thu, 01 Jan 2026 00:00:00 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked","x-powered-by":"Express"},"requestBodySample":"{\"q\":\"widget\"}","responseBodySample":"{\"query\":\"widget\",\"total\":1,\"results\":[{\"id\":7,\"name\":\"Result for widget\",\"price\":4.5}]}","pathParams":[],"queryParams":[],"requestBodySchema":{"type":"object","properties":{"q":{"type":"string"}},"required":["q"]},"responseSchema":{"type":"object","properties":{"query":{"type":"string"},"total":{"type":"integer"},"results":{"type":"array","items":{"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"price":{"type":"number"}},"required":["id","name","price"]}}},"required":["query","total","results"]},"mimeTypes":["application/json"],"triggeredBy":["http://127.0.0.1:4610/products"],"timing":{"p50":7,"p95":7,"max":7},"requestBytes":{"p50":14,"p95":14,"max":14},"responseBytes":{"p50":88,"p95":88,"max":88},"cache":{"control":"no-store"}},{"id":"GET /sdk/config.json","method":"GET","urlPattern":"/sdk/config.json","origins":["http://127.0.0.1:4611"],"category":"third-party","count":1,"statusCodes":[200],"requestHeaders":{"accept":"application/json"},"responseHeaders":{"access-control-allow-headers":"Content-Type","access-control-allow-methods":"POST, GET, OPTIONS","access-control-allow-origin":"*","connection":"keep-alive","content-type":"application/json","date":"Thu, 01 Jan 2026 00:00:00 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked","x-powered-by":"Express"},"requestBodySample":null,"responseBodySample":"{\"partner\":\"fixture-widgets\",\"theme\":{\"accent\":\"#0ea5e9\"}}","pathParams":[],"queryParams":[],"requestBodySchema":null,"requestBodySchemaReason":"no-body","responseSchema":{"type":"object","properties":{"partner":{"type":"string"},"theme":{"type":"object","properties":{"accent":{"type":"string"}},"required":["accent"]}},"required":["partner","theme"]},"mimeTypes":["application/json"],"triggeredBy":["http://127.0.0.1:4610/external.html"],"timing":{"p50":7,"p95":7,"max":7},"responseBytes":{"p50":58,"p95":58,"max":58}}],"resources":[{"path":"/api/collect","categories":["analytics"],"paths":[{"path":"/api/collect","methods":["POST"],"missingMethods":[]}]},{"path":"/api/graphql","categories":["graphql"],"paths":[{"path":"/api/graphql","methods":["POST"],"missingMethods":[]}]},{"path":"/api/login","categories":["authentication"],"paths":[{"path":"/api/login","methods":["POST"],"missingMethods":[]}]},{"path":"/api/orders","categories":["data-fetching"],"paths":[{"path":"/api/orders","methods":["GET"],"missingMethods":["POST"]},{"path":"/api/orders/{id}","methods":["GET"],"missingMethods":["PUT","PATCH","DELETE"]}]},{"path":"/api/products","categories":["data-fetching"],"paths":[{"path":"/api/products","methods":["GET"],"missingMethods":[]}]},{"path":"/api/search","categories":["mutations"],"paths":[{"path":"/api/search","methods":["POST"],"missingMethods":[]}]},{"path":"/api/user","categories":["data-fetching"],"paths":[{"path":"/api/user","methods":["GET"],"missingMethods":[]}]},{"path":"/collect","categories":["analytics"],"paths":[{"path":"/collect","methods":["POST"],"missingMethods":[]}]},{"path":"/sdk/config.json","categories":["third-party"],"paths":[{"path":"/sdk/config.json","methods":["GET"],"missingMethods":[]}]}],"pages":[{"url":"http://127.0.0.1:4610/","normalizedUrl":"http://127.0.0.1:4610/","depth":0,"title":"Fixture Shop — Home","visitedAt":1767225600007},{"url":"http://127.0.0.1:4610/products","normalizedUrl":"http://127.0.0.1:4610/products","depth":1,"title":"Fixture Shop — Products","visitedAt":1767225600014},{"url":"http://127.0.0.1:4610/login","normalizedUrl":"http://127.0.0.1:4610/login","depth":1,"title":"Fixture Shop — Login","visitedAt":1767225600021},{"url":"http://127.0.0.1:4610/about.html","normalizedUrl":"http://127.0.0.1:4610/about.html","depth":1,"title":"Fixture Shop — About","visitedAt":1767225600028},{"url":"http://127.0.0.1:4610/graphql","normalizedUrl":"http://127.0.0.1:4610/graphql","depth":1,"title":"Fixture Shop — GraphQL","visitedAt":1767225600035},{"url":"http://127.0.0.1:4610/websocket","normalizedUrl":"http://127.0.0.1:4610/websocket","depth":1,"title":"Fixture Shop — Live prices","visitedAt":1767225600042},{"url":"http://127.0.0.1:4610/external.html","normalizedUrl":"http://127.0.0.1:4610/external.html","depth":1,"title":"Fixture Shop — Partner widgets","visitedAt":1767225600049},{"url":"http://127.0.0.1:4610/dashboard","normalizedUrl":"http://127.0.0.1:4610/dashboard","depth":1,"title":"Fixture Shop — Dashboard","visitedAt":1767225600084}],"webSockets":[{"url":"ws://127.0.0.1:4610/ws","origins":["ws://127.0.0.1:4610"],"triggeredBy":"http://127.0.0.1:4610/websocket","openedAt":1767225600245,"closedAt":1767225600273,"frameCount":3,"sentCount":1,"receivedCount":2,"framesTruncated":false,"frames":[{"direction":"sent","type":"text","payloadSample":"{\"type\":\"subscribe\",\"channel\":\"prices\",\"token\":\"[REDACTED]\"}","size":65,"truncated":false,"at":1767225600252},{"direction":"received","type":"text","payloadSample":"{\"type\":\"welcome\",\"channel\":\"prices\"}","size":37,"truncated":false,"at":1767225600259},{"direction":"received","type":"text","payloadSample":"{\"type\":\"ack\",\"channel\":\"prices\",\"token\":\"[REDACTED]\"}","size":59,"truncated":false,"at":1767225600266}],"sentSchema":{"type":"object","properties":{"type":{"type":"string"},"channel":{"type":"string"},"token":{"type":"string"}},"required":["type","channel","token"]},"receivedSchema":{"type":"object","properties":{"type":{"type":"string","enum":["welcome","ack"]},"channel":{"type":"string"},"token":{"type":"string"}},"required":["type","channel"]}}],"safety":{"robotsRespected":true,"robotsSkippedPaths":["http://127.0.0.1:4610/admin"],"rateLimitMs":100,"maxBodyBytes":1048576,"allowLocal":true,"redact":true},"findings":[{"kind":"pii","severity":"medium","title":"PII-shaped fields appear in captured samples","endpoints":["GET /api/user"],"details":["GET /api/user — email"]},{"kind":"missing-security-header","severity":"low","title":"Security headers not observed on any response","endpoints":[],"details":["strict-transport-security was not present on any captured response","content-security-policy was not present on any captured response","x-content-type-options was not present on any captured response","x-frame-options was not present on any captured response","referrer-policy was not present on any captured response","permissions-policy was not present on any captured response"]}],"diff":{"baseline":{"seedUrl":"http://127.0.0.1:4610","startedAt":"2025-12-31T00:00:00.000Z","apiReconVersion":"0.3.6","engine":"chromium"},"current":{"seedUrl":"http://127.0.0.1:4610","startedAt":"2026-01-01T00:00:00.000Z","apiReconVersion":"0.3.6","engine":"chromium"},"changes":[{"id":"GET /api/legacy/orders","kind":"removed","breaking":true,"details":["not observed in this scan (was 200)"]},{"id":"GET /api/products","kind":"changed","breaking":false,"details":["response field added: products"]},{"id":"POST /api/search","kind":"added","breaking":false,"details":["new endpoint (observed 200)"]}],"counts":{"added":1,"removed":1,"changed":1,"breaking":1},"hasChanges":true}}</script>
@@ -305,8 +328,16 @@
   });
   var allRows = endpoints.concat(removed).concat(sockets);
 
-  var state = { q: '', category: 'all', method: 'all', status: 'all', breaking: false, changed: false, sort: null, dir: 1 };
+  // Which resource each path belongs to, so the table can group by it. A report
+  // written before resources existed simply groups every endpoint as "Other".
+  var resourceByPath = {};
+  (data.resources || []).forEach(function (resource) {
+    (resource.paths || []).forEach(function (entry) { resourceByPath[entry.path] = resource.path; });
+  });
+
+  var state = { q: '', category: 'all', method: 'all', status: 'all', group: 'none', breaking: false, changed: false, sort: null, dir: 1 };
   var expanded = {};
+  var collapsed = {};
 
   var statsEl = document.getElementById('stats');
   var rowsEl = document.getElementById('rows');
@@ -318,6 +349,8 @@
   var statusEl = document.getElementById('status');
   var breakingEl = document.getElementById('breaking');
   var changedEl = document.getElementById('changed');
+  var groupEl = document.getElementById('group');
+  var groupNavEl = document.getElementById('groupnav');
   var resetEl = document.getElementById('reset');
 
   function el(tag, className, text) {
@@ -439,6 +472,11 @@
 
     statusEl.appendChild(option('all', 'All statuses'));
     statuses.forEach(function (s) { statusEl.appendChild(option(s)); });
+
+    groupEl.appendChild(option('none', 'No grouping'));
+    groupEl.appendChild(option('category', 'Group by category'));
+    if ((data.resources || []).length) groupEl.appendChild(option('resource', 'Group by resource'));
+    groupEl.appendChild(option('change', 'Group by change'));
 
     if (!diff) {
       // Nothing to compare against, so the diff-only filters are meaningless.
@@ -736,6 +774,86 @@
     return row;
   }
 
+  function groupOf(e) {
+    if (state.group === 'category') return { key: e.category, label: e.category };
+    if (state.group === 'change') {
+      var change = changeById[e.id];
+      var kind = change ? change.kind : 'unchanged';
+      return { key: kind, label: kind };
+    }
+    if (state.group === 'resource') {
+      var resource = resourceByPath[e.urlPattern];
+      return resource ? { key: resource, label: resource } : { key: '__other', label: 'Other endpoints' };
+    }
+    return { key: '__all', label: 'All endpoints' };
+  }
+
+  // Group the (already filtered and sorted) rows, keeping first-seen order so a
+  // sorted table keeps that order inside each group.
+  function grouped(list) {
+    var order = [];
+    var byKey = {};
+    list.forEach(function (e) {
+      var group = groupOf(e);
+      if (!byKey[group.key]) {
+        byKey[group.key] = { key: group.key, label: group.label, rows: [] };
+        order.push(group.key);
+      }
+      byKey[group.key].rows.push(e);
+    });
+    return order.map(function (key) { return byKey[key]; });
+  }
+
+  function toggleGroup(key) {
+    collapsed[key] = !collapsed[key];
+    render();
+  }
+
+  function groupRowFor(group) {
+    var row = el('tr', 'group');
+    var cell = el('td');
+    cell.colSpan = document.querySelectorAll('thead th').length;
+    cell.appendChild(el('span', 'caret', collapsed[group.key] ? '▸' : '▾'));
+    cell.appendChild(el('span', null, group.label));
+    cell.appendChild(el('span', 'n', ' · ' + group.rows.length));
+    row.appendChild(cell);
+    row.tabIndex = 0;
+    row.setAttribute('data-group', group.key);
+    row.setAttribute('aria-expanded', collapsed[group.key] ? 'false' : 'true');
+    row.addEventListener('click', function () { toggleGroup(group.key); });
+    row.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      toggleGroup(group.key);
+    });
+    return row;
+  }
+
+  function renderGroupNav(groups) {
+    groupNavEl.hidden = false;
+    groupNavEl.textContent = '';
+    groupNavEl.appendChild(el('h3', null, 'Groups'));
+    groups.forEach(function (group) {
+      var button = el('button', 'groupnav-item');
+      button.type = 'button';
+      button.setAttribute('aria-pressed', collapsed[group.key] ? 'true' : 'false');
+      button.appendChild(el('span', null, group.label));
+      button.appendChild(el('span', 'n', group.rows.length));
+      button.addEventListener('click', function () {
+        toggleGroup(group.key);
+        // Keep the group in view when it re-renders from the nav.
+        var headers = rowsEl.querySelectorAll('tr.group');
+        for (var i = 0; i < headers.length; i += 1) {
+          if (headers[i].getAttribute('data-group') === group.key) {
+            if (headers[i].scrollIntoView) headers[i].scrollIntoView({ block: 'nearest' });
+            break;
+          }
+        }
+      });
+      groupNavEl.appendChild(button);
+    });
+  }
+
   function render() {
     var list = visible();
     rowsEl.textContent = '';
@@ -743,14 +861,30 @@
     countEl.textContent = list.length + ' of ' + allRows.length + ' shown' +
       (removed.length ? ' (' + removed.length + ' only in the baseline)' : '');
 
-    list.forEach(function (e) {
-      rowsEl.appendChild(rowFor(e));
-      if (expanded[e.id]) rowsEl.appendChild(details(e));
-    });
     if (!allRows.length) {
       emptyEl.hidden = false;
       emptyEl.textContent = 'No endpoints were captured.';
     }
+
+    if (state.group === 'none') {
+      groupNavEl.hidden = true;
+      list.forEach(function (e) {
+        rowsEl.appendChild(rowFor(e));
+        if (expanded[e.id]) rowsEl.appendChild(details(e));
+      });
+      return;
+    }
+
+    var groups = grouped(list);
+    renderGroupNav(groups);
+    groups.forEach(function (group) {
+      rowsEl.appendChild(groupRowFor(group));
+      if (collapsed[group.key]) return;
+      group.rows.forEach(function (e) {
+        rowsEl.appendChild(rowFor(e));
+        if (expanded[e.id]) rowsEl.appendChild(details(e));
+      });
+    });
   }
 
   // ---- events --------------------------------------------------------------
@@ -776,17 +910,20 @@
   categoryEl.addEventListener('change', function () { state.category = categoryEl.value; render(); });
   methodEl.addEventListener('change', function () { state.method = methodEl.value; render(); });
   statusEl.addEventListener('change', function () { state.status = statusEl.value; render(); });
+  groupEl.addEventListener('change', function () { state.group = groupEl.value; collapsed = {}; render(); });
   breakingEl.addEventListener('change', function () { state.breaking = breakingEl.checked; render(); });
   changedEl.addEventListener('change', function () { state.changed = changedEl.checked; render(); });
   resetEl.addEventListener('click', function () {
-    state = { q: '', category: 'all', method: 'all', status: 'all', breaking: false, changed: false, sort: null, dir: 1 };
+    state = { q: '', category: 'all', method: 'all', status: 'all', group: 'none', breaking: false, changed: false, sort: null, dir: 1 };
     qEl.value = '';
     categoryEl.value = 'all';
     methodEl.value = 'all';
     statusEl.value = 'all';
+    groupEl.value = 'none';
     breakingEl.checked = false;
     changedEl.checked = false;
     expanded = {};
+    collapsed = {};
     document.querySelectorAll('thead th.sortable').forEach(function (th) {
       var arrow = th.querySelector('.arrow');
       if (arrow) arrow.textContent = '';
