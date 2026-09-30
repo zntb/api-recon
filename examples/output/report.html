@@ -5,33 +5,83 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>API recon — http://127.0.0.1:4610</title>
 <style>
-  :root { color-scheme: light; }
+  :root {
+    color-scheme: light;
+    /* colour */
+    --line: #e3e7ee; --muted: #5b6675; --ink: #1c2430;
+    --bg: #f6f7f9; --panel: #ffffff; --panel-2: #fbfcfe; --head: #f4f6fa;
+    --head-hover: #e9eef7; --row-hover: #f7f9fd; --row-open: #f2f5fd;
+    --row-removed: #fff7f6; --row-removed-hover: #fdeceb;
+    --chip: #eef1f6; --chip-ink: #404a5c; --input-border: #cbd3df;
+    --ok: #027a48; --ok-bg: #e7f6ef; --warn: #b54708; --warn-bg: #fdf2e4;
+    --bad: #b42318; --bad-bg: #fdeceb; --info: #0552b5; --info-bg: #e8f0fe;
+    --accent: #4f6ef7; --accent-soft: #c7d2fe; --note-bg: #f8faff;
+    --shadow: 0 1px 2px rgba(16,24,40,.04);
+    --pre-bg: #0f172a; --pre-ink: #e2e8f0;
+    /* typography */
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    /* spacing & shape */
+    --radius: 12px; --radius-sm: 7px; --space: 1rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --line: #2a3342; --muted: #97a3b4; --ink: #e6ebf2;
+      --bg: #0e131b; --panel: #161d27; --panel-2: #131a23; --head: #1b2330;
+      --head-hover: #243043; --row-hover: #1b2330; --row-open: #1d2738;
+      --row-removed: #2a1a1c; --row-removed-hover: #361f22;
+      --chip: #232d3b; --chip-ink: #c4cfdd; --input-border: #38445a;
+      --ok: #4ade80; --ok-bg: #10301f; --warn: #fbbf24; --warn-bg: #33260d;
+      --bad: #f87171; --bad-bg: #3a1a1c; --info: #7dd3fc; --info-bg: #10263a;
+      --accent: #8da2ff; --accent-soft: #33406b; --note-bg: #131d2e;
+      --shadow: 0 1px 2px rgba(0,0,0,.45);
+      --pre-bg: #0b1018; --pre-ink: #e2e8f0;
+    }
+  }
+  @media print {
+    :root {
+      color-scheme: light;
+      --line: #cccccc; --muted: #444444; --ink: #000000;
+      --bg: #ffffff; --panel: #ffffff; --panel-2: #ffffff; --head: #ffffff;
+      --head-hover: #ffffff; --row-hover: #ffffff; --row-open: #ffffff;
+      --row-removed: #ffffff; --row-removed-hover: #ffffff;
+      --chip: #f0f0f0; --chip-ink: #000000; --input-border: #cccccc;
+      --accent: #000000; --accent-soft: #bbbbbb; --note-bg: #f7f7f7;
+      --shadow: none;
+      --pre-bg: #f4f4f5; --pre-ink: #111111;
+    }
+  }
+
+  code { font-family: var(--font-mono); font-size: .88em; background: var(--chip);
+    color: var(--chip-ink); padding: .12em .35em; border-radius: 4px; }
+  pre { margin: 0; background: var(--pre-bg); color: var(--pre-ink); padding: 1rem 1.1rem;
+    border-radius: 8px; overflow-x: auto; font-size: .82rem; line-height: 1.45; }
+  pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+  .table-scroll { overflow-x: auto; }
+
   * { box-sizing: border-box; }
   body {
     margin: 0; padding: 2.5rem 1.25rem;
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: #f6f7f9; color: #1c2430; line-height: 1.55;
+    font-family: var(--font-sans);
+    background: var(--bg); color: var(--ink); line-height: 1.55;
   }
-  main { max-width: 980px; margin: 0 auto; background: #fff; border: 1px solid #e3e7ee;
-    border-radius: 12px; padding: 2.5rem; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+  main { max-width: 980px; margin: 0 auto; background: var(--panel);
+    border: 1px solid var(--line); border-radius: var(--radius); padding: 2.5rem;
+    box-shadow: var(--shadow); }
   h1 { font-size: 1.9rem; margin-top: 0; letter-spacing: -0.02em; }
-  h2 { font-size: 1.3rem; margin-top: 2.2rem; padding-bottom: .35rem; border-bottom: 2px solid #eef1f6; }
+  h2 { font-size: 1.3rem; margin-top: 2.2rem; padding-bottom: .35rem; border-bottom: 2px solid var(--chip); }
   h3 { font-size: 1.05rem; margin-top: 1.6rem; }
-  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em;
-    background: #f1f3f7; padding: .12em .35em; border-radius: 4px; }
-  pre { background: #0f172a; color: #e2e8f0; padding: 1rem 1.1rem; border-radius: 8px;
-    overflow-x: auto; font-size: .82rem; line-height: 1.45; }
-  pre code { background: none; color: inherit; padding: 0; }
   table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .9rem; }
-  th, td { text-align: left; padding: .5rem .65rem; border: 1px solid #e3e7ee; vertical-align: top; }
-  th { background: #f4f6fa; font-weight: 600; }
-  tr:nth-child(even) td { background: #fafbfd; }
-  blockquote { margin: 1rem 0; padding: .5rem 1rem; border-left: 4px solid #c7d2fe; background: #f8faff; }
-  hr { border: none; border-top: 1px solid #e3e7ee; margin: 2rem 0; }
+  th, td { text-align: left; padding: .5rem .65rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--head); font-weight: 600; }
+  tr:nth-child(even) td { background: var(--panel-2); }
+  blockquote { margin: 1rem 0; padding: .5rem 1rem; border-left: 4px solid var(--accent-soft);
+    background: var(--note-bg); }
+  hr { border: none; border-top: 1px solid var(--line); margin: 2rem 0; }
   @media print {
     body { background: #fff; padding: 0; }
     main { border: none; box-shadow: none; padding: 0; max-width: none; }
-    pre { background: #f4f4f5; color: #111; border: 1px solid #ddd; }
     h2, h3 { break-after: avoid; }
     table, pre, tr { break-inside: avoid; }
   }
@@ -42,7 +92,7 @@
 <h1>API recon report</h1>
 <p>Generated by <strong>api-recon</strong> v0.3.6 for <code>http://127.0.0.1:4610</code>.</p>
 <h2>1. Overview</h2>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Field</th>
@@ -77,9 +127,9 @@
 <td>Redaction</td>
 <td>enabled</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h2>2. Detected Technologies</h2>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Technology</th>
@@ -102,10 +152,10 @@
 <td>ui-library</td>
 <td>html: data-reactroot</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h2>3. Endpoint Summary by Category</h2>
 <h3>authentication (1)</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Method</th>
@@ -120,9 +170,9 @@
 <td>200, 401</td>
 <td>2</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3>data-fetching (4)</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Method</th>
@@ -155,9 +205,9 @@
 <td>200</td>
 <td>1</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3>mutations (1)</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Method</th>
@@ -172,9 +222,9 @@
 <td>200</td>
 <td>1</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3>analytics (2)</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Method</th>
@@ -195,9 +245,9 @@
 <td>204</td>
 <td>1</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3>third-party (1)</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Method</th>
@@ -212,9 +262,9 @@
 <td>200</td>
 <td>1</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3>graphql (1)</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Method</th>
@@ -229,10 +279,10 @@
 <td>200</td>
 <td>2</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h2>4. Detailed Endpoints</h2>
 <h3><code>POST /api/collect</code></h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Field</th>
@@ -275,7 +325,7 @@
 <td>Triggered by</td>
 <td><a href="http://127.0.0.1:4610/products">http://127.0.0.1:4610/products</a></td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <p><strong>Request headers</strong></p>
 <pre><code class="language-http">accept: application/json
 content-type: application/json
@@ -293,7 +343,7 @@ x-powered-by: Express
 </code></pre>
 <p><em>Response schema not inferred — no body captured.</em></p>
 <h3><code>POST /collect</code></h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Field</th>
@@ -332,7 +382,7 @@ x-powered-by: Express
 <td>Triggered by</td>
 <td><a href="http://127.0.0.1:4610/external.html">http://127.0.0.1:4610/external.html</a></td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <p><strong>Request headers</strong></p>
 <pre><code class="language-http">accept: application/json
 content-type: application/json
@@ -351,7 +401,7 @@ x-powered-by: Express
 </code></pre>
 <p><em>Response schema not inferred — no body captured.</em></p>
 <h3><code>POST /api/login</code></h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Field</th>
@@ -398,7 +448,7 @@ x-powered-by: Express
 <td>Triggered by</td>
 <td><a href="http://127.0.0.1:4610/login">http://127.0.0.1:4610/login</a></td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <p><strong>Request headers</strong></p>
 <pre><code class="language-http">accept: application/json
 content-type: application/json
@@ -465,7 +515,7 @@ x-powered-by: Express
 }
 </code></pre>
 <h3><code>GET /api/orders</code></h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Field</th>
@@ -508,7 +558,7 @@ x-powered-by: Express
 <td>Triggered by</td>
 <td><a href="http://127.0.0.1:4610/dashboard">http://127.0.0.1:4610/dashboard</a></td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <p><strong>Request headers</strong></p>
 <pre><code class="language-http">accept: application/json
 cookie: [REDACTED]
@@ -577,7 +627,7 @@ x-powered-by: Express
 }
 </code></pre>
 <h3><code>GET /api/orders/{id}</code></h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Field</th>
@@ -624,7 +674,7 @@ x-powered-by: Express
 <td>Path parameters</td>
 <td><code>id</code></td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <p><strong>Request headers</strong></p>
 <pre><code class="language-http">accept: application/json
 cookie: [REDACTED]
@@ -686,7 +736,7 @@ x-powered-by: Express
 }
 </code></pre>
 <h3><code>GET /api/products</code></h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Field</th>
@@ -733,7 +783,7 @@ x-powered-by: Express
 <td>Query parameters</td>
 <td><code>page</code> (e.g. 2)</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <p><strong>Request headers</strong></p>
 <pre><code class="language-http">accept: application/json
 </code></pre>
@@ -812,7 +862,7 @@ x-powered-by: Express
 }
 </code></pre>
 <h3><code>GET /api/user</code></h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Field</th>
@@ -855,7 +905,7 @@ x-powered-by: Express
 <td>Triggered by</td>
 <td><a href="http://127.0.0.1:4610/dashboard">http://127.0.0.1:4610/dashboard</a></td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <p><strong>Request headers</strong></p>
 <pre><code class="language-http">accept: application/json
 cookie: [REDACTED]
@@ -913,7 +963,7 @@ x-powered-by: Express
 }
 </code></pre>
 <h3><code>POST /api/graphql</code></h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Field</th>
@@ -968,7 +1018,7 @@ x-powered-by: Express
 <td>GraphQL operations</td>
 <td><code>GetProducts</code> (query) → products, <code>IntrospectionQuery</code> (query) → __schema</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <p><strong>Request headers</strong></p>
 <pre><code class="language-http">accept: application/json
 content-type: application/json
@@ -1045,7 +1095,7 @@ x-powered-by: Express
 }
 </code></pre>
 <h3><code>POST /api/search</code></h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Field</th>
@@ -1092,7 +1142,7 @@ x-powered-by: Express
 <td>Triggered by</td>
 <td><a href="http://127.0.0.1:4610/products">http://127.0.0.1:4610/products</a></td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <p><strong>Request headers</strong></p>
 <pre><code class="language-http">accept: application/json
 content-type: application/json
@@ -1153,7 +1203,7 @@ x-powered-by: Express
 }
 </code></pre>
 <h3><code>GET /sdk/config.json</code></h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Field</th>
@@ -1192,7 +1242,7 @@ x-powered-by: Express
 <td>Triggered by</td>
 <td><a href="http://127.0.0.1:4610/external.html">http://127.0.0.1:4610/external.html</a></td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <p><strong>Request headers</strong></p>
 <pre><code class="language-http">accept: application/json
 </code></pre>
@@ -1240,7 +1290,7 @@ x-powered-by: Express
 <li><code>POST /api/login</code> → 200, 401 (2 call(s))</li>
 </ul>
 <h2>6. Third-party Calls</h2>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Method</th>
@@ -1257,7 +1307,7 @@ x-powered-by: Express
 <td><a href="http://127.0.0.1:4611">http://127.0.0.1:4611</a></td>
 <td>1</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h2>7. Safety Notes</h2>
 <ul>
 <li>robots.txt respected: <strong>yes</strong></li>
@@ -1273,7 +1323,7 @@ x-powered-by: Express
 <h2>8. WebSocket Traffic</h2>
 <p><em>1 connection(s) observed. Frames are redacted and size-capped like request and response bodies.</em></p>
 <h3><code>ws://127.0.0.1:4610/ws</code></h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Field</th>
@@ -1288,8 +1338,8 @@ x-powered-by: Express
 <td>Frames</td>
 <td>3 (1 sent, 2 received)</td>
 </tr>
-</tbody></table>
-<table>
+</tbody></table></div>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Direction</th>
@@ -1316,7 +1366,7 @@ x-powered-by: Express
 <td>59 B</td>
 <td>{&quot;type&quot;:&quot;ack&quot;,&quot;channel&quot;:&quot;prices&quot;,&quot;token&quot;:&quot;[REDACTED]&quot;}</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <p><strong>Inferred sent message schema</strong></p>
 <pre><code class="language-json">{
   &quot;type&quot;: &quot;object&quot;,
@@ -1366,7 +1416,7 @@ x-powered-by: Express
 <p><em>9 resource(s), grouped by collection root. A missing verb is one the REST convention expects for that path shape but no captured call exhibited.</em></p>
 <h3><code>/api/collect</code></h3>
 <p><em>Categories: analytics</em></p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Path</th>
@@ -1379,10 +1429,10 @@ x-powered-by: Express
 <td>POST</td>
 <td>—</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3><code>/api/graphql</code></h3>
 <p><em>Categories: graphql</em></p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Path</th>
@@ -1395,10 +1445,10 @@ x-powered-by: Express
 <td>POST</td>
 <td>—</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3><code>/api/login</code></h3>
 <p><em>Categories: authentication</em></p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Path</th>
@@ -1411,10 +1461,10 @@ x-powered-by: Express
 <td>POST</td>
 <td>—</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3><code>/api/orders</code></h3>
 <p><em>Categories: data-fetching</em></p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Path</th>
@@ -1432,10 +1482,10 @@ x-powered-by: Express
 <td>GET</td>
 <td>PUT, PATCH, DELETE</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3><code>/api/products</code></h3>
 <p><em>Categories: data-fetching</em></p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Path</th>
@@ -1448,10 +1498,10 @@ x-powered-by: Express
 <td>GET</td>
 <td>—</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3><code>/api/search</code></h3>
 <p><em>Categories: mutations</em></p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Path</th>
@@ -1464,10 +1514,10 @@ x-powered-by: Express
 <td>POST</td>
 <td>—</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3><code>/api/user</code></h3>
 <p><em>Categories: data-fetching</em></p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Path</th>
@@ -1480,10 +1530,10 @@ x-powered-by: Express
 <td>GET</td>
 <td>—</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3><code>/collect</code></h3>
 <p><em>Categories: analytics</em></p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Path</th>
@@ -1496,10 +1546,10 @@ x-powered-by: Express
 <td>POST</td>
 <td>—</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3><code>/sdk/config.json</code></h3>
 <p><em>Categories: third-party</em></p>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Path</th>
@@ -1512,11 +1562,11 @@ x-powered-by: Express
 <td>GET</td>
 <td>—</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h2>11. Performance</h2>
 <p><em>Observed, not benchmarked: a scan samples whatever traffic it triggered. Body sizes are the captured bytes, so a size-capped body is a lower bound.</em></p>
 <h3>Slowest endpoints (by p95)</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Method</th>
@@ -1607,9 +1657,9 @@ x-powered-by: Express
 <td>7ms</td>
 <td>1</td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h3>Largest responses (by p95)</h3>
-<table>
+<div class="table-scroll"><table>
 <thead>
 <tr>
 <th>Method</th>
@@ -1675,7 +1725,7 @@ x-powered-by: Express
 <td></td>
 <td></td>
 </tr>
-</tbody></table>
+</tbody></table></div>
 <h2>12. Findings &amp; Next Steps</h2>
 <p><em>Heuristic review cues from this capture, not a security audit. Each is derived from the observations above.</em></p>
 <h3>Medium</h3>

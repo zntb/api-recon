@@ -209,6 +209,12 @@ you only care about the API surface, Chromium is the safer default.
 | `dashboard.html` | Interactive dashboard: search, filter, sort, and expand endpoints |
 | `telemetry.json` | Opt-in anonymized categorization signals (see [Telemetry](#telemetry-opt-in)); never written unless enabled |
 
+`report.html` and `dashboard.html` share one theme (`src/reporters/theme.ts`):
+the same colours, typography, spacing, and code blocks, and both follow your
+`prefers-color-scheme`. Content that cannot wrap — a long URL, a payload —
+scrolls horizontally inside its table or code block instead of widening the
+page.
+
 `report.json` shape:
 
 ```jsonc

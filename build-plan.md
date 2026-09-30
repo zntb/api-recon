@@ -383,6 +383,13 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   order keeps a sorted table's order inside each group, and search/filters still
   narrow what each group shows. Endpoints with paths a report's `resources`
   cover group by resource, with anything unrecognized under "Other endpoints".
+- **One shared theme** — `src/reporters/theme.ts` now holds the colour,
+  typography, spacing, and code-block tokens for both `report.html` and
+  `dashboard.html`, including the dark and print overrides, so a restyle happens
+  in one place and the two artifacts cannot drift apart. `report.html` gains the
+  same `prefers-color-scheme` dark theme as the dashboard, and its tables are
+  wrapped in a scroll box so an unbreakable cell (a long URL, a payload) scrolls
+  horizontally instead of widening the page.
 
 **Proposed updates & features**
 
@@ -420,10 +427,6 @@ so it can be scoped without re-reading the source.
 
 **Aesthetics**
 
-- **One shared theme for every HTML artifact.** `report.html` and
-  `dashboard.html` each carry their own CSS; extract a single token set (colours,
-  spacing, typography, code blocks) so the two look like one product and a
-  restyle happens in one place.
 - **Polish the Markdown/HTML report.** A table of contents with anchors, a
   one-line scorecard summary, category badges, and tables that scroll
   horizontally instead of overflowing the page.

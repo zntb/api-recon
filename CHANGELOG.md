@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.7] - 2026-09-30
 
 ### Added
 
@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page — including a dark code block — and a print stylesheet drops the
   controls and unpins the table so the dashboard prints as a readable static
   report. No data or flags change.
+- **Shared HTML theme** — `report.html` and `dashboard.html` no longer each
+  carry their own palette. `src/reporters/theme.ts` defines the colour,
+  typography, spacing, and code-block tokens once, with the dark and print
+  overrides, and both artifacts interpolate them. `report.html` therefore gains
+  the dashboard's `prefers-color-scheme` dark theme, and its tables are wrapped
+  in a scroll box so an unbreakable cell — a long URL or payload — scrolls
+  horizontally instead of widening the page. No report data changes.
 
 ## [0.3.6] - 2026-09-30
 
@@ -471,7 +478,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
-[Unreleased]: https://github.com/zntb/api-recon/compare/v0.3.6...HEAD
+[0.3.7]: https://github.com/zntb/api-recon/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/zntb/api-recon/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/zntb/api-recon/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/zntb/api-recon/compare/v0.3.3...v0.3.4
