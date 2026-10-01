@@ -92,6 +92,7 @@ const OPTION_SPECS: OptionSpec[] = [
         ? 'turning redaction off affects everyone who uses the repository — pass --no-redact (or API_RECON_REDACT=0) for a run'
         : null,
   },
+  { key: 'strictRedaction', kind: 'bool', env: 'API_RECON_STRICT_REDACTION' },
   {
     key: 'force',
     kind: 'bool',

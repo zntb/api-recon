@@ -297,6 +297,15 @@ describe('analyzeCalls query parameter masking', () => {
     });
     expect(endpoint!.queryParams.find((p) => p.name === 'token')!.sampleValues).toEqual(['abc123']);
   });
+
+  it('reports the masked originals so the report can be verified', () => {
+    const seen: string[] = [];
+    analyzeCalls([call({ url: `${SEED}/api/x?token=super-secret&page=2` })], {
+      seedUrl: SEED,
+      onSecret: (v) => seen.push(v),
+    });
+    expect(seen).toEqual(['super-secret']);
+  });
 });
 
 describe('analyzeCalls performance roll-up', () => {

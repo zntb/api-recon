@@ -5,6 +5,13 @@
 
 export const REDACTED = '[REDACTED]';
 
+/**
+ * Called with each original value redaction removes, so a scan can verify
+ * afterwards that none of them survived into the report. The value is for
+ * comparison only and must never be logged or written.
+ */
+export type SecretRecorder = (value: string) => void;
+
 /** Header names whose values must never be persisted. */
 export const SENSITIVE_HEADERS = [
   'authorization',
@@ -177,12 +184,20 @@ export function isSensitiveValue(value: string): boolean {
 }
 
 /** Redact values of sensitive headers (case-insensitive). Returns a new object. */
-export function redactHeaders(headers: Record<string, string>): Record<string, string> {
+export function redactHeaders(
+  headers: Record<string, string>,
+  onSecret?: SecretRecorder,
+): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [name, value] of Object.entries(headers)) {
     // A value that is a secret or PII is masked whatever the header is called,
     // so a token in an unrecognized header does not survive either.
-    out[name] = isSensitiveHeader(name) || isSensitiveValue(value) ? REDACTED : value;
+    if (isSensitiveHeader(name) || isSensitiveValue(value)) {
+      onSecret?.(value);
+      out[name] = REDACTED;
+    } else {
+      out[name] = value;
+    }
   }
   return out;
 }
@@ -192,14 +207,22 @@ export function redactHeaders(headers: Record<string, string>): Record<string, s
  * Non-JSON or unparseable bodies are returned unchanged. Depth-limited and
  * size-capped to stay cheap on large payloads.
  */
-export function redactBody(body: string | null | undefined, maxBytes = 512 * 1024): string | null {
+export function redactBody(
+  body: string | null | undefined,
+  maxBytes = 512 * 1024,
+  onSecret?: SecretRecorder,
+): string | null {
   if (!body) return null;
   if (body.length > maxBytes) return body;
   const trimmed = body.trim();
   if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
     // Not JSON: replace it wholesale only when the body *is* a secret, so an
     // HTML page that merely mentions an address is left intact.
-    return isSensitiveScalar(trimmed) ? REDACTED : body;
+    if (isSensitiveScalar(trimmed)) {
+      onSecret?.(trimmed);
+      return REDACTED;
+    }
+    return body;
   }
   let parsed: unknown;
   try {
@@ -207,7 +230,7 @@ export function redactBody(body: string | null | undefined, maxBytes = 512 * 102
   } catch {
     return body;
   }
-  const masked = maskValue(parsed, 0);
+  const masked = maskValue(parsed, 0, false, onSecret);
   try {
     return JSON.stringify(masked);
   } catch {
@@ -215,21 +238,30 @@ export function redactBody(body: string | null | undefined, maxBytes = 512 * 102
   }
 }
 
-function maskValue(value: unknown, depth: number, sensitive = false): unknown {
+function maskValue(
+  value: unknown,
+  depth: number,
+  sensitive = false,
+  onSecret?: SecretRecorder,
+): unknown {
   if (depth > 8) return value;
   if (typeof value === 'string') {
     // `sensitive` carries a sensitive key down through an object or array, so
     // `credentials: { token: … }` is masked like a direct `token`; otherwise the
     // value itself decides.
-    return sensitive || isSensitiveValue(value) ? REDACTED : value;
+    if (sensitive || isSensitiveValue(value)) {
+      onSecret?.(value);
+      return REDACTED;
+    }
+    return value;
   }
   if (Array.isArray(value)) {
-    return value.map((v) => maskValue(v, depth + 1, sensitive));
+    return value.map((v) => maskValue(v, depth + 1, sensitive, onSecret));
   }
   if (value && typeof value === 'object') {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = maskValue(v, depth + 1, sensitive || isSensitiveBodyKey(k));
+      out[k] = maskValue(v, depth + 1, sensitive || isSensitiveBodyKey(k), onSecret);
     }
     return out;
   }

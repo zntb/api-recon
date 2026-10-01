@@ -32,7 +32,7 @@ import {
   worstGapReason,
 } from './schemaInference.js';
 import { isSameDomain, toUrlPattern } from '../utils/url.js';
-import { isSensitiveParamName, REDACTED } from '../utils/redact.js';
+import { isSensitiveParamName, REDACTED, type SecretRecorder } from '../utils/redact.js';
 
 /**
  * Host suffixes of the tracking vendors in the shared catalog, so the list of
@@ -49,7 +49,7 @@ const ANALYTICS_PATH_RE =
 
 export function analyzeCalls(
   calls: CapturedCall[],
-  opts: { seedUrl: string; redact?: boolean },
+  opts: { seedUrl: string; redact?: boolean; onSecret?: SecretRecorder },
 ): Endpoint[] {
   const redact = opts.redact ?? true;
   const groups = new Map<string, CapturedCall[]>();
@@ -63,7 +63,7 @@ export function analyzeCalls(
 
   const endpoints: Endpoint[] = [];
   for (const [id, samples] of groups) {
-    endpoints.push(buildEndpoint(id, samples, opts.seedUrl, redact));
+    endpoints.push(buildEndpoint(id, samples, opts.seedUrl, redact, opts.onSecret));
   }
   endpoints.sort((a, b) => a.category.localeCompare(b.category) || a.id.localeCompare(b.id));
   return endpoints;
@@ -100,6 +100,7 @@ function buildEndpoint(
   samples: CapturedCall[],
   seedUrl: string,
   redact: boolean,
+  onSecret?: SecretRecorder,
 ): Endpoint {
   const first = samples[0]!;
   const representative = samples[samples.length - 1]!;
@@ -111,7 +112,7 @@ function buildEndpoint(
   const responseReason = worstGapReason(responseSamples.map(responseGapReason));
   const origins = unique(samples.map((s) => safeOrigin(s.url)));
   const category = categorize(first, seedUrl, graphql !== null);
-  const queryParams = collectQueryParams(samples, redact);
+  const queryParams = collectQueryParams(samples, redact, onSecret);
   const requestSchema = inferSchemaFromBodies(samples.map((s) => s.requestBodySample));
   const vendor = vendorFor(category, origins, requestSchema, queryParams);
   const timing = summarize(samples.map((s) => s.durationMs));
@@ -275,7 +276,11 @@ export function categorizeWithReason(
   return { category: 'uncategorized', heuristic: 'fallback' };
 }
 
-function collectQueryParams(samples: CapturedCall[], redact: boolean): QueryParam[] {
+function collectQueryParams(
+  samples: CapturedCall[],
+  redact: boolean,
+  onSecret?: SecretRecorder,
+): QueryParam[] {
   const byName = new Map<string, Set<string>>();
   for (const s of samples) {
     let u: URL;
@@ -289,17 +294,16 @@ function collectQueryParams(samples: CapturedCall[], redact: boolean): QueryPara
       if (v) byName.get(k)!.add(v);
     }
   }
-  return [...byName.entries()].map(([name, values]) => ({
-    name,
+  return [...byName.entries()].map(([name, values]) => {
     // A sensitive name keeps its presence and the fact that it carried a value,
-    // but not the value itself; an ordinary name keeps its samples.
-    sampleValues:
-      redact && isSensitiveParamName(name)
-        ? values.size > 0
-          ? [REDACTED]
-          : []
-        : [...values].slice(0, 5),
-  }));
+    // but not the value itself; an ordinary name keeps its samples. The masked
+    // originals are reported so the report can be checked for them afterward.
+    if (redact && isSensitiveParamName(name)) {
+      if (onSecret) for (const value of values) onSecret(value);
+      return { name, sampleValues: values.size > 0 ? [REDACTED] : [] };
+    }
+    return { name, sampleValues: [...values].slice(0, 5) };
+  });
 }
 
 function uniquePathParams(pattern: string): string[] {

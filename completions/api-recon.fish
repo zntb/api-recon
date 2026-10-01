@@ -31,6 +31,7 @@ complete -c api-recon -l fail-on-diff -d 'with --diff, exit 3 when any endpoint 
 complete -c api-recon -l include-third-party -d 'capture cross-origin XHR/fetch calls as well'
 complete -c api-recon -l redact -d 'redact sensitive headers such as Authorization and Cookie (default)'
 complete -c api-recon -l no-redact -d 'disable header redaction (not recommended)'
+complete -c api-recon -l strict-redaction -d 'refuse to write the reports if a redacted value still appears in them'
 complete -c api-recon -l force -d 'bypass robots.txt restrictions (only for systems you are allowed to test)'
 complete -c api-recon -l allow-local -d 'allow scanning localhost and private network ranges'
 complete -c api-recon -l telemetry -d 'write anonymized categorization signals to telemetry.json (off by default; no host, path, or body data)'

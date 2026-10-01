@@ -180,6 +180,32 @@ describe('redactHeaders by value', () => {
   });
 });
 
+describe('secret recording', () => {
+  it('reports each header value it redacts, and only those', () => {
+    const seen: string[] = [];
+    redactHeaders({ Authorization: 'Bearer abcdef', Accept: 'application/json' }, (v) => seen.push(v));
+    expect(seen).toEqual(['Bearer abcdef']);
+  });
+
+  it('reports body values masked by key and by shape', () => {
+    const seen: string[] = [];
+    redactBody(
+      JSON.stringify({ password: 'hunter2', note: 'jane@example.com', keep: 'shipped' }),
+      undefined,
+      (v) => seen.push(v),
+    );
+    expect(seen).toContain('hunter2');
+    expect(seen).toContain('jane@example.com');
+    expect(seen).not.toContain('shipped');
+  });
+
+  it('reports a whole-body secret', () => {
+    const seen: string[] = [];
+    redactBody('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig', undefined, (v) => seen.push(v));
+    expect(seen).toEqual(['eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig']);
+  });
+});
+
 describe('isSensitiveParamName', () => {
   it('flags the names whose values are secrets or PII', () => {
     for (const name of [

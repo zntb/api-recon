@@ -11,7 +11,7 @@
 
 import type { Page, Request, Response, WebSocket } from 'playwright';
 import type { CapturedCall, CapturedWebSocket, WebSocketDirection } from '../types.js';
-import { redactBody, redactHeaders } from '../utils/redact.js';
+import { redactBody, redactHeaders, type SecretRecorder } from '../utils/redact.js';
 import { isSameDomain, normalizeUrl } from '../utils/url.js';
 
 export interface InterceptorOptions {
@@ -25,6 +25,11 @@ export interface InterceptorOptions {
   /** Frames stored per WebSocket connection; later frames are counted but not kept. */
   maxWebSocketFrames?: number;
   onCapture?: (call: CapturedCall) => void;
+  /**
+   * Receives every original value redaction removes, so the report can be
+   * checked against them before it is written. Never logged or persisted.
+   */
+  onSecret?: SecretRecorder;
 }
 
 const DEFAULT_TOTAL_BODY_BYTES = 25 * 1024 * 1024;
@@ -83,8 +88,12 @@ export class TrafficInterceptor {
     const url = normalizeUrl(response.url() || req.url());
     if (!this.shouldCapture(url)) return;
 
-    const requestHeaders = this.options.redact ? redactHeaders(req.headers()) : req.headers();
-    const responseHeaders = this.options.redact ? redactHeaders(response.headers()) : response.headers();
+    const requestHeaders = this.options.redact
+      ? redactHeaders(req.headers(), this.options.onSecret)
+      : req.headers();
+    const responseHeaders = this.options.redact
+      ? redactHeaders(response.headers(), this.options.onSecret)
+      : response.headers();
 
     let requestBodySample: string | null = null;
     try {
@@ -145,7 +154,9 @@ export class TrafficInterceptor {
       status: 0,
       mimeType: '',
       resourceType: req.resourceType(),
-      requestHeaders: this.options.redact ? redactHeaders(req.headers()) : req.headers(),
+      requestHeaders: this.options.redact
+        ? redactHeaders(req.headers(), this.options.onSecret)
+        : req.headers(),
       requestBodySample: null,
       responseHeaders: {},
       responseBodySample: null,
@@ -237,7 +248,10 @@ export class TrafficInterceptor {
       return { value: null, truncated: false };
     }
     this.bytesStored += capped.length;
-    return { value: this.options.redact ? redactBody(capped) : capped, truncated };
+    return {
+      value: this.options.redact ? redactBody(capped, undefined, this.options.onSecret) : capped,
+      truncated,
+    };
   }
 }
 

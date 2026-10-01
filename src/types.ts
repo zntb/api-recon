@@ -573,6 +573,12 @@ export interface ScanOptions {
   force?: boolean;
   includeThirdParty?: boolean;
   redact?: boolean;
+  /**
+   * After the report is assembled, check it for the values redaction removed.
+   * By default a hit is a loud warning and the reports are still written; with
+   * this set, a hit refuses to write them. Off by default.
+   */
+  strictRedaction?: boolean;
   maxBodyBytes?: number;
   allowLocal?: boolean;
   quiet?: boolean;

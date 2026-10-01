@@ -30,6 +30,8 @@ import { runActions, loadActions } from './core/actions.js';
 import { loadLoginFlow, runLoginFlow, validateStorageState } from './core/authenticator.js';
 import { runRecordSession } from './core/record.js';
 import { analyzeCalls, analyzeWebSockets } from './core/analyzer.js';
+import { verifyRedaction } from './core/verifyRedaction.js';
+import { SecretLedger } from './utils/redactionLedger.js';
 import { groupResources } from './core/resources.js';
 import { diffReports, loadBaseline } from './core/diff.js';
 import { collectFindings } from './core/findings.js';
@@ -73,6 +75,10 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   const force = options.force ?? false;
   const includeThirdParty = options.includeThirdParty ?? false;
   const redact = options.redact ?? true;
+  const strictRedaction = options.strictRedaction ?? false;
+  // Collects what redaction removes, so the built report can be checked for
+  // those values before anything is written. Memory-only, never persisted.
+  const ledger = new SecretLedger();
   const telemetryPlan = resolveTelemetryPlan(options);
   const maxBodyBytes = options.maxBodyBytes ?? 1024 * 1024;
   const debug = options.debug ?? false;
@@ -130,6 +136,7 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
     maxBodyBytes,
     includeThirdParty,
     seedUrl,
+    onSecret: (value) => ledger.add(value),
   });
   interceptor.attach(session.page);
   session.context.on('page', (page) => interceptor.attach(page));
@@ -180,7 +187,11 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   const buildReport = (): ReconReport => {
     const captures = interceptor.calls.slice();
     const webSockets = analyzeWebSockets(interceptor.webSockets);
-    const endpoints = analyzeCalls(captures, { seedUrl, redact });
+    const endpoints = analyzeCalls(captures, {
+      seedUrl,
+      redact,
+      onSecret: (value) => ledger.add(value),
+    });
     const technologies = detectTechnologies(evidence);
     const report: ReconReport = {
       schemaVersion: REPORT_SCHEMA_VERSION,
@@ -309,6 +320,27 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   for (const endpoint of report.endpoints) emit({ type: 'endpoint', endpoint });
 
   if (baseline) report.diff = diffReports(baseline, report);
+
+  // Redaction is proved, not assumed: search the finished report for any value
+  // the capture layer removed. A hit means it survived in a field the redactors
+  // never touch, so warn — or, under --strict-redaction, refuse to write it.
+  const verification = verifyRedaction(report, ledger);
+  if (verification.total > 0) {
+    const paths = verification.paths.join(', ');
+    const more =
+      verification.total > verification.paths.length
+        ? `, +${verification.total - verification.paths.length} more`
+        : '';
+    const message =
+      `Redaction check: ${verification.total} report field(s) still contain a value ` +
+      `that should have been removed (${paths}${more}).`;
+    if (strictRedaction) {
+      throw new SafetyError(`${message} Refusing to write the reports.`, {
+        hint: 'Re-run without --strict-redaction to write them anyway, or report this as a bug.',
+      });
+    }
+    logger.warn(`${message} Writing them anyway — pass --strict-redaction to refuse.`);
+  }
 
   // A preview builds the payload so the caller can inspect it, but only an
   // explicit opt-in writes it to disk.

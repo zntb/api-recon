@@ -117,6 +117,7 @@ api-recon https://example.com --browser firefox
 | `--respect-robots` / `--no-respect-robots` | on | robots.txt compliance (`--no-…` requires `--force`) |
 | `--include-third-party` | off | Also capture cross-origin XHR/fetch calls and WebSockets |
 | `--redact` / `--no-redact` | on | Redact sensitive headers and secret- or PII-shaped values in bodies and WebSocket frames |
+| `--strict-redaction` | off | After the scan, refuse to write the reports if a redacted value still appears in them (by default that is a loud warning) |
 | `--force` | off | Bypass robots.txt restrictions (only for systems you may test) |
 | `--allow-local` | off | Allow scanning localhost/private network ranges |
 | `--max-body-mb <n>` | `1` | Maximum response body / WebSocket frame size kept, in MB |
@@ -263,7 +264,7 @@ The environment variables are the flags in `SCREAMING_SNAKE_CASE`:
 `API_RECON_BROWSER`, `API_RECON_AUTH`, `API_RECON_LOGIN`, `API_RECON_ACTIONS`,
 `API_RECON_RATE`, `API_RECON_DIFF`, `API_RECON_BASELINE`, `API_RECON_FAIL_ON_DIFF`,
 `API_RECON_RESPECT_ROBOTS`, `API_RECON_INCLUDE_THIRD_PARTY`, `API_RECON_REDACT`,
-`API_RECON_FORCE`, `API_RECON_ALLOW_LOCAL`, `API_RECON_TELEMETRY`,
+`API_RECON_STRICT_REDACTION`, `API_RECON_FORCE`, `API_RECON_ALLOW_LOCAL`, `API_RECON_TELEMETRY`,
 `API_RECON_TELEMETRY_PREVIEW`, `API_RECON_MAX_BODY_MB`, `API_RECON_QUIET`,
 `API_RECON_VERBOSE`, `API_RECON_JSON_PROGRESS`, `API_RECON_RECORD`,
 `API_RECON_SHARE`, `API_RECON_DEBUG`. Booleans take
@@ -943,7 +944,10 @@ resolves to. A caller that only awaits still works unchanged; so does the
   high-entropy base64/hex blob, an email, a phone number, or an SSN. A query
   parameter whose *name* marks it sensitive (`token`, `key`, `code`, `email`,
   and the password/secret family) keeps its name and the fact that it was
-  present, but its `sampleValues` are masked rather than reported.
+  present, but its `sampleValues` are masked rather than reported. Redaction is
+  also **verified rather than assumed**: after the report is assembled it is
+  searched for the original values redaction removed, and any survivor is a loud
+  warning — or, with `--strict-redaction`, a refusal to write the reports.
 - **Local/private targets are refused** unless `--allow-local` is passed.
 - **Size caps**: 1 MB per response body (`--max-body-mb`) and a global capture
   budget, plus `--max-pages` and `--depth` bounds.

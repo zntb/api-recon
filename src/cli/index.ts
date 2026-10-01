@@ -119,6 +119,11 @@ function registerScanOptions(command: Command): Command {
     .option('--include-third-party', 'capture cross-origin XHR/fetch calls as well', false)
     .option('--redact', 'redact sensitive headers such as Authorization and Cookie (default)', true)
     .option('--no-redact', 'disable header redaction (not recommended)')
+    .option(
+      '--strict-redaction',
+      'refuse to write the reports if a redacted value still appears in them',
+      false,
+    )
     .option('--force', 'bypass robots.txt restrictions (only for systems you are allowed to test)', false)
     .option('--allow-local', 'allow scanning localhost and private network ranges', false)
     .option(
@@ -213,6 +218,8 @@ interface CliOptions {
   respectRobots: boolean;
   includeThirdParty: boolean;
   redact: boolean;
+  /** Refuse to write the reports if a redacted value survived into them. */
+  strictRedaction: boolean;
   force: boolean;
   allowLocal: boolean;
   telemetry: boolean;
@@ -379,6 +386,7 @@ async function runScan(
       force: opts.force,
       includeThirdParty: opts.includeThirdParty,
       redact: opts.redact,
+      strictRedaction: opts.strictRedaction,
       allowLocal: opts.allowLocal,
       telemetry,
       telemetryPreview: opts.telemetryPreview,

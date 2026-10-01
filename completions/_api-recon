@@ -33,6 +33,7 @@ _api_recon() {
     '--include-third-party:capture cross-origin XHR/fetch calls as well'
     '--redact:redact sensitive headers such as Authorization and Cookie (default)'
     '--no-redact:disable header redaction (not recommended)'
+    '--strict-redaction:refuse to write the reports if a redacted value still appears in them'
     '--force:bypass robots.txt restrictions (only for systems you are allowed to test)'
     '--allow-local:allow scanning localhost and private network ranges'
     '--telemetry:write anonymized categorization signals to telemetry.json (off by default; no host, path, or body data)'

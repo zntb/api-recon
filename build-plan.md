@@ -582,6 +582,18 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   parameter name and the fact that it was present survive; several distinct
   values collapse to one `[REDACTED]` placeholder, and the masking is bypassed
   only with `--no-redact`, like every other redaction.
+- **Redaction is verified, not assumed** — a scan no longer trusts that every
+  secret was masked. A `SecretLedger` (`src/utils/redactionLedger.ts`) records
+  the original value whenever a header, a body string, a WebSocket frame, or a
+  sensitive query parameter is redacted — in memory only, never written — and
+  `src/core/verifyRedaction.ts` walks the assembled report for any of them
+  before it is written. A survivor means the value reached a field the redactors
+  never touch (a page URL, an origin, metadata), so the default is a loud
+  warning that names the report paths but never the secret; `--strict-redaction`
+  upgrades that to a refusal to write (a `SafetyError`), so a CI job can let a
+  leak fail the run. Values shorter than six characters are not tracked, so a
+  short password cannot be confused with a status code or a byte count on a
+  clean report.
 
 **Proposed updates & features**
 
@@ -621,10 +633,6 @@ so it can be scoped without re-reading the source.
 
 **Security & privacy**
 
-- **Verify redaction before writing.** Assemble the report, scan it for the
-  original secret values gathered during capture, and refuse to write — or warn
-  loudly under `--strict-redaction` — if any is found. Redaction is currently
-  assumed rather than proved.
 - **Scope the scan explicitly.** Add `--include-host` / `--exclude-path`, and
   refuse to follow cross-origin redirects by default, so a scan cannot wander
   outside the agreed scope on a large or hostile site.

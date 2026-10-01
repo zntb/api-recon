@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   touched. Names are matched word-for-word after splitting camelCase and
   separators, so `accessToken` and `api_key` are caught while `monkey` is not,
   and the masking follows `--no-redact` like every other redaction.
+- **Redaction is verified before the report is written** — a `SecretLedger`
+  records the original value each time redaction masks a header, a body string, a
+  WebSocket frame, or a sensitive query parameter, and the assembled report is
+  walked for any of them. A survivor means a secret reached a field the redactors
+  never touch — a page URL, an origin, metadata — and is a loud warning naming the
+  report paths (never the secret), or a refusal to write under
+  `--strict-redaction`. Values shorter than six characters are not tracked, so a
+  short secret cannot be mistaken for a status code on a clean report.
 
 ## [0.4.0] - 2026-10-01
 

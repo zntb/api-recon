@@ -109,6 +109,7 @@ describe('api-recon CLI', () => {
       '--open',
       '--print',
       '--share',
+      '--strict-redaction',
     ]) {
       expect(stdout, `--help should mention ${flag}`).toContain(flag);
     }
