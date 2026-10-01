@@ -40,6 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bounce the scan somewhere you never agreed to. Scope is host-with-port,
   matching the existing same-domain rule, so an `http -> https` upgrade or a
   `www` redirect stays in scope while a different port does not.
+- **Safer credential handling** — a session written by a login flow's
+  `saveStateTo` is saved owner-only (`chmod 600`), since it holds live cookies; an
+  `--auth` file that is group- or world-readable is flagged with a warning on
+  startup; and nothing is persisted unless `saveStateTo` asks for it, so passing
+  `--auth` reads a session but never rewrites it.
 
 ## [0.4.0] - 2026-10-01
 

@@ -136,7 +136,7 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   // milliseconds, not after a full crawl.
   const baseline = options.diff ? await loadBaseline(options.diff) : null;
   const limiter = new RateLimiter({ delayMs: effectiveRate });
-  const storageState = options.auth ? await validateStorageState(options.auth) : null;
+  const storageState = options.auth ? await validateStorageState(options.auth, logger) : null;
   const loginFlow = options.login ? await loadLoginFlow(options.login) : null;
   const actionSteps = options.actions ? await loadActions(options.actions) : [];
 

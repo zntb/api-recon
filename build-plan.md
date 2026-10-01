@@ -605,6 +605,14 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   `--include-host` that would allow it. Scope is host-with-port, matching the
   existing `isSameDomain`, so an `http -> https` upgrade or `www` redirect stays
   in scope while a different port does not.
+- **Safer credential handling** — a session written by a login flow's
+  `saveStateTo` is now saved owner-only (`chmod 600`), since the storage state
+  holds live cookies; an `--auth` file that is group- or world-readable is
+  flagged with a warning on startup (POSIX modes only — Windows reports a
+  synthetic mode that would always warn); and nothing is persisted unless
+  `saveStateTo` asks for it, so passing `--auth` reads a session but never
+  rewrites it. `isGroupOrWorldReadable` is the pure predicate behind the check,
+  exported for tests.
 
 **Proposed updates & features**
 
@@ -644,9 +652,6 @@ so it can be scoped without re-reading the source.
 
 **Security & privacy**
 
-- **Safer credential handling.** Write a saved `storageState` with owner-only
-  permissions, warn when an `--auth` file is group- or world-readable, and never
-  persist a session unless `saveStateTo` asks for it.
 - **Integrity for shared reports.** Offer an optional checksum (or HMAC) over the
   report so a recipient can confirm it was not edited, aligned with the npm
   provenance attestation the release already publishes.

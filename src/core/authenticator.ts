@@ -1,10 +1,13 @@
 /**
  * Authentication: saved Playwright storageState, or a scripted login flow with
- * `${ENV_VAR}` substitution. Credential values are never logged.
+ * `${ENV_VAR}` substitution. Credential values are never logged. A saved
+ * session is written owner-only, an existing `--auth` file is checked for
+ * loose permissions, and nothing is persisted unless the login config's
+ * `saveStateTo` asks for it.
  */
 
 import { existsSync } from 'node:fs';
-import { mkdir, readFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, stat } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { BrowserContext, Page } from 'playwright';
 import { loadConfig } from '../utils/config.js';
@@ -28,8 +31,13 @@ export interface LoginFlowConfig {
 
 const STEP_TIMEOUT = 15_000;
 
+/** True when a POSIX file mode lets group or other readers in. */
+export function isGroupOrWorldReadable(mode: number): boolean {
+  return (mode & 0o077) !== 0;
+}
+
 /** Validate a storageState file and return its resolved path. */
-export async function validateStorageState(filePath: string): Promise<string> {
+export async function validateStorageState(filePath: string, logger?: Logger): Promise<string> {
   const resolved = resolve(filePath);
   if (!existsSync(resolved)) {
     throw new SafetyError(`storage state file not found: ${filePath}`);
@@ -45,6 +53,22 @@ export async function validateStorageState(filePath: string): Promise<string> {
     throw new SafetyError(
       `storage state file must contain a cookies[] and/or origins[] array: ${filePath}`,
     );
+  }
+  // A storage state is a live session: warn if the file is readable by others.
+  // POSIX modes only; Windows reports a synthetic mode that would always warn.
+  if (logger && process.platform !== 'win32') {
+    try {
+      const info = await stat(resolved);
+      if (isGroupOrWorldReadable(info.mode)) {
+        const mode = (info.mode & 0o777).toString(8).padStart(3, '0');
+        logger.warn(
+          `--auth file ${resolved} is group- or world-readable (mode ${mode}) and holds ` +
+            'session cookies — restrict it with `chmod 600` so other users cannot read it.',
+        );
+      }
+    } catch {
+      /* the mode check is best-effort; a missing file is caught above */
+    }
   }
   return resolved;
 }
@@ -81,11 +105,19 @@ export async function runLoginFlow(
     }
   }
 
+  // Persisting a session is opt-in: only a `saveStateTo` in the login config
+  // writes the storage state. When it does, keep it owner-only, since it holds
+  // live cookies that authenticate as the user the flow logged in as.
   if (config.saveStateTo) {
     const out = resolve(config.saveStateTo);
     await mkdir(dirname(out), { recursive: true });
     await context.storageState({ path: out });
-    logger.success(`Session state saved to ${out}`);
+    try {
+      await chmod(out, 0o600);
+    } catch {
+      /* filesystems without POSIX modes (e.g. Windows) are left as-is */
+    }
+    logger.success(`Session state saved to ${out} (owner-only)`);
   }
   await page.close().catch(() => {});
 }

@@ -847,6 +847,12 @@ saveStateTo: ./session.json   # optional: reuse later with --auth
 Supported steps: `fill`, `click`, `submit`, `waitForURL`, `waitForSelector`,
 `waitForTimeout`.
 
+Credential handling is deliberate. A session written because of `saveStateTo`
+is saved owner-only (`chmod 600`), since it holds live cookies; an `--auth` file
+that is group- or world-readable is flagged with a warning on startup; and
+nothing is persisted unless `saveStateTo` asks for it — passing `--auth` reads a
+session but never rewrites it.
+
 ## Scripted actions
 
 Run interaction steps on every crawled page to surface lazy-loaded endpoints:

@@ -3,7 +3,7 @@
  * fixture server. Requires `npx playwright install chromium`.
  */
 
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -200,6 +200,11 @@ describe('authentication', () => {
     expect(raw).not.toContain(FIXTURE_PASS);
     expect(raw).not.toContain('connect.sid=');
     expect(raw).toContain('[REDACTED]');
+
+    // The saved session is owner-only, since it holds live cookies.
+    if (process.platform !== 'win32') {
+      expect((await stat(SESSION_FILE)).mode & 0o777).toBe(0o600);
+    }
   }, 120_000);
 
   it('reuses a saved session with --auth', async () => {
