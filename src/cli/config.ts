@@ -29,6 +29,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { resolveEngine } from '../core/browser.js';
 import { SafetyError } from '../utils/safety.js';
+import { isLatestBaseline } from './baseline.js';
 import { presetValues } from './presets.js';
 
 /** Looked for in each directory, in this order, walking up to the root. */
@@ -78,6 +79,7 @@ const OPTION_SPECS: OptionSpec[] = [
   { key: 'record', kind: 'bool', env: 'API_RECON_RECORD' },
   { key: 'rate', kind: 'int', env: 'API_RECON_RATE' },
   { key: 'diff', kind: 'path', env: 'API_RECON_DIFF' },
+  { key: 'baseline', kind: 'path', env: 'API_RECON_BASELINE' },
   { key: 'failOnDiff', kind: 'bool', env: 'API_RECON_FAIL_ON_DIFF' },
   { key: 'respectRobots', kind: 'bool', env: 'API_RECON_RESPECT_ROBOTS' },
   { key: 'includeThirdParty', kind: 'bool', env: 'API_RECON_INCLUDE_THIRD_PARTY' },
@@ -113,6 +115,7 @@ const OPTION_SPECS: OptionSpec[] = [
   { key: 'quiet', kind: 'bool', env: 'API_RECON_QUIET' },
   { key: 'verbose', kind: 'bool', env: 'API_RECON_VERBOSE' },
   { key: 'jsonProgress', kind: 'bool', env: 'API_RECON_JSON_PROGRESS' },
+  { key: 'debug', kind: 'bool', env: 'API_RECON_DEBUG' },
   { key: 'print', kind: 'format', env: 'API_RECON_PRINT' },
   {
     key: 'open',
@@ -159,7 +162,9 @@ export async function loadProjectConfig(file: string, cwd = process.cwd()): Prom
   try {
     text = await readFile(path, 'utf8');
   } catch {
-    throw new SafetyError(`Config file not found: ${path}`);
+    throw new SafetyError(`Config file not found: ${path}`, {
+      hint: 'Check the path, or run without --config to discover one automatically.',
+    });
   }
 
   let parsed: unknown;
@@ -168,6 +173,7 @@ export async function loadProjectConfig(file: string, cwd = process.cwd()): Prom
   } catch (err) {
     throw new SafetyError(
       `Config file ${path} is not valid JSON: ${err instanceof Error ? err.message : String(err)}`,
+      { hint: 'Fix the JSON syntax, then run again.' },
     );
   }
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -180,6 +186,7 @@ export async function loadProjectConfig(file: string, cwd = process.cwd()): Prom
     if (!SPEC_BY_KEY.has(key)) {
       throw new SafetyError(
         `Unknown setting "${rawKey}" in ${path}. Valid settings: ${configKeys().join(', ')}.`,
+        { hint: 'Settings use the same names as the long flags, in camelCase or kebab-case.' },
       );
     }
     values[key] = value;
@@ -260,7 +267,11 @@ export async function resolveOptions(input: ResolveInput): Promise<ResolvedOptio
       if (refusal) {
         throw new SafetyError(`"${spec.key}" cannot be set in ${config.path}: ${refusal}.`);
       }
-      if (spec.kind === 'path') value = resolveAgainst(config.dir, value, spec.key, config.path);
+      // A bare `latest` is the sentinel for the stored baseline, not a file
+      // beside the config file, so it is left for the CLI to resolve.
+      if (spec.kind === 'path' && !isLatestBaseline(value)) {
+        value = resolveAgainst(config.dir, value, spec.key, config.path);
+      }
       from = 'config';
     } else {
       value = input.cli[spec.key];

@@ -463,6 +463,36 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   to stderr, so `api-recon <url> --print > report.md` holds only the report. Both
   have `API_RECON_*` variables, and `open` is refused in a config file because it
   would pop a browser open on whoever runs the command.
+- **A first-class diff workflow** — `api-recon baseline <url>` scans and stores
+  the report as `.api-recon/baseline.json` beside the working directory, and
+  `--diff latest` compares against it, so the CI-gate use case no longer has the
+  user manage a path. The stored path is one canonical location that both sides
+  resolve through `src/cli/baseline.ts` — walking up like the config file, so a
+  baseline committed at the repository root is found from any subdirectory, and
+  re-running `baseline` updates it in place. `latest` is recognized as a
+  sentinel in a flag, an `API_RECON_DIFF` variable, or a config file (where a
+  real relative path still resolves against the file itself), and a missing
+  baseline fails with the command that creates one. `--baseline <file>`
+  overrides the stored location on both sides for parallel runs (a relative path
+  in a config file still resolves against that file). The `baseline` subcommand
+  shares every scan flag with the default command by registering them on both
+  (`registerScanOptions`), which commander's positional-option mode keeps from
+  colliding, and the subcommand additionally supports `--config`, `--preset`,
+  `--print`, and the rest.
+- **Better failure output** — a deliberate failure is now a typed error carrying
+  a next step. `src/utils/errors.ts` adds `ApiReconError` and its subclasses
+  `SafetyError` (a guard refused to start; exit `2`) and `RuntimeError` (a scan
+  that failed; exit `1`), each with an optional `hint`. The CLI prints that hint
+  under every message through `hintForError`, so a failure ends in what to try —
+  and the guards, the config loader, the baseline loader, and the engine
+  resolver attach one. `--debug` turns a failed run into a bundle for a bug
+  report: the CLI records every log line into `debug/logs.txt`
+  (`Logger` gained a `record` sink), and `scan()` starts a Playwright trace and,
+  on failure, stops it into `debug/trace.zip` and writes the report built from
+  whatever was captured as `debug/partial-report.json`. The scan attaches those
+  paths to the thrown error through `src/utils/debug.ts` (a `WeakMap`), so a
+  library caller still gets an ordinary error. The bundle is best-effort and
+  never replaces the real failure.
 
 **Proposed updates & features**
 
@@ -534,12 +564,6 @@ so it can be scoped without re-reading the source.
 
 **User experience**
 
-- **A first-class diff workflow.** `api-recon baseline <url>` to write a known
-  baseline path and `--diff latest` to compare against it, so the CI-gate use
-  case stops requiring the user to manage file paths.
-- **Better failure output.** Typed error classes (a safety refusal vs. a runtime
-  failure), a short "what to try next" hint on every error, and a `--debug` flag
-  that writes a bundle (logs, trace, and the partial report) for a bug report.
 - **Shell completion.** Generated `bash`/`zsh`/`fish` completions, which
   `commander` makes cheap now that the flag set is large.
 - **An events API for the library.** Expose the scan as an async iterator

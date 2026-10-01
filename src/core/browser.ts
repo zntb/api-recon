@@ -33,6 +33,7 @@ export function resolveEngine(value: string | undefined): BrowserEngine {
   if (!isBrowserEngine(engine)) {
     throw new SafetyError(
       `Unknown browser engine '${value}'. Supported engines: ${BROWSER_ENGINES.join(', ')}.`,
+      { hint: `Pass one of: ${BROWSER_ENGINES.join(', ')}.` },
     );
   }
   return engine;
@@ -51,6 +52,11 @@ export interface LaunchOptions {
   storageState?: string | null;
   /** Engine to launch. Defaults to `chromium`. */
   engine?: BrowserEngine;
+  /**
+   * Record a Playwright trace. Used by `--debug`: the scan starts it here and
+   * stops it into a file only when the scan fails.
+   */
+  trace?: boolean;
 }
 
 export async function launchSession(options: LaunchOptions): Promise<BrowserSession> {
@@ -61,6 +67,9 @@ export async function launchSession(options: LaunchOptions): Promise<BrowserSess
     ignoreHTTPSErrors: true,
     viewport: { width: 1280, height: 800 },
   });
+  if (options.trace) {
+    await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
+  }
   await installSpaHooks(context);
   const page = await context.newPage();
   return {

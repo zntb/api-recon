@@ -634,20 +634,25 @@ export async function loadBaseline(filePath: string): Promise<ReconReport> {
   try {
     text = await readFile(filePath, 'utf8');
   } catch {
-    throw new SafetyError(`baseline report not found or unreadable: ${filePath}`);
+    throw new SafetyError(`baseline report not found or unreadable: ${filePath}`, {
+      hint: 'Run `api-recon baseline <url>` to store one, or pass the report.json a scan wrote.',
+    });
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new SafetyError(`baseline report is not valid JSON: ${filePath}`);
+    throw new SafetyError(`baseline report is not valid JSON: ${filePath}`, {
+      hint: 'Pass the report.json a scan wrote, not another JSON file.',
+    });
   }
 
   const shape = parsed as Partial<ReconReport> | null;
   if (!shape || typeof shape !== 'object' || !shape.meta || !Array.isArray(shape.endpoints)) {
     throw new SafetyError(
       `baseline report must be an api-recon report.json with 'meta' and 'endpoints': ${filePath}`,
+      { hint: 'Pass the report.json a scan wrote.' },
     );
   }
 
@@ -663,6 +668,7 @@ export async function loadBaseline(filePath: string): Promise<ReconReport> {
     throw new SafetyError(
       `baseline report is not compatible with this build: expected schemaVersion ` +
         `${REPORT_SCHEMA_VERSION} but found ${found}. Re-scan to produce a current report: ${filePath}`,
+      { hint: 'Re-scan, then diff against the report that build wrote.' },
     );
   }
 

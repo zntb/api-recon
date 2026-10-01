@@ -65,6 +65,10 @@ APP_USER=you@example.com APP_PASS='…' \
 # Drive the browser yourself and capture as you click
 api-recon https://app.example.com --record
 
+# Save a baseline, then compare against it later without naming a path
+api-recon baseline https://app.example.com
+api-recon https://app.example.com --diff latest --fail-on-diff
+
 # Scan in Firefox instead of Chromium (needs `npx playwright install firefox`)
 api-recon https://example.com --browser firefox
 ```
@@ -74,6 +78,7 @@ api-recon https://example.com --browser firefox
 | Flag | Default | Description |
 | --- | --- | --- |
 | `<seedUrl>` | — | Start URL (required) |
+| `baseline <seedUrl>` | — | Subcommand: scan and store the report as the baseline for `--diff latest` |
 | `-d, --depth <n>` | `1` | Same-domain crawl depth (0 = seed page only) |
 | `-m, --max-pages <n>` | `25` | Hard cap on pages visited |
 | `-o, --out <dir>` | `./api-recon-output` | Output directory |
@@ -83,7 +88,8 @@ api-recon https://example.com --browser firefox
 | `-l, --login <file>` | — | Login-flow config (YAML/JSON) |
 | `--record` | off | Interactive recording mode (headed browser) |
 | `--actions <file>` | — | Scripted interaction steps (YAML/JSON) |
-| `--diff <file>` | — | Compare this scan against a previous `report.json` |
+| `--diff <file>` | — | Compare this scan against a previous `report.json`, or the stored baseline with `--diff latest` |
+| `--baseline <file>` | `.api-recon/baseline.json` | Override where the stored baseline lives (for the `baseline` subcommand and `--diff latest`) |
 | `--fail-on-diff` | off | With `--diff`, exit `3` when any endpoint changed (CI gating) |
 | `-r, --rate <ms>` | `500` | Minimum delay between requests to the same origin |
 | `--respect-robots` / `--no-respect-robots` | on | robots.txt compliance (`--no-…` requires `--force`) |
@@ -101,9 +107,43 @@ api-recon https://example.com --browser firefox
 | `--print [format]` | — | Print a report to stdout: `md` (default), `json`, `openapi`, or `html` |
 | `--config <file>` | discovered | Project config file (see below) |
 | `--no-config` | — | Ignore any project config file, even one found on the way up |
+| `--debug` | off | On failure, write `debug/logs.txt`, a browser trace, and the partial report for a bug report |
 
 Exit codes: `0` success, `1` runtime failure, `2` refused by a safety guard (`--force`,
-`--allow-local`, a bad `--diff` file, …), `3` `--fail-on-diff` found endpoint changes.
+`--allow-local`, a bad `--diff` file, a missing `latest` baseline, …), `3`
+`--fail-on-diff` found endpoint changes.
+
+### When a scan fails
+
+Every deliberate failure is a typed error and ends in a next step. A guard that
+refused to start is a `SafetyError` (exit `2`) — scanning `localhost` without
+`--allow-local`, a `robots.txt` refusal, a config file that would loosen safety —
+while a scan that started and then broke is a `RuntimeError` (exit `1`). Under
+the message, the CLI prints a one-line hint: what to add, where to look, or which
+file the value came from.
+
+For a bug report, `--debug` leaves a bundle behind when a run fails:
+
+```console
+$ api-recon https://app.example.com --login flow.yaml --debug
+✗ login step 2 (click #submit) failed: …
+  → Check the login flow against the page, then run again.
+
+Debug bundle written to ./api-recon-output/debug:
+  ./api-recon-output/debug/logs.txt
+  ./api-recon-output/debug/trace.zip
+  ./api-recon-output/debug/partial-report.json
+```
+
+- `logs.txt` — every line the run printed, already secret-scrubbed.
+- `trace.zip` — a Playwright trace (screenshots, DOM snapshots, and sources)
+  you can open with `npx playwright show-trace`.
+- `partial-report.json` — the report built from whatever the crawl captured
+  before the failure, in the same shape as a normal `report.json`.
+
+Writing the bundle is best-effort: if it cannot be written, that is a warning
+and the original error still stands. In the library, the same behavior is
+`scan({ debug: true, debugDir: './debug' })`.
 
 ### Presets
 
@@ -172,11 +212,12 @@ $ API_RECON_DEPTH=3 api-recon https://example.com --max-pages 10
 The environment variables are the flags in `SCREAMING_SNAKE_CASE`:
 `API_RECON_DEPTH`, `API_RECON_MAX_PAGES`, `API_RECON_OUT`, `API_RECON_FORMATS`,
 `API_RECON_BROWSER`, `API_RECON_AUTH`, `API_RECON_LOGIN`, `API_RECON_ACTIONS`,
-`API_RECON_RATE`, `API_RECON_DIFF`, `API_RECON_FAIL_ON_DIFF`,
+`API_RECON_RATE`, `API_RECON_DIFF`, `API_RECON_BASELINE`, `API_RECON_FAIL_ON_DIFF`,
 `API_RECON_RESPECT_ROBOTS`, `API_RECON_INCLUDE_THIRD_PARTY`, `API_RECON_REDACT`,
 `API_RECON_FORCE`, `API_RECON_ALLOW_LOCAL`, `API_RECON_TELEMETRY`,
 `API_RECON_TELEMETRY_PREVIEW`, `API_RECON_MAX_BODY_MB`, `API_RECON_QUIET`,
-`API_RECON_VERBOSE`, `API_RECON_JSON_PROGRESS`, `API_RECON_RECORD`. Booleans take
+`API_RECON_VERBOSE`, `API_RECON_JSON_PROGRESS`, `API_RECON_RECORD`,
+`API_RECON_DEBUG`. Booleans take
 `1`/`0` (also `true`/`false`, `yes`/`no`, `on`/`off`).
 
 Two values cannot be committed in a shared file: `force: true` and
@@ -587,10 +628,38 @@ a diffed dashboard are committed under [`examples/output/`](examples/output).
 
 ## Comparing scans
 
-Pass a previous `report.json` to see what changed since it was captured:
+Capture a baseline once, then compare later scans against it. The `baseline`
+subcommand stores the report in one known place, and `--diff latest` reads it
+back, so neither command names a file path:
 
 ```bash
-# Capture a baseline
+# Capture the baseline — stored at .api-recon/baseline.json
+api-recon baseline https://app.example.com
+
+# Later, scan again and compare against the stored baseline
+api-recon https://app.example.com --diff latest --out ./latest
+```
+
+`.api-recon/baseline.json` is discovered by walking up from the working
+directory, like the project config file, so a baseline committed at the
+repository root is found from any subdirectory and re-running `baseline` updates
+it in place. Commit it to gate CI on the API surface changing. The sentinel also
+works from `API_RECON_DIFF=latest` and from a config file's `"diff": "latest"`.
+
+To keep a baseline somewhere else — a per-branch file, or several in parallel CI
+jobs — pass `--baseline <file>` on both sides. It overrides only the stored
+location; a relative path in a config file still resolves against that file:
+
+```bash
+api-recon baseline https://app.example.com --baseline baselines/main.json
+api-recon https://app.example.com --diff latest --baseline baselines/main.json
+```
+
+If you would rather manage the file yourself, pass the path directly to
+`--diff`:
+
+```bash
+# Capture a baseline anywhere
 api-recon https://app.example.com --out ./baseline --formats json
 
 # Later, scan again and compare against it
@@ -633,10 +702,11 @@ whatever traffic the crawl happened to trigger, so an endpoint listed as removed
 may simply not have been exercised this time — the evidence sits beside each
 change so you can judge it.
 
-For CI, `--fail-on-diff` turns the finding into an exit code:
+For CI, `--fail-on-diff` turns the finding into an exit code — with a committed
+baseline and `latest`, the job names no path to manage:
 
 ```bash
-api-recon https://app.example.com --diff ./baseline/report.json --fail-on-diff
+api-recon https://app.example.com --diff latest --fail-on-diff
 ```
 
 From the library, either pass the option and read `result.diff`, or compare two

@@ -29,6 +29,8 @@ let canRunBrowser = false;
 const NEEDS_BROWSER = [
   'produces report files',
   'diffs',
+  'stores a baseline',
+  'debug bundle',
   'telemetry',
   'progress',
   'config',
@@ -115,7 +117,7 @@ describe('api-recon CLI', () => {
     }
   }, 60_000);
 
-  it('refuses localhost without --allow-local', async () => {
+  it('refuses localhost without --allow-local, and prints what to try next', async () => {
     const { code, stdout, stderr } = await runCli([
       fixture.url,
       '--depth',
@@ -127,7 +129,60 @@ describe('api-recon CLI', () => {
     ]);
     expect(code).toBe(2);
     expect(`${stdout}${stderr}`).toMatch(/allow-local/);
+    // A safety refusal ends in a next step, not only a message.
+    expect(`${stdout}${stderr}`).toMatch(/→.*--allow-local/);
   }, 60_000);
+
+  it('writes a debug bundle with logs, a trace, and a partial report on failure', async () => {
+    const projDir = join(outDir, 'cli-debug', 'project');
+    await mkdir(projDir, { recursive: true });
+    // A login flow to a dead port fails after the browser has launched, so the
+    // bundle has a real trace and a partial report beside the captured log.
+    const login = join(projDir, 'login.yaml');
+    await writeFile(
+      login,
+      'loginUrl: http://127.0.0.1:1/\nsteps:\n  - waitForTimeout: 1\n',
+      'utf8',
+    );
+    const out = join(projDir, 'out');
+
+    const { code, stdout, stderr } = await runCli(
+      [
+        fixture.url,
+        '--allow-local',
+        '--depth',
+        '0',
+        '--rate',
+        '0',
+        '--quiet',
+        '--login',
+        login,
+        '--debug',
+        '--out',
+        out,
+        '--formats',
+        'json',
+      ],
+      {},
+      projDir,
+    );
+
+    expect(code, `${stdout}${stderr}`).toBe(1);
+    const all = `${stdout}${stderr}`;
+    expect(all).toMatch(/→/);
+    expect(all).toContain('Debug bundle written to');
+
+    const debugDir = join(out, 'debug');
+    expect((await readFile(join(debugDir, 'logs.txt'), 'utf8')).length).toBeGreaterThan(0);
+    const partial = JSON.parse(await readFile(join(debugDir, 'partial-report.json'), 'utf8')) as {
+      schemaVersion: number;
+      meta: { seedUrl: string };
+    };
+    expect(partial.schemaVersion).toBeGreaterThan(0);
+    expect(partial.meta.seedUrl).toBe(fixture.url);
+    // A real Playwright archive, not an empty placeholder file.
+    expect((await readFile(join(debugDir, 'trace.zip'))).length).toBeGreaterThan(0);
+  }, 180_000);
 
   it('produces report files for a real scan', async () => {
     const dir = join(outDir, 'cli-scan');
@@ -420,6 +475,122 @@ describe('api-recon CLI', () => {
     // Suppressed opening still tells the user where the file is.
     expect(`${stdout}${stderr}`).toMatch(/Open it yourself: .*dashboard\.html/);
   }, 240_000);
+
+  it('stores a baseline and resolves --diff latest against it', async () => {
+    const projDir = join(outDir, 'cli-baseline', 'project');
+    await mkdir(projDir, { recursive: true });
+    const baseArgs = [fixture.url, '--allow-local', '--depth', '1', '--rate', '0', '--quiet'];
+    const stored = join(projDir, '.api-recon', 'baseline.json');
+
+    // 1. `baseline` writes the canonical file, with no path named by the user.
+    const captured = await runCli(
+      ['baseline', ...baseArgs, '--out', join(projDir, 'baseline-out'), '--formats', 'json'],
+      {},
+      projDir,
+    );
+    expect(captured.code, `${captured.stdout}${captured.stderr}`).toBe(0);
+    expect(captured.stdout).toContain('Compare against it later with `--diff latest`.');
+
+    const baselineReport = JSON.parse(await readFile(stored, 'utf8')) as {
+      schemaVersion: number;
+      endpoints: { id: string }[];
+    };
+    expect(baselineReport.schemaVersion).toBeGreaterThan(0);
+    expect(baselineReport.endpoints.some((e) => e.id === 'GET /api/products')).toBe(true);
+
+    // 2. Mutate the stored baseline so the comparison has something to find.
+    baselineReport.endpoints = baselineReport.endpoints.filter((e) => e.id !== 'POST /api/collect');
+    await writeFile(stored, JSON.stringify(baselineReport), 'utf8');
+
+    // 3. `--diff latest` finds that file and gates on it.
+    const diffDir = join(projDir, 'latest-out');
+    const diffed = await runCli(
+      [
+        ...baseArgs,
+        '--out',
+        diffDir,
+        '--formats',
+        'json',
+        '--diff',
+        'latest',
+        '--fail-on-diff',
+      ],
+      {},
+      projDir,
+    );
+    expect(diffed.code, `expected exit 3\n${diffed.stdout}`).toBe(3);
+    expect(diffed.stdout).toContain('API changes since baseline');
+
+    const report = JSON.parse(await readFile(join(diffDir, 'report.json'), 'utf8')) as {
+      diff?: { hasChanges: boolean; changes: { id: string; kind: string }[] };
+    };
+    expect(report.diff?.hasChanges).toBe(true);
+    expect(report.diff?.changes.find((c) => c.id === 'POST /api/collect')?.kind).toBe('added');
+  }, 300_000);
+
+  it('stores a baseline at an overridden path and reads it back with --baseline', async () => {
+    const projDir = join(outDir, 'cli-baseline-override', 'project');
+    await mkdir(projDir, { recursive: true });
+    const custom = join(projDir, 'baselines', 'api.json');
+    const baseArgs = [fixture.url, '--allow-local', '--depth', '1', '--rate', '0', '--quiet'];
+
+    // 1. --baseline names the file instead of the canonical location.
+    const captured = await runCli(
+      ['baseline', ...baseArgs, '--baseline', custom, '--out', join(projDir, 'out1'), '--formats', 'json'],
+      {},
+      projDir,
+    );
+    expect(captured.code, `${captured.stdout}${captured.stderr}`).toBe(0);
+    await expect(readFile(join(projDir, '.api-recon', 'baseline.json'), 'utf8')).rejects.toThrow();
+
+    const stored = JSON.parse(await readFile(custom, 'utf8')) as {
+      endpoints: { id: string }[];
+    };
+    expect(stored.endpoints.some((e) => e.id === 'GET /api/products')).toBe(true);
+
+    // 2. Mutate it, then `--diff latest --baseline` reads the same file.
+    stored.endpoints = stored.endpoints.filter((e) => e.id !== 'POST /api/collect');
+    await writeFile(custom, JSON.stringify(stored), 'utf8');
+
+    const out2 = join(projDir, 'out2');
+    const diffed = await runCli(
+      [...baseArgs, '--baseline', custom, '--diff', 'latest', '--fail-on-diff', '--out', out2, '--formats', 'json'],
+      {},
+      projDir,
+    );
+    expect(diffed.code, `${diffed.stdout}${diffed.stderr}`).toBe(3);
+
+    const report = JSON.parse(await readFile(join(out2, 'report.json'), 'utf8')) as {
+      diff?: { changes: { id: string; kind: string }[] };
+    };
+    expect(report.diff?.changes.find((c) => c.id === 'POST /api/collect')?.kind).toBe('added');
+  }, 300_000);
+
+  it('names the overridden path when --diff latest cannot find a baseline', async () => {
+    const projDir = join(outDir, 'cli-baseline-override-missing');
+    await mkdir(projDir, { recursive: true });
+
+    const { code, stderr } = await runCli(
+      [fixture.url, '--allow-local', '--diff', 'latest', '--baseline', 'nowhere.json', '--formats', 'json'],
+      {},
+      projDir,
+    );
+    expect(code).toBe(2);
+    expect(stderr).toMatch(/No baseline found at nowhere\.json/s);
+  }, 60_000);
+
+  it('refuses --diff latest when no stored baseline exists', async () => {
+    const projDir = join(outDir, 'cli-no-baseline');
+    await mkdir(projDir, { recursive: true });
+
+    const { code, stderr } = await runCli(
+      [fixture.url, '--allow-local', '--diff', 'latest', '--formats', 'json'],
+      {},
+      projDir,
+    );
+    expect(code).toBe(2);
+    expect(stderr).toMatch(/No stored baseline found.*api-recon baseline/s);
+  }, 60_000);
 
   it('refuses --fail-on-diff with no baseline', async () => {
     const { code, stderr } = await runCli([fixture.url, '--allow-local', '--fail-on-diff']);

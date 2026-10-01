@@ -589,6 +589,14 @@ export interface ScanOptions {
    * page visited. Purely observational — throwing here does not stop the scan.
    */
   onProgress?: (state: ScanProgressState) => void;
+  /**
+   * On failure, leave a diagnostic bundle behind: a Playwright trace and the
+   * report built from whatever was captured before the failure. Requires
+   * `debugDir`. The CLI wires it to `--debug`.
+   */
+  debug?: boolean;
+  /** Directory the debug bundle is written to. */
+  debugDir?: string;
 }
 
 /** Result of a completed scan. */

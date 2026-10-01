@@ -7,6 +7,8 @@
  *   await result.writeReports('./out');
  */
 
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import type {
   CapturedCall,
   CapturedPage,
@@ -35,6 +37,8 @@ import { fetchRobots } from './utils/robots.js';
 import { RateLimiter } from './utils/rateLimit.js';
 import { Logger } from './utils/logger.js';
 import { SafetyError, assertScanAllowed } from './utils/safety.js';
+import { ApiReconError, RuntimeError } from './utils/errors.js';
+import { attachDebugInfo } from './utils/debug.js';
 
 export async function scan(options: ScanOptions): Promise<ScanResult> {
   if (!options?.url) {
@@ -50,6 +54,8 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const redact = options.redact ?? true;
   const telemetryPlan = resolveTelemetryPlan(options);
   const maxBodyBytes = options.maxBodyBytes ?? 1024 * 1024;
+  const debug = options.debug ?? false;
+  const debugDir = options.debugDir;
   const formats = normalizeFormats(options.formats);
   // Validated up front so a typo fails before any network or browser work.
   const engine = resolveEngine(options.browser);
@@ -75,6 +81,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
       if (!robotsFile.isAllowed(seedPath)) {
         throw new SafetyError(
           `robots.txt disallows ${seedPath} on ${origin}. Re-run with --force to override (at your own risk).`,
+          { hint: 'Re-run with --force only if you are authorized to test this system.' },
         );
       }
       robots = robotsFile;
@@ -96,7 +103,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   // Record mode is headed for humans; API_RECON_HEADLESS=1 keeps it testable.
   const headless = record ? process.env.API_RECON_HEADLESS === '1' : true;
 
-  const session = await launchSession({ headless, storageState, engine });
+  const session = await launchSession({ headless, storageState, engine, trace: debug });
   const interceptor = new TrafficInterceptor({
     redact,
     maxBodyBytes,
@@ -129,6 +136,47 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   };
 
   publishProgress(record ? 'recording' : 'crawling');
+
+  /**
+   * Build the report from whatever has been captured. On success this is the
+   * final report; when a run fails it is the partial report `--debug` saves, so
+   * a bug report shows what the crawl saw before it broke.
+   */
+  const buildReport = (): ReconReport => {
+    const captures = interceptor.calls.slice();
+    const webSockets = analyzeWebSockets(interceptor.webSockets);
+    const endpoints = analyzeCalls(captures, { seedUrl });
+    const technologies = detectTechnologies(evidence);
+    const report: ReconReport = {
+      schemaVersion: REPORT_SCHEMA_VERSION,
+      meta: {
+        seedUrl,
+        startedAt: new Date(startedAt).toISOString(),
+        durationMs: Date.now() - startedAt,
+        pagesVisited: pages.length,
+        apiReconVersion: TOOL_VERSION,
+        engine,
+      },
+      technologies,
+      endpoints,
+      resources: groupResources(endpoints),
+      pages,
+      webSockets,
+      safety: {
+        robotsRespected: respectRobots && !force,
+        robotsSkippedPaths: blockedByRobots,
+        rateLimitMs: effectiveRate,
+        maxBodyBytes,
+        allowLocal,
+        redact,
+      },
+    };
+    report.findings = collectFindings(report);
+    return report;
+  };
+
+  let failure: unknown = null;
+  let tracePath: string | undefined;
 
   try {
     if (loginFlow) await runLoginFlow(session.context, loginFlow, logger);
@@ -170,43 +218,56 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
       pages = outcome.pages;
       blockedByRobots = outcome.blockedByRobots;
     }
+  } catch (err) {
+    failure = err;
   } finally {
+    // A trace is only kept for a failure; on a run that succeeds it is
+    // discarded, so --debug costs nothing when nothing goes wrong.
+    if (debug) {
+      if (failure && debugDir) {
+        tracePath = join(debugDir, 'trace.zip');
+        await mkdir(debugDir, { recursive: true }).catch(() => {});
+        await session.context.tracing.stop({ path: tracePath }).catch(() => {});
+      } else {
+        await session.context.tracing.stop().catch(() => {});
+      }
+    }
     await session.close();
+  }
+
+  if (failure) {
+    // A scan that started and then failed is a RuntimeError; a deliberate error
+    // (a login step's SafetyError, say) passes through untouched, so its own
+    // type and hint survive.
+    const error =
+      failure instanceof ApiReconError
+        ? failure
+        : new RuntimeError(failure instanceof Error ? failure.message : String(failure), {
+            cause: failure,
+          });
+
+    // Best-effort: a diagnostic bundle must never replace the real failure.
+    if (debug && debugDir) {
+      try {
+        const partialPath = join(debugDir, 'partial-report.json');
+        await mkdir(debugDir, { recursive: true });
+        await writeFile(partialPath, `${JSON.stringify(buildReport(), null, 2)}\n`, 'utf8');
+        attachDebugInfo(error, {
+          dir: debugDir,
+          ...(tracePath ? { trace: tracePath } : {}),
+          partialReport: partialPath,
+        });
+      } catch {
+        /* the bundle is optional; the scan's own error is what matters */
+      }
+    }
+    throw error;
   }
 
   publishProgress('analyzing');
 
+  const report = buildReport();
   const captures: CapturedCall[] = interceptor.calls.slice();
-  const webSockets = analyzeWebSockets(interceptor.webSockets);
-  const endpoints = analyzeCalls(captures, { seedUrl });
-  const technologies = detectTechnologies(evidence);
-
-  const report: ReconReport = {
-    schemaVersion: REPORT_SCHEMA_VERSION,
-    meta: {
-      seedUrl,
-      startedAt: new Date(startedAt).toISOString(),
-      durationMs: Date.now() - startedAt,
-      pagesVisited: pages.length,
-      apiReconVersion: TOOL_VERSION,
-      engine,
-    },
-    technologies,
-    endpoints,
-    resources: groupResources(endpoints),
-    pages,
-    webSockets,
-    safety: {
-      robotsRespected: respectRobots && !force,
-      robotsSkippedPaths: blockedByRobots,
-      rateLimitMs: effectiveRate,
-      maxBodyBytes,
-      allowLocal,
-      redact,
-    },
-  };
-
-  report.findings = collectFindings(report);
 
   if (baseline) report.diff = diffReports(baseline, report);
 

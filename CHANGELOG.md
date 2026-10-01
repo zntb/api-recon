@@ -5,6 +5,34 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **A first-class diff workflow** — `api-recon baseline <url>` scans and stores
+  the report as `.api-recon/baseline.json`, and `--diff latest` compares against
+  it, so the CI-gate use case no longer manages a path. The stored location is
+  one canonical file, discovered by walking up from the working directory like
+  the project config file (a baseline committed at the repository root is found
+  from any subdirectory, and re-running `baseline` updates it in place). `latest`
+  is recognized as a sentinel from a flag, `API_RECON_DIFF`, or a config file's
+  `"diff"`, while a real relative path in a config file still resolves against
+  the file. `--baseline <file>` overrides the stored location on both sides —
+  for a per-branch baseline or several in parallel CI jobs — and a missing
+  baseline fails with the command that creates one.
+- **Better failure output** — a deliberate failure is now a typed error that
+  ends in a next step. `SafetyError` is a guard refusing to start (exit `2`),
+  `RuntimeError` is a scan that failed (exit `1`), and both extend
+  `ApiReconError`, which carries an optional `hint`. The CLI prints that hint
+  under every message — the safety guards, the config loader, the baseline
+  loader, and the engine resolver all attach one — so a failure tells you what
+  to try. `--debug` turns a failed run into a bundle for a bug report:
+  `debug/logs.txt` (every log line, secret-scrubbed), `debug/trace.zip` (a
+  Playwright trace, openable with `npx playwright show-trace`), and
+  `debug/partial-report.json` (the report built from whatever was captured
+  before the failure). The bundle is best-effort and never replaces the error;
+  the library gets the same behavior with `scan({ debug: true, debugDir })`.
+
 ## [0.3.9] - 2026-09-30
 
 ### Added
@@ -560,6 +588,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[Unreleased]: https://github.com/zntb/api-recon/compare/v0.3.9...HEAD
 [0.3.9]: https://github.com/zntb/api-recon/compare/v0.3.8...v0.3.9
 [0.3.8]: https://github.com/zntb/api-recon/compare/v0.3.7...v0.3.8
 [0.3.7]: https://github.com/zntb/api-recon/compare/v0.3.6...v0.3.7

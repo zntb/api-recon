@@ -14,17 +14,24 @@ export interface LoggerOptions {
    * Errors and warnings always use stderr.
    */
   stream?: 'stdout' | 'stderr';
+  /**
+   * Receives every emitted line, plain and already scrubbed, for the `--debug`
+   * log file. Called regardless of the destination stream.
+   */
+  record?: (line: string) => void;
 }
 
 export class Logger {
   private level: LogLevel;
   private readonly stream: 'stdout' | 'stderr';
   private readonly scrub: (line: string) => string;
+  private readonly record?: (line: string) => void;
 
   constructor(opts: LoggerOptions = {}) {
     this.level = opts.quiet ? 'error' : opts.verbose ? 'debug' : 'info';
     this.stream = opts.stream ?? 'stdout';
     this.scrub = redactLogLine;
+    this.record = opts.record;
   }
 
   get isVerbose(): boolean {
@@ -33,6 +40,7 @@ export class Logger {
 
   private emit(stream: 'log' | 'error', prefix: string, color: (s: string) => string, msg: string): void {
     const line = this.scrub(msg);
+    if (this.record) this.record(prefix.length ? `${prefix} ${line}` : line);
     const toStdout = stream === 'log' && this.stream === 'stdout';
     const write = toStdout ? console.log : console.error;
     write(prefix.length ? color(`${prefix} `) + line : line);

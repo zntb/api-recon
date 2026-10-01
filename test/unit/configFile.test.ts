@@ -229,6 +229,62 @@ describe('resolveOptions precedence', () => {
     expect(options['login']).toBe('flows/login.yaml');
   });
 
+  it('leaves `latest` untouched so the CLI can resolve the stored baseline', async () => {
+    const res = 'latest';
+    await writeConfig(res, '.api-reconrc', { diff: 'latest' });
+
+    const fromConfig = await resolveOptions({
+      cli,
+      isExplicit: () => false,
+      env: {},
+      cwd: join(root, res),
+    });
+    expect(fromConfig.options['diff']).toBe('latest');
+
+    const fromEnv = await resolveOptions({
+      cli,
+      isExplicit: () => false,
+      env: { API_RECON_DIFF: 'latest' },
+      cwd: root,
+    });
+    expect(fromEnv.options['diff']).toBe('latest');
+  });
+
+  it('still resolves a real relative diff path against the config file', async () => {
+    const res = 'diff-path';
+    await writeConfig(res, '.api-reconrc', { diff: 'baseline/report.json' });
+
+    const { options } = await resolveOptions({
+      cli,
+      isExplicit: () => false,
+      env: {},
+      cwd: join(root, res),
+    });
+
+    expect(options['diff']).toBe(join(root, res, 'baseline', 'report.json'));
+  });
+
+  it('takes a baseline override path from the config or the environment', async () => {
+    const res = 'baseline-path';
+    await writeConfig(res, '.api-reconrc', { baseline: 'baselines/api.json' });
+
+    const fromConfig = await resolveOptions({
+      cli,
+      isExplicit: () => false,
+      env: {},
+      cwd: join(root, res),
+    });
+    expect(fromConfig.options['baseline']).toBe(join(root, res, 'baselines', 'api.json'));
+
+    const fromEnv = await resolveOptions({
+      cli,
+      isExplicit: () => false,
+      env: { API_RECON_BASELINE: 'baselines/env.json' },
+      cwd: root,
+    });
+    expect(fromEnv.options['baseline']).toBe('baselines/env.json');
+  });
+
   it('refuses a shared config that would loosen safety for the whole team', async () => {
     const force = await writeConfig('danger-force', '.api-reconrc', { force: true });
     const redact = await writeConfig('danger-redact', '.api-reconrc', { redact: false });
