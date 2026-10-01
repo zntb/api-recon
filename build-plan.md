@@ -573,6 +573,15 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   *is* a secret rather than merely mentioning one. The heuristics are tuned to
   leave ordinary words, slugs, dates, and URLs alone, and
   `test/unit/redact.test.ts` covers both the catches and the near-misses.
+- **Query values masked by parameter name** — `queryParams.sampleValues` is
+  useful, but it leaked the value of a parameter named `token`, `key`, `code`, or
+  `email` even when the body and header redactors would have masked the same
+  string. The analyzer now masks the value of any parameter whose name marks it
+  sensitive, matched word-for-word after splitting camelCase and separators, so
+  `accessToken`, `api_key`, and `sessionId` are caught while `monkey` is not. The
+  parameter name and the fact that it was present survive; several distinct
+  values collapse to one `[REDACTED]` placeholder, and the masking is bypassed
+  only with `--no-redact`, like every other redaction.
 
 **Proposed updates & features**
 
@@ -612,10 +621,6 @@ so it can be scoped without re-reading the source.
 
 **Security & privacy**
 
-- **Mask query values for sensitive parameter names.** `queryParams` keeps
-  `sampleValues`, which is genuinely useful but leaks values for names like
-  `token`, `key`, `code`, and `email`. Mask the value for flagged names while
-  keeping the parameter name and its presence.
 - **Verify redaction before writing.** Assemble the report, scan it for the
   original secret values gathered during capture, and refuse to write — or warn
   loudly under `--strict-redaction` — if any is found. Redaction is currently

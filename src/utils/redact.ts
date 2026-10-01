@@ -51,6 +51,48 @@ export function isSensitiveHeader(name: string): boolean {
   return SENSITIVE_HEADER_SET.has(name.toLowerCase());
 }
 
+/**
+ * Query-string parameter names whose *values* must be masked. A name is split
+ * into lowercased words — `access_token`, `accessToken` and `Access-Token` all
+ * yield `access`/`token` — and matched word-for-word, so `token` is caught while
+ * `monkey` is not. The body-key fragments are reused after the same split, so
+ * `apiKey` and `sessionId` are caught too. Over-masking is intentional: a
+ * masked non-secret is harmless, a leaked secret is not.
+ */
+export const SENSITIVE_PARAM_WORDS = [
+  ...SENSITIVE_BODY_KEYS,
+  'key',
+  'code',
+  'email',
+  'auth',
+  'signature',
+  'sig',
+  'otp',
+  'pin',
+  'phone',
+] as const;
+
+const SENSITIVE_PARAM_WORD_SET = new Set<string>(SENSITIVE_PARAM_WORDS);
+
+/** Split a parameter name into lowercase words on separators and camelCase. */
+function paramWords(name: string): string[] {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+/** True when a query parameter's name marks its value as sensitive. */
+export function isSensitiveParamName(name: string): boolean {
+  const words = paramWords(name);
+  return (
+    words.some((word) => SENSITIVE_PARAM_WORD_SET.has(word)) ||
+    // A fragment like `sessionid` only matches once the words are rejoined.
+    SENSITIVE_PARAM_WORD_SET.has(words.join(''))
+  );
+}
+
 // ---- by value --------------------------------------------------------------
 //
 // The lists above catch a secret that is *labelled* like one. These patterns

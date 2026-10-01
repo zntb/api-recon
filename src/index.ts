@@ -180,7 +180,7 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   const buildReport = (): ReconReport => {
     const captures = interceptor.calls.slice();
     const webSockets = analyzeWebSockets(interceptor.webSockets);
-    const endpoints = analyzeCalls(captures, { seedUrl });
+    const endpoints = analyzeCalls(captures, { seedUrl, redact });
     const technologies = detectTechnologies(evidence);
     const report: ReconReport = {
       schemaVersion: REPORT_SCHEMA_VERSION,

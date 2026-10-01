@@ -940,7 +940,10 @@ resolves to. A caller that only awaits still works unchanged; so does the
   `X-Auth-Token`, `X-Csrf-Token`, `X-Xsrf-Token`, and body/WebSocket keys such as
   `password`, `token`, `secret`, `apiKey`, `creditCard`, `cvv` — and a value is
   masked on its own shape even under a name that does not name it: a JWT, a
-  high-entropy base64/hex blob, an email, a phone number, or an SSN.
+  high-entropy base64/hex blob, an email, a phone number, or an SSN. A query
+  parameter whose *name* marks it sensitive (`token`, `key`, `code`, `email`,
+  and the password/secret family) keeps its name and the fact that it was
+  present, but its `sampleValues` are masked rather than reported.
 - **Local/private targets are refused** unless `--allow-local` is passed.
 - **Size caps**: 1 MB per response body (`--max-body-mb`) and a global capture
   budget, plus `--max-pages` and `--depth` bounds.

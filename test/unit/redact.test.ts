@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isSensitiveHeader,
+  isSensitiveParamName,
   isSensitiveScalar,
   isSensitiveValue,
   redactBody,
@@ -176,6 +177,39 @@ describe('redactHeaders by value', () => {
     });
     expect(out['x-trace']).toBe(REDACTED);
     expect(out['accept']).toBe('*/*');
+  });
+});
+
+describe('isSensitiveParamName', () => {
+  it('flags the names whose values are secrets or PII', () => {
+    for (const name of [
+      'token',
+      'api_key',
+      'apiKey',
+      'accessToken',
+      'key',
+      'code',
+      'reset_code',
+      'email',
+      'userEmail',
+      'password',
+      'sessionId',
+      'otp',
+      'pin',
+    ]) {
+      expect(isSensitiveParamName(name), name).toBe(true);
+    }
+  });
+
+  it('leaves ordinary names and near-misses alone', () => {
+    for (const name of ['page', 'pageSize', 'q', 'sort', 'filter', 'lang', 'monkey', 'keyword', 'zipcode']) {
+      expect(isSensitiveParamName(name), name).toBe(false);
+    }
+  });
+
+  it('treats an empty or separator-only name as not sensitive', () => {
+    expect(isSensitiveParamName('')).toBe(false);
+    expect(isSensitiveParamName('__')).toBe(false);
   });
 });
 

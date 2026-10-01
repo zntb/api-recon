@@ -32,6 +32,7 @@ import {
   worstGapReason,
 } from './schemaInference.js';
 import { isSameDomain, toUrlPattern } from '../utils/url.js';
+import { isSensitiveParamName, REDACTED } from '../utils/redact.js';
 
 /**
  * Host suffixes of the tracking vendors in the shared catalog, so the list of
@@ -46,7 +47,11 @@ const AUTH_PATH_RE =
 const ANALYTICS_PATH_RE =
   /(\/track|\/collect|\/beacon|\/telemetry|\/analytics|\/event|\/events|\/pixel|\/pageview|\/impression)/;
 
-export function analyzeCalls(calls: CapturedCall[], opts: { seedUrl: string }): Endpoint[] {
+export function analyzeCalls(
+  calls: CapturedCall[],
+  opts: { seedUrl: string; redact?: boolean },
+): Endpoint[] {
+  const redact = opts.redact ?? true;
   const groups = new Map<string, CapturedCall[]>();
   for (const call of calls) {
     const pattern = toUrlPattern(call.url);
@@ -58,7 +63,7 @@ export function analyzeCalls(calls: CapturedCall[], opts: { seedUrl: string }): 
 
   const endpoints: Endpoint[] = [];
   for (const [id, samples] of groups) {
-    endpoints.push(buildEndpoint(id, samples, opts.seedUrl));
+    endpoints.push(buildEndpoint(id, samples, opts.seedUrl, redact));
   }
   endpoints.sort((a, b) => a.category.localeCompare(b.category) || a.id.localeCompare(b.id));
   return endpoints;
@@ -90,7 +95,12 @@ export function analyzeWebSockets(webSockets: CapturedWebSocket[]): CapturedWebS
   });
 }
 
-function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): Endpoint {
+function buildEndpoint(
+  id: string,
+  samples: CapturedCall[],
+  seedUrl: string,
+  redact: boolean,
+): Endpoint {
   const first = samples[0]!;
   const representative = samples[samples.length - 1]!;
   const pattern = id.slice(id.indexOf(' ') + 1);
@@ -101,7 +111,7 @@ function buildEndpoint(id: string, samples: CapturedCall[], seedUrl: string): En
   const responseReason = worstGapReason(responseSamples.map(responseGapReason));
   const origins = unique(samples.map((s) => safeOrigin(s.url)));
   const category = categorize(first, seedUrl, graphql !== null);
-  const queryParams = collectQueryParams(samples);
+  const queryParams = collectQueryParams(samples, redact);
   const requestSchema = inferSchemaFromBodies(samples.map((s) => s.requestBodySample));
   const vendor = vendorFor(category, origins, requestSchema, queryParams);
   const timing = summarize(samples.map((s) => s.durationMs));
@@ -265,7 +275,7 @@ export function categorizeWithReason(
   return { category: 'uncategorized', heuristic: 'fallback' };
 }
 
-function collectQueryParams(samples: CapturedCall[]): QueryParam[] {
+function collectQueryParams(samples: CapturedCall[], redact: boolean): QueryParam[] {
   const byName = new Map<string, Set<string>>();
   for (const s of samples) {
     let u: URL;
@@ -281,7 +291,14 @@ function collectQueryParams(samples: CapturedCall[]): QueryParam[] {
   }
   return [...byName.entries()].map(([name, values]) => ({
     name,
-    sampleValues: [...values].slice(0, 5),
+    // A sensitive name keeps its presence and the fact that it carried a value,
+    // but not the value itself; an ordinary name keeps its samples.
+    sampleValues:
+      redact && isSensitiveParamName(name)
+        ? values.size > 0
+          ? [REDACTED]
+          : []
+        : [...values].slice(0, 5),
   }));
 }
 

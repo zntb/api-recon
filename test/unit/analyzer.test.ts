@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeCalls, analyzeWebSockets } from '../../src/core/analyzer.js';
 import type { CapturedCall, CapturedWebSocket, Endpoint } from '../../src/types.js';
+import { REDACTED } from '../../src/utils/redact.js';
 
 const SEED = 'https://example.com';
 
@@ -259,6 +260,42 @@ describe('analyzeWebSockets schema gaps', () => {
     ]);
     expect(cut!.receivedSchema).not.toBeNull();
     expect(cut!.receivedSchemaReason).toBe('truncated');
+  });
+});
+
+describe('analyzeCalls query parameter masking', () => {
+  it('masks the values of sensitive names but keeps the name and its presence', () => {
+    const endpoint = endpointOf([
+      call({ url: `${SEED}/api/items?token=abc123&page=2&email=jane@example.com&q=shoes` }),
+    ]);
+    const byName = new Map(endpoint.queryParams.map((p) => [p.name, p.sampleValues]));
+
+    expect([...byName.keys()].sort()).toEqual(['email', 'page', 'q', 'token']);
+    expect(byName.get('page')).toEqual(['2']);
+    expect(byName.get('q')).toEqual(['shoes']);
+    expect(byName.get('token')).toEqual([REDACTED]);
+    expect(byName.get('email')).toEqual([REDACTED]);
+  });
+
+  it('never leaks a sensitive value across several samples', () => {
+    const endpoint = endpointOf([
+      call({ url: `${SEED}/api/x?token=first-secret` }),
+      call({ url: `${SEED}/api/x?token=second-secret` }),
+    ]);
+    expect(endpoint.queryParams.find((p) => p.name === 'token')!.sampleValues).toEqual([REDACTED]);
+  });
+
+  it('keeps a sensitive parameter that carried no value, with no samples', () => {
+    const endpoint = endpointOf([call({ url: `${SEED}/api/x?token=` })]);
+    expect(endpoint.queryParams).toEqual([{ name: 'token', sampleValues: [] }]);
+  });
+
+  it('keeps the raw values when redaction is disabled', () => {
+    const [endpoint] = analyzeCalls([call({ url: `${SEED}/api/x?token=abc123` })], {
+      seedUrl: SEED,
+      redact: false,
+    });
+    expect(endpoint!.queryParams.find((p) => p.name === 'token')!.sampleValues).toEqual(['abc123']);
   });
 });
 

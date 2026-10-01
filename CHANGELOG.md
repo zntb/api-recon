@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   It applies to header values and to every string in a body — nested objects,
   arrays, and a sensitive key's whole subtree — and a non-JSON body is replaced
   only when the body itself is the secret, not when it merely mentions one.
+- **Query parameter values masked by name** — a query parameter whose name marks
+  it sensitive (`token`, `key`, `code`, `email`, and the password/secret family)
+  now keeps its name and its presence in `queryParams` but has its
+  `sampleValues` masked, so a token or address passed in the query string no
+  longer rides into the report on a field the body and header redactors never
+  touched. Names are matched word-for-word after splitting camelCase and
+  separators, so `accessToken` and `api_key` are caught while `monkey` is not,
+  and the masking follows `--no-redact` like every other redaction.
 
 ## [0.4.0] - 2026-10-01
 
