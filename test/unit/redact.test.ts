@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { isSensitiveHeader, redactBody, redactHeaders, redactLogLine, REDACTED } from '../../src/utils/redact.js';
+import {
+  isSensitiveHeader,
+  isSensitiveScalar,
+  isSensitiveValue,
+  redactBody,
+  redactHeaders,
+  redactLogLine,
+  REDACTED,
+} from '../../src/utils/redact.js';
 
 describe('redactHeaders', () => {
   it('redacts sensitive headers case-insensitively', () => {
@@ -85,6 +93,108 @@ describe('redactBody', () => {
   it('passes through oversized bodies without parsing', () => {
     const big = JSON.stringify({ password: 'x' }) + ' '.repeat(600 * 1024);
     expect(redactBody(big)).toBe(big);
+  });
+});
+
+describe('redactBody by value', () => {
+  it('masks a JWT under a key that does not name a secret', () => {
+    const token = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.signaturepart';
+    const parsed = JSON.parse(redactBody(JSON.stringify({ note: token }))!) as Record<string, unknown>;
+    expect(parsed['note']).toBe(REDACTED);
+  });
+
+  it('masks a base64 blob and a hex digest found by shape', () => {
+    const parsed = JSON.parse(
+      redactBody(
+        JSON.stringify({
+          data: 'Zk9vYmFyQmF6UXV4MTIzNDU2Nzg5MGFiY2RlZg==',
+          traceId: '8f14e45fceea167a5a36dedd4bea2543',
+        }),
+      )!,
+    ) as Record<string, unknown>;
+    expect(parsed['data']).toBe(REDACTED);
+    expect(parsed['traceId']).toBe(REDACTED);
+  });
+
+  it('masks email, phone, and national-id shaped values anywhere', () => {
+    const parsed = JSON.parse(
+      redactBody(
+        JSON.stringify({
+          contact: 'jane.doe@example.com',
+          phone: '+1 (415) 555-0199',
+          ssn: '123-45-6789',
+          keep: 'shipped',
+        }),
+      )!,
+    ) as Record<string, unknown>;
+    expect(parsed['contact']).toBe(REDACTED);
+    expect(parsed['phone']).toBe(REDACTED);
+    expect(parsed['ssn']).toBe(REDACTED);
+    expect(parsed['keep']).toBe('shipped');
+  });
+
+  it('masks PII inside an array, and carries a sensitive key into nested values', () => {
+    const parsed = JSON.parse(
+      redactBody(JSON.stringify({ tags: ['a@b.com', 'tools'], credentials: { hint: 'demo' } }))!,
+    ) as { tags: string[]; credentials: { hint: string } };
+    expect(parsed.tags).toEqual([REDACTED, 'tools']);
+    expect(parsed.credentials.hint).toBe(REDACTED);
+  });
+
+  it('leaves ordinary words, slugs, dates, and URLs alone', () => {
+    const parsed = JSON.parse(
+      redactBody(
+        JSON.stringify({
+          slug: 'my-super-long-dashboard-page-name',
+          date: '2026-10-01',
+          url: 'https://cdn.example.com/avatars/9b2f4a3e.png',
+          word: 'internationalization',
+          count: 12345678901234,
+        }),
+      )!,
+    ) as Record<string, unknown>;
+    expect(parsed['slug']).toBe('my-super-long-dashboard-page-name');
+    expect(parsed['date']).toBe('2026-10-01');
+    expect(parsed['url']).toBe('https://cdn.example.com/avatars/9b2f4a3e.png');
+    expect(parsed['word']).toBe('internationalization');
+    expect(parsed['count']).toBe(12345678901234);
+  });
+
+  it('replaces a non-JSON body only when the whole body is a secret', () => {
+    expect(redactBody('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig')).toBe(REDACTED);
+    // An HTML page that merely mentions an address is left intact.
+    const html = '<html>contact jane@example.com</html>';
+    expect(redactBody(html)).toBe(html);
+  });
+});
+
+describe('redactHeaders by value', () => {
+  it('masks a secret value in a header it does not recognize by name', () => {
+    const out = redactHeaders({
+      'x-trace': 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig',
+      accept: '*/*',
+    });
+    expect(out['x-trace']).toBe(REDACTED);
+    expect(out['accept']).toBe('*/*');
+  });
+});
+
+describe('isSensitiveValue', () => {
+  it('recognizes secrets and PII by shape', () => {
+    expect(isSensitiveValue('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig')).toBe(true);
+    expect(isSensitiveValue('sk-live-9f8e7d6c5b4a39281706f5e4d3c2b1a0')).toBe(true);
+    expect(isSensitiveValue('jane@example.com')).toBe(true);
+    expect(isSensitiveValue('123-45-6789')).toBe(true);
+    expect(isSensitiveValue('my-super-long-dashboard-page-name')).toBe(false);
+    expect(isSensitiveValue('2026-10-01')).toBe(false);
+    expect(isSensitiveValue('')).toBe(false);
+  });
+
+  it('is stricter about a whole-body scalar than about a value in a body', () => {
+    // Prose mentioning an address is not itself a secret, so a whole non-JSON
+    // body keeps it; the same text inside a JSON value is masked.
+    expect(isSensitiveScalar('see jane@example.com for details')).toBe(false);
+    expect(isSensitiveValue('see jane@example.com for details')).toBe(true);
   });
 });
 

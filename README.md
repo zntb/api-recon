@@ -116,7 +116,7 @@ api-recon https://example.com --browser firefox
 | `-r, --rate <ms>` | `500` | Minimum delay between requests to the same origin |
 | `--respect-robots` / `--no-respect-robots` | on | robots.txt compliance (`--no-…` requires `--force`) |
 | `--include-third-party` | off | Also capture cross-origin XHR/fetch calls and WebSockets |
-| `--redact` / `--no-redact` | on | Redact sensitive headers, secret-shaped body fields, and WebSocket frames |
+| `--redact` / `--no-redact` | on | Redact sensitive headers and secret- or PII-shaped values in bodies and WebSocket frames |
 | `--force` | off | Bypass robots.txt restrictions (only for systems you may test) |
 | `--allow-local` | off | Allow scanning localhost/private network ranges |
 | `--max-body-mb <n>` | `1` | Maximum response body / WebSocket frame size kept, in MB |
@@ -935,10 +935,12 @@ resolves to. A caller that only awaits still works unchanged; so does the
 - **Rate limiting** waits at least `--rate` ms between requests to the same
   origin, and respects `Crawl-delay` when it is stricter.
 - **Redaction is on by default** and runs at capture time, so secrets never
-  reach any report: `Authorization`, `Proxy-Authorization`, `Cookie`,
-  `Set-Cookie`, `X-Api-Key`, `X-Auth-Token`, `X-Csrf-Token`, `X-Xsrf-Token`,
-  plus JSON body fields and WebSocket frames with keys such as `password`,
-  `token`, `secret`, `apiKey`, `creditCard`, `cvv`.
+  reach any report. Known-sensitive names are masked — the headers
+  `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`,
+  `X-Auth-Token`, `X-Csrf-Token`, `X-Xsrf-Token`, and body/WebSocket keys such as
+  `password`, `token`, `secret`, `apiKey`, `creditCard`, `cvv` — and a value is
+  masked on its own shape even under a name that does not name it: a JWT, a
+  high-entropy base64/hex blob, an email, a phone number, or an SSN.
 - **Local/private targets are refused** unless `--allow-local` is passed.
 - **Size caps**: 1 MB per response body (`--max-body-mb`) and a global capture
   budget, plus `--max-pages` and `--depth` bounds.

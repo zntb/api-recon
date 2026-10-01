@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Redaction by value, not only by key** — redaction now also masks a secret by
+  its shape, so a JWT, a high-entropy base64/hex blob, an email, a phone number,
+  or an SSN-shaped national id is caught even under a key that does not name it.
+  It applies to header values and to every string in a body — nested objects,
+  arrays, and a sensitive key's whole subtree — and a non-JSON body is replaced
+  only when the body itself is the secret, not when it merely mentions one.
+
 ## [0.4.0] - 2026-10-01
 
 ### Added

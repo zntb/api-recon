@@ -563,6 +563,16 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   (`--formats share`, `--print share`) that is deliberately absent from the
   defaults, and `test/unit/share.test.ts` fails if any sample-bearing field
   reaches the output.
+- **Redaction by value, not only by key** — redaction no longer trusts the key
+  name alone. `src/utils/redact.ts` now also matches the *value*: a JWT (`eyJ…`,
+  three base64url segments), a high-entropy base64/base64url/hex blob (at least
+  20 characters, letters and digits, ≥3.5 bits/character of Shannon entropy), an
+  email, a phone number, or an SSN-shaped national id. Body string values are
+  checked wherever they appear — nested objects, arrays, and a sensitive key's
+  whole subtree — header values too, and a non-JSON body is replaced only when it
+  *is* a secret rather than merely mentioning one. The heuristics are tuned to
+  leave ordinary words, slugs, dates, and URLs alone, and
+  `test/unit/redact.test.ts` covers both the catches and the near-misses.
 
 **Proposed updates & features**
 
@@ -602,10 +612,6 @@ so it can be scoped without re-reading the source.
 
 **Security & privacy**
 
-- **Redact by value, not only by key.** The rules match key names and a few
-  shapes today; add high-entropy detection (JWT-, base64-, hex-shaped values) and
-  the obvious PII patterns (email, phone, national ID) so a secret that is not in
-  the key list is still masked.
 - **Mask query values for sensitive parameter names.** `queryParams` keeps
   `sampleValues`, which is genuinely useful but leaks values for names like
   `token`, `key`, `code`, and `email`. Mask the value for flagged names while
