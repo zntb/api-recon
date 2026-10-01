@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /** api-recon CLI. */
 
+import { realpathSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import { Command, InvalidArgumentError } from 'commander';
 import { BROWSER_ENGINES, formatDiffSummary, normalizeFormats, scan } from '../index.js';
@@ -502,4 +504,19 @@ async function renderForPrint(format: string, report: ReconReport): Promise<stri
   }
 }
 
-await program.parseAsync(process.argv);
+// Only parse when this module is the program being run, not when a test or the
+// completion generator imports it. `realpathSync` is used so the check survives
+// the symlink an installed `bin` is invoked through.
+const modulePath = fileURLToPath(import.meta.url);
+const invokedPath = process.argv[1];
+const isMain = ((): boolean => {
+  if (!invokedPath) return false;
+  try {
+    return realpathSync(invokedPath) === realpathSync(modulePath);
+  } catch {
+    return invokedPath === modulePath;
+  }
+})();
+if (isMain) await program.parseAsync(process.argv);
+
+export { program };

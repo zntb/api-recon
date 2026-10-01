@@ -437,3 +437,63 @@ describe('record mode', () => {
     }
   }, 120_000);
 });
+
+describe('events API', () => {
+  it('streams phases, pages, and endpoints, and resolves to the same result', async () => {
+    const handle = scan({
+      url: fixture.url,
+      depth: 1,
+      allowLocal: true,
+      rate: 0,
+      formats: ['json'],
+      out: join(outDir, 'events'),
+      logger: silent(),
+    });
+
+    const phases: string[] = [];
+    const pages: string[] = [];
+    const endpoints: string[] = [];
+    let done: unknown;
+
+    for await (const event of handle) {
+      switch (event.type) {
+        case 'phase':
+          phases.push(event.phase);
+          break;
+        case 'page':
+          pages.push(event.page.url);
+          break;
+        case 'endpoint':
+          endpoints.push(event.endpoint.id);
+          break;
+        case 'done':
+          done = event.result;
+          break;
+      }
+    }
+
+    // Phases arrive as they change; pages and endpoints as they are found.
+    expect(phases[0]).toBe('crawling');
+    expect(phases).toContain('analyzing');
+    expect(pages.length).toBeGreaterThan(1);
+    expect(endpoints).toContain('GET /api/products');
+
+    // `done` is the last event, and it is the very result `await` would give.
+    const result = await handle;
+    expect(done).toBe(result);
+    expect(endpoints).toEqual(result.report.endpoints.map((e) => e.id));
+  }, 180_000);
+
+  it('still resolves for a caller that only awaits', async () => {
+    const result = await scan({
+      url: `${fixture.url}/products`,
+      depth: 0,
+      allowLocal: true,
+      rate: 0,
+      formats: ['json'],
+      out: join(outDir, 'events-await'),
+      logger: silent(),
+    });
+    expect(result.report.endpoints.some((e) => e.id === 'GET /api/products')).toBe(true);
+  }, 120_000);
+});

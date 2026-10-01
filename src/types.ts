@@ -611,3 +611,25 @@ export interface ScanResult {
   /** The anonymized payload, present when telemetry was enabled or previewed. */
   telemetry?: TelemetryPayload;
 }
+
+/**
+ * One event in a scan's stream, for an embedding application that wants to show
+ * its own progress instead of the built-in reporter. `phase` and `page` arrive
+ * while the crawl runs, `endpoint` arrives once per pattern as the analyzer
+ * groups the calls, and `done` is last and carries the same result that
+ * `await scan()` resolves to.
+ */
+export type ScanEvent =
+  | { type: 'phase'; phase: ScanProgressState['phase'] }
+  | { type: 'page'; page: CapturedPage }
+  | { type: 'endpoint'; endpoint: Endpoint }
+  | { type: 'done'; result: ScanResult };
+
+/**
+ * What `scan()` returns: a promise of the result that is *also* an async
+ * iterator of events, so both `await scan(opts)` and
+ * `for await (const event of scan(opts))` work against one scan.
+ */
+export interface ScanHandle extends Promise<ScanResult> {
+  [Symbol.asyncIterator](): AsyncIterator<ScanEvent>;
+}

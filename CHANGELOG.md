@@ -38,7 +38,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only the values a flag accepts (an engine, a preset, a format, a file) are
   declared. It completes the subcommands, every flag, and the values that
   matter — engines, presets, print formats, report formats, and file paths — and
-  the output is deterministic, so a committed script can be diffed.
+  the output is deterministic, so the committed scripts under `completions/`
+  (regenerated with `npm run completions:generate`) can be diffed; a test fails
+  when they drift from the flags.
+- **An events API for the library** — `scan()` returns a promise of the result
+  that is also an async iterator, so an embedding application can show its own
+  progress and stream endpoints as they are grouped, against one scan rather
+  than two:
+
+  ```ts
+  for await (const event of scan({ url })) {
+    // phase | page | endpoint | done
+  }
+  ```
+
+  `phase` and `page` arrive while the crawl runs, `endpoint` once per grouped
+  pattern, and `done` last with the same `ScanResult` that `await scan()`
+  resolves to; a failure is rethrown by both. `ScanEvent` and `ScanHandle` are
+  exported, and the existing `onProgress` callback is unchanged.
 
 ## [0.3.9] - 2026-09-30
 

@@ -166,8 +166,11 @@ The script completes the subcommands (`baseline`, `completion`), every flag,
 and the values that matter — engines, presets, print formats, report formats,
 and file paths for `--auth`, `--login`, `--actions`, `--config`, `--diff`,
 `--baseline`, and `--out`. It is generated from the same command definition the
-CLI parses with, so a flag added there is completed without a second list, and
-the output is deterministic — commit it or regenerate it in a toolchain step.
+CLI parses with, so a flag added there is completed without a second list. The
+scripts are committed under [`completions/`](completions) and a test keeps them
+in sync with the flags, so changing a flag means running
+`npm run completions:generate`; the output is deterministic, so the diff is
+readable.
 
 ### Presets
 
@@ -310,6 +313,9 @@ await scan({
   onProgress: (s) => console.error(`${s.phase}: ${s.pages.length} pages, ${s.calls.length} calls`),
 });
 ```
+
+For an event-oriented API — phases, pages, and endpoints as they are discovered —
+see [Events](#events) under the library API.
 
 ## What it captures
 
@@ -831,8 +837,32 @@ later. All CLI flags have camelCase equivalents (`maxPages`, `respectRobots`,
 Types are exported for every report structure:
 
 ```ts
-import type { ReconReport, Endpoint, ScanOptions, ScanResult } from 'api-recon';
+import type { ReconReport, Endpoint, ScanOptions, ScanResult, ScanEvent } from 'api-recon';
 ```
+
+### Events
+
+`scan()` returns a promise of the result that is also an async iterator, so an
+embedding application can draw its own progress and stream endpoints as they are
+grouped — against one scan, not two:
+
+```ts
+import { scan } from 'api-recon';
+
+for await (const event of scan({ url: 'https://example.com', depth: 2 })) {
+  switch (event.type) {
+    case 'phase':    console.error(event.phase); break;             // crawling | recording | analyzing
+    case 'page':     console.log('visited', event.page.url); break;
+    case 'endpoint': console.log('found', event.endpoint.id); break;
+    case 'done':     console.log(event.result.report.endpoints.length); break;
+  }
+}
+```
+
+`phase` and `page` arrive while the crawl runs, `endpoint` once per grouped
+pattern, and `done` last, carrying the same `ScanResult` that `await scan(...)`
+resolves to. A caller that only awaits still works unchanged; so does the
+`onProgress` callback.
 
 ## Safety guardrails
 

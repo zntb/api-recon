@@ -17,6 +17,13 @@ import type { Command } from 'commander';
 export const COMPLETION_SHELLS = ['bash', 'zsh', 'fish'] as const;
 export type CompletionShell = (typeof COMPLETION_SHELLS)[number];
 
+/** The committed script for each shell, under `completions/`. */
+export const COMPLETION_FILENAMES: Record<CompletionShell, string> = {
+  bash: 'api-recon.bash',
+  zsh: '_api-recon',
+  fish: 'api-recon.fish',
+};
+
 /** True when `value` names a shell this command can generate for. */
 export function isCompletionShell(value: unknown): value is CompletionShell {
   return typeof value === 'string' && (COMPLETION_SHELLS as readonly string[]).includes(value);

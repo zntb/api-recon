@@ -14,12 +14,15 @@ import type {
   CapturedPage,
   ReconReport,
   ReportFormat,
+  ScanEvent,
+  ScanHandle,
   ScanOptions,
   ScanProgressState,
   ScanResult,
 } from './types.js';
 import { REPORT_FORMATS, REPORT_SCHEMA_VERSION } from './types.js';
 import { TOOL_VERSION } from './version.js';
+import { createEventHandle } from './core/events.js';
 import { launchSession, resolveEngine } from './core/browser.js';
 import { TrafficInterceptor } from './core/interceptor.js';
 import { crawl } from './core/crawler.js';
@@ -40,7 +43,25 @@ import { SafetyError, assertScanAllowed } from './utils/safety.js';
 import { ApiReconError, RuntimeError } from './utils/errors.js';
 import { attachDebugInfo } from './utils/debug.js';
 
-export async function scan(options: ScanOptions): Promise<ScanResult> {
+/**
+ * Run a scan. The result is a promise of the report that is also an async
+ * iterator of events, so a caller can either `await` it or stream it — against
+ * one scan, not two:
+ *
+ *   const result = await scan({ url: 'https://example.com' });
+ *
+ *   for await (const event of scan({ url: 'https://example.com' })) {
+ *     if (event.type === 'endpoint') console.log(event.endpoint.id);
+ *   }
+ */
+export function scan(options: ScanOptions): ScanHandle {
+  return createEventHandle<ScanResult, ScanEvent>(
+    (emit) => runScan(options, emit),
+    (result) => ({ type: 'done', result }),
+  );
+}
+
+async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): Promise<ScanResult> {
   if (!options?.url) {
     throw new SafetyError('A seed URL is required, e.g. scan({ url: "https://example.com" }).');
   }
@@ -117,21 +138,35 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   let pages: CapturedPage[] = [];
   let blockedByRobots: string[] = [];
 
-  // Progress is push-based and purely observational: the reporter decides how to
-  // draw it, and never gets a say in what the scan does.
+  // Progress is push-based and purely observational: the reporters (the
+  // onProgress callback and the event stream) decide how to use it, and never
+  // get a say in what the scan does.
+  let lastPhase: ScanProgressState['phase'] | null = null;
+  let emittedPages = 0;
   const publishProgress = (phase: ScanProgressState['phase']): void => {
-    if (!options.onProgress) return;
-    try {
-      options.onProgress({
-        phase,
-        seedUrl,
-        pages,
-        maxPages,
-        calls: interceptor.calls,
-        startedAt,
-      });
-    } catch {
-      // A reporter that throws is a reporter's problem, not the scan's.
+    if (options.onProgress) {
+      try {
+        options.onProgress({
+          phase,
+          seedUrl,
+          pages,
+          maxPages,
+          calls: interceptor.calls,
+          startedAt,
+        });
+      } catch {
+        // A reporter that throws is a reporter's problem, not the scan's.
+      }
+    }
+    // The event stream gets a phase event when the phase actually changes and a
+    // page event for every page recorded since the last call.
+    if (phase !== lastPhase) {
+      lastPhase = phase;
+      emit({ type: 'phase', phase });
+    }
+    while (emittedPages < pages.length) {
+      emit({ type: 'page', page: pages[emittedPages]! });
+      emittedPages += 1;
     }
   };
 
@@ -269,6 +304,10 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const report = buildReport();
   const captures: CapturedCall[] = interceptor.calls.slice();
 
+  // Stream each grouped endpoint, so an embedding app can render the list as it
+  // fills in rather than waiting for the whole report.
+  for (const endpoint of report.endpoints) emit({ type: 'endpoint', endpoint });
+
   if (baseline) report.diff = diffReports(baseline, report);
 
   // A preview builds the payload so the caller can inspect it, but only an
@@ -355,6 +394,8 @@ export type {
   ReportFormat,
   Resource,
   ResourceEndpoint,
+  ScanEvent,
+  ScanHandle,
   ScanOptions,
   ScanResult,
   ScanRef,

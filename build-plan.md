@@ -502,7 +502,31 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   choices. Bash gets a completion function plus `complete -F`, zsh a `#compdef`
   function using `_describe`/`_values`/`_files`, and fish one `complete` line per
   flag with descriptions. Output is environment-independent, so a committed
-  script can be diffed. An unknown shell is a `SafetyError` with a hint.
+  script can be diffed. An unknown shell is a `SafetyError` with a hint. The
+  generated scripts are committed under `completions/` and
+  `scripts/generate-completions.ts` (`npm run completions:generate`) rewrites
+  them; `test/unit/completionFreshness.test.ts` compares the committed bytes to
+  a fresh generation, so a flag added, renamed, or re-described without
+  regenerating fails the build.
+- **An events API for the library** — `scan()` now returns a promise that is
+  also an async iterator, so an embedding application can show its own progress
+  and stream endpoints as they are grouped, against one scan rather than two:
+
+  ```ts
+  for await (const event of scan({ url })) {
+    // { type: 'phase', phase } | { type: 'page', page }
+    // | { type: 'endpoint', endpoint } | { type: 'done', result }
+  }
+  ```
+
+  `src/core/events.ts` builds the hybrid handle: a real promise with an iterator
+  over a queue, so `await scan(opts)` and the iterator both work and a run is
+  never started twice. Phases are emitted only when they change and pages as
+  they are recorded (`publishProgress`), endpoints one per grouped pattern after
+  analysis, and a final `done` carrying the same `ScanResult`. A failure is
+  rethrown by both `await` and the iterator, and a defensive `catch` keeps an
+  unattended rejection quiet when the caller only iterates. `ScanEvent` and
+  `ScanHandle` are exported, and `onProgress` is unchanged.
 
 **Proposed updates & features**
 
@@ -574,9 +598,6 @@ so it can be scoped without re-reading the source.
 
 **User experience**
 
-- **An events API for the library.** Expose the scan as an async iterator
-  (`for await (const event of scan(...))`) so an embedding application can show
-  its own progress and stream endpoints as they are discovered.
 - **A docs site and cookbook.** Recipes for an authenticated SPA, a GraphQL
   endpoint, a WebSocket app, and a CI gate, plus a troubleshooting FAQ; the
   README is already long enough that the detailed material deserves its own
