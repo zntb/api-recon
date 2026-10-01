@@ -10,6 +10,7 @@ import { renderHtml } from './html.js';
 import { writePdfReport } from './pdf.js';
 import { writeOpenApiReport } from './openapi.js';
 import { writeDashboardReport } from './dashboard.js';
+import { writeShareReport } from './share.js';
 
 export async function writeReports(
   report: ReconReport,
@@ -71,6 +72,12 @@ export async function writeReports(
   // interactive view, not a printable one.
   if (formats.includes('dashboard')) {
     files.push(await writeDashboardReport(report, outDir));
+  }
+
+  // The share-safe summary, which reads only sample-free fields — the reason it
+  // can be written without the full reports (see `--share`).
+  if (formats.includes('share')) {
+    files.push(await writeShareReport(report, outDir));
   }
 
   return files;

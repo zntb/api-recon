@@ -395,7 +395,7 @@ describe('--print and --open as settings', () => {
         env: {},
         cwd: root,
       }),
-    ).rejects.toThrow(/--print: expected one of md, json, openapi, html — got "pdf"/);
+    ).rejects.toThrow(/--print: expected one of md, json, openapi, html, share — got "pdf"/);
   });
 
   it('refuses to let a repository pop open a browser for everyone', async () => {

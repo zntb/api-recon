@@ -5,13 +5,13 @@ _api_recon_completions() {
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-  local flags="--version -V --depth -d --max-pages -m --open --print --preset --config --no-config --out -o --formats -f --browser -b --auth -a --login -l --record --actions --rate -r --respect-robots --no-respect-robots --diff --baseline --fail-on-diff --include-third-party --redact --no-redact --force --allow-local --telemetry --telemetry-preview --max-body-mb --quiet -q --verbose -v --json-progress --debug --help -h"
+  local flags="--version -V --depth -d --max-pages -m --open --share --print --preset --config --no-config --out -o --formats -f --browser -b --auth -a --login -l --record --actions --rate -r --respect-robots --no-respect-robots --diff --baseline --fail-on-diff --include-third-party --redact --no-redact --force --allow-local --telemetry --telemetry-preview --max-body-mb --quiet -q --verbose -v --json-progress --debug --help -h"
 
   case "${prev}" in
     --browser) COMPREPLY=( $(compgen -W "chromium firefox webkit" -- "${cur}") ); return 0 ;;
     --preset) COMPREPLY=( $(compgen -W "quick deep ci" -- "${cur}") ); return 0 ;;
-    --print) COMPREPLY=( $(compgen -W "md json openapi html" -- "${cur}") ); return 0 ;;
-    --formats) COMPREPLY=( $(compgen -W "json md html pdf openapi dashboard" -- "${cur}") ); return 0 ;;
+    --print) COMPREPLY=( $(compgen -W "md json openapi html share" -- "${cur}") ); return 0 ;;
+    --formats) COMPREPLY=( $(compgen -W "json md html pdf openapi dashboard share" -- "${cur}") ); return 0 ;;
     --auth|--login|--actions|--config|--diff|--baseline) COMPREPLY=( $(compgen -f -- "${cur}") ); return 0 ;;
     --out) COMPREPLY=( $(compgen -d -- "${cur}") ); return 0 ;;
   esac

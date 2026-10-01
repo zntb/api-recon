@@ -551,6 +551,18 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   for focus rings and fills. `test/unit/contrast.test.ts` fails if any text
   token drops below 4.5:1, and the browser suite sets a sort and opens a row by
   key, asserting the announced state.
+- **A share-safe mode** — `--share` writes one page instead of the full reports:
+  `share.md`, a summary that names the host and then keeps only request patterns,
+  categories, status codes, call counts, and inferred schemas. It is safe by
+  construction rather than by redaction — `src/reporters/share.ts` never reads a
+  body, a header, a query value, a socket frame, a page URL, or an origin, and it
+  drops finding *details* because the verbose-error cue quotes a slice of an
+  error body — and `--share` *replaces* the format set, so a full report (which
+  keeps redacted samples) cannot be written beside it by accident; a `--print`
+  in the same run prints the summary too. `share` is also an ordinary format
+  (`--formats share`, `--print share`) that is deliberately absent from the
+  defaults, and `test/unit/share.test.ts` fails if any sample-bearing field
+  reaches the output.
 
 **Proposed updates & features**
 
@@ -621,10 +633,6 @@ so it can be scoped without re-reading the source.
   by accident.
 
 **User experience**
-
-- **A share-safe mode.** `--share` that strips bodies, samples, and headers
-  entirely — keeping only patterns, categories, and schemas — and emits a
-  one-page summary suitable for pasting into a ticket.
 
 If a few are picked first, the highest-leverage trio is proving redaction before
 writing (security), checking example freshness in CI (stability), and masking

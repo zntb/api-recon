@@ -21,6 +21,7 @@ import {
 import { openFile } from '../utils/open.js';
 import { renderOpenApi } from '../reporters/openapi.js';
 import { renderMarkdown } from '../reporters/markdown.js';
+import { renderShareSummary } from '../reporters/share.js';
 import { renderHtml } from '../reporters/html.js';
 import type { ReconReport } from '../types.js';
 import { presetHelp } from './presets.js';
@@ -70,6 +71,11 @@ function registerScanOptions(command: Command): Command {
     .option('-m, --max-pages <n>', 'hard cap on pages visited', intArg, 25)
     .option('--open', 'open the dashboard in your browser when the scan finishes', false)
     .option(
+      '--share',
+      'write a share-safe one-page summary (share.md) instead of the full reports — no bodies, headers, or samples',
+      false,
+    )
+    .option(
       '--print [format]',
       `print a report to stdout as well as writing files (${PRINT_FORMATS.join(', ')}; default md). Human output moves to stderr, so it pipes cleanly`,
     )
@@ -85,7 +91,7 @@ function registerScanOptions(command: Command): Command {
     .option('-o, --out <dir>', 'output directory for reports', './api-recon-output')
     .option(
       '-f, --formats <list>',
-      'comma-separated report formats (json,md,html,pdf,openapi,dashboard)',
+      'comma-separated report formats (json,md,html,pdf,openapi,dashboard,share)',
       'json,md,html,pdf,openapi,dashboard',
     )
     .option(
@@ -223,6 +229,8 @@ interface CliOptions {
   preset?: string;
   /** Open the dashboard when the scan finishes. */
   open: boolean;
+  /** Write only the share-safe summary, instead of the full reports. */
+  share: boolean;
   /** `--print` (md) or the format it was given. */
   print?: string | boolean;
 }
@@ -326,9 +334,16 @@ async function runScan(
   }
 
   try {
-    const formats = normalizeFormats(opts.formats.split(','));
-    // Opening the dashboard means it has to exist, whatever --formats said.
-    if (opts.open && !formats.includes('dashboard')) formats.push('dashboard');
+    let formats = normalizeFormats(opts.formats.split(','));
+    if (opts.share) {
+      // Safe by construction: the share mode replaces the whole format set, so
+      // a full report — which keeps redacted samples — can never be written
+      // alongside the summary by accident.
+      formats = ['share'];
+    } else if (opts.open && !formats.includes('dashboard')) {
+      // Opening the dashboard means it has to exist, whatever --formats said.
+      formats.push('dashboard');
+    }
     // Off unless asked for on the command line or in the environment.
     const telemetry = opts.telemetry || process.env.API_RECON_TELEMETRY === '1';
     const telemetryPlan = resolveTelemetryPlan({
@@ -381,7 +396,9 @@ async function runScan(
     logger.always('');
 
     if (typeof opts.print === 'string') {
-      const text = await renderForPrint(opts.print, report);
+      // A share run must not print a sampled report to stdout either, so the
+      // share summary stands in for whatever --print asked for.
+      const text = await renderForPrint(opts.share ? 'share' : opts.print, report);
       process.stdout.write(text.endsWith('\n') ? text : `${text}\n`);
     }
 
@@ -493,6 +510,8 @@ async function renderForPrint(format: string, report: ReconReport): Promise<stri
       return JSON.stringify(report, null, 2);
     case 'openapi':
       return renderOpenApi(report);
+    case 'share':
+      return renderShareSummary(report);
     case 'html':
       return renderHtml(
         renderMarkdown(report),

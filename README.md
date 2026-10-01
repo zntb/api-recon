@@ -126,7 +126,8 @@ api-recon https://example.com --browser firefox
 | `--json-progress` | off | Emit progress as JSON lines on stdout instead of a live table |
 | `--preset <name>` | — | Bundle the flags for a common case: `quick`, `deep`, `ci` (see below) |
 | `--open` | off | Open `dashboard.html` in your browser when the scan finishes |
-| `--print [format]` | — | Print a report to stdout: `md` (default), `json`, `openapi`, or `html` |
+| `--print [format]` | — | Print a report to stdout: `md` (default), `json`, `openapi`, `html`, or `share` |
+| `--share` | off | Write only a share-safe one-page `share.md` — patterns, categories, and schemas, with no bodies, headers, or samples |
 | `--config <file>` | discovered | Project config file (see below) |
 | `--no-config` | — | Ignore any project config file, even one found on the way up |
 | `--debug` | off | On failure, write `debug/logs.txt`, a browser trace, and the partial report for a bug report |
@@ -265,7 +266,7 @@ The environment variables are the flags in `SCREAMING_SNAKE_CASE`:
 `API_RECON_FORCE`, `API_RECON_ALLOW_LOCAL`, `API_RECON_TELEMETRY`,
 `API_RECON_TELEMETRY_PREVIEW`, `API_RECON_MAX_BODY_MB`, `API_RECON_QUIET`,
 `API_RECON_VERBOSE`, `API_RECON_JSON_PROGRESS`, `API_RECON_RECORD`,
-`API_RECON_DEBUG`. Booleans take
+`API_RECON_SHARE`, `API_RECON_DEBUG`. Booleans take
 `1`/`0` (also `true`/`false`, `yes`/`no`, `on`/`off`).
 
 Two values cannot be committed in a shared file: `force: true` and
@@ -446,6 +447,7 @@ you only care about the API surface, Chromium is the safer default.
 | `report.pdf` | Rendered from the HTML with Playwright's `page.pdf()`: a cover page, running header/footer with page numbers, and an endpoint's detail kept whole |
 | `openapi.yaml` | Best-effort OpenAPI 3.0 spec from inferred paths, methods, params, and schemas |
 | `dashboard.html` | Interactive dashboard: search, filter, sort, and expand endpoints |
+| `share.md` | One-page, share-safe summary (with `--share`): patterns, categories, and schemas only — no bodies, headers, or samples |
 | `telemetry.json` | Opt-in anonymized categorization signals (see [Telemetry](#telemetry-opt-in)); never written unless enabled |
 
 `report.html` and `dashboard.html` share one theme (`src/reporters/theme.ts`):
@@ -687,6 +689,36 @@ report as `report.json`.
 Use `report.md` / `report.html` / `report.pdf` when you need something to send
 someone; use `dashboard.html` when you need to find something. Both a plain and
 a diffed dashboard are committed under [`examples/output/`](examples/output).
+
+## Sharing a report
+
+`report.json`, `report.md`, `report.html`, and `dashboard.html` all keep
+*redacted* samples — a request body, a header, a socket frame. That is what you
+want for yourself, and not what you want in a ticket, a chat, or a shared drive:
+redaction masks the secrets it recognizes and leaves everything else. `--share`
+writes a different artifact instead:
+
+```bash
+api-recon https://example.com --share --out ./reports
+# ./reports/share.md — one page, paste it into a ticket
+```
+
+`share.md` is built only from request patterns, categories, status codes, call
+counts, and inferred schemas. It is safe by construction rather than by
+redaction: the reporter never reads a request or response body, a header, a
+query value, a socket frame, a page URL, or an origin, so the output cannot leak
+what the scan saw. Finding *details* are omitted too, because the verbose-error
+cue quotes a slice of an error body. `--share` replaces the whole format set — a
+full report is never written beside it — and a `--print` in the same run prints
+the summary rather than the sampled report.
+
+`share` is also an ordinary format, if you want the summary in a pipe rather
+than a file:
+
+```bash
+api-recon https://example.com --print share > ticket.md
+api-recon https://example.com --formats share --out ./reports
+```
 
 ## Comparing scans
 

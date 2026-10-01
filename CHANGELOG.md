@@ -77,6 +77,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   readable-ink step, taking light-mode link text from 4.3:1 (below AA) to 8.0:1
   while the accent stays for focus rings and fills; `test/unit/contrast.test.ts`
   now fails if any text token drops under 4.5:1.
+- **A share-safe mode** — `--share` writes a single one-page summary,
+  `share.md`, instead of the full reports: request patterns, categories, status
+  codes, call counts, and inferred schemas, with no request or response body,
+  header, query value, socket frame, page URL, or origin. It is safe by
+  construction rather than by redaction, so sharing the output cannot leak what
+  the scan saw — finding details are dropped too, since one of them quotes a
+  slice of an error body. `--share` replaces the whole format set, so no sampled
+  report is written beside it, and a `--print` in the same run prints the
+  summary. `share` also works as an ordinary format (`--formats share`,
+  `--print share`) and is deliberately absent from the defaults.
 
 ## [0.3.9] - 2026-09-30
 

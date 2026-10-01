@@ -104,6 +104,7 @@ const OPTION_SPECS: OptionSpec[] = [
   { key: 'allowLocal', kind: 'bool', env: 'API_RECON_ALLOW_LOCAL' },
   { key: 'telemetry', kind: 'bool', env: 'API_RECON_TELEMETRY' },
   { key: 'telemetryPreview', kind: 'bool', env: 'API_RECON_TELEMETRY_PREVIEW' },
+  { key: 'share', kind: 'bool', env: 'API_RECON_SHARE' },
   { key: 'maxBodyMb', kind: 'number', env: 'API_RECON_MAX_BODY_MB' },
   {
     key: 'preset',
@@ -129,7 +130,7 @@ const OPTION_SPECS: OptionSpec[] = [
 ];
 
 /** What `--print` can send to stdout: the text formats, never the binary one. */
-export const PRINT_FORMATS = ['md', 'json', 'openapi', 'html'] as const;
+export const PRINT_FORMATS = ['md', 'json', 'openapi', 'html', 'share'] as const;
 type PrintFormat = (typeof PRINT_FORMATS)[number];
 
 const SPEC_BY_KEY = new Map(OPTION_SPECS.map((spec) => [spec.key, spec]));

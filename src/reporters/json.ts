@@ -11,6 +11,7 @@ export const FORMAT_FILENAMES: Record<ReportFormat, string> = {
   pdf: 'report.pdf',
   openapi: 'openapi.yaml',
   dashboard: 'dashboard.html',
+  share: 'share.md',
 };
 
 export async function writeJsonReport(report: ReconReport, outDir: string): Promise<string> {

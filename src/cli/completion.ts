@@ -29,14 +29,14 @@ export function isCompletionShell(value: unknown): value is CompletionShell {
   return typeof value === 'string' && (COMPLETION_SHELLS as readonly string[]).includes(value);
 }
 
-/** The report formats, in the order `--formats` documents them. */
-const FORMAT_VALUES = ['json', 'md', 'html', 'pdf', 'openapi', 'dashboard'] as const;
+/** The report formats, in the order `--formats` documents them (`share` last: opt-in). */
+const FORMAT_VALUES = ['json', 'md', 'html', 'pdf', 'openapi', 'dashboard', 'share'] as const;
 
 /** Flags whose values are a closed set the shell can offer. */
 const CHOICE_VALUES: Record<string, readonly string[]> = {
   '--browser': ['chromium', 'firefox', 'webkit'],
   '--preset': ['quick', 'deep', 'ci'],
-  '--print': ['md', 'json', 'openapi', 'html'],
+  '--print': ['md', 'json', 'openapi', 'html', 'share'],
   '--formats': FORMAT_VALUES,
 };
 

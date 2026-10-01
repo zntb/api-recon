@@ -12,12 +12,13 @@ _api_recon() {
     '--depth:same-domain crawl depth (0 = seed page only)'
     '--max-pages:hard cap on pages visited'
     '--open:open the dashboard in your browser when the scan finishes'
-    '--print:print a report to stdout as well as writing files (md, json, openapi, html; default md). Human output moves to stderr, so it pipes cleanly'
+    '--share:write a share-safe one-page summary (share.md) instead of the full reports — no bodies, headers, or samples'
+    '--print:print a report to stdout as well as writing files (md, json, openapi, html, share; default md). Human output moves to stderr, so it pipes cleanly'
     '--preset:bundle the flags for a common case — quick (one page, no crawl, skips the PDF render), deep (crawl further and include cross-origin traffic), ci (bounded, quiet, and machine-readable for a pipeline). A flag or an environment variable still wins'
     '--config:path to a project config file (default  the nearest api-recon.config.json / .api-reconrc.json / .api-reconrc up from the working directory)'
     '--no-config:ignore any project config file, even one found on the way up'
     '--out:output directory for reports'
-    '--formats:comma-separated report formats (json,md,html,pdf,openapi,dashboard)'
+    '--formats:comma-separated report formats (json,md,html,pdf,openapi,dashboard,share)'
     '--browser:Playwright engine to drive (chromium, firefox, webkit)'
     '--auth:path to a Playwright storageState.json for an authenticated session'
     '--login:path to a login-flow config (YAML/JSON) with ${ENV_VAR} substitution'
@@ -52,8 +53,8 @@ _api_recon() {
   case "${words[CURRENT-1]}" in
     --browser) _values 'value' chromium firefox webkit; return ;;
     --preset) _values 'value' quick deep ci; return ;;
-    --print) _values 'value' md json openapi html; return ;;
-    --formats) _values 'value' json md html pdf openapi dashboard; return ;;
+    --print) _values 'value' md json openapi html share; return ;;
+    --formats) _values 'value' json md html pdf openapi dashboard share; return ;;
     --auth|--login|--actions|--config|--diff|--baseline|--out) _files; return ;;
   esac
 

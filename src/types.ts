@@ -3,8 +3,13 @@
  * every reporter (md/html/pdf/openapi) derives from it.
  */
 
-export type ReportFormat = 'json' | 'md' | 'html' | 'pdf' | 'openapi' | 'dashboard';
+export type ReportFormat = 'json' | 'md' | 'html' | 'pdf' | 'openapi' | 'dashboard' | 'share';
 
+/**
+ * The formats a scan writes when none are named. `share` is deliberately not
+ * among them: it is a safe *alternative* to the full reports, chosen on purpose
+ * rather than written alongside them.
+ */
 export const REPORT_FORMATS: readonly ReportFormat[] = [
   'json',
   'md',
@@ -13,6 +18,9 @@ export const REPORT_FORMATS: readonly ReportFormat[] = [
   'openapi',
   'dashboard',
 ];
+
+/** Every format a scan may be asked for, the opt-in `share` included. */
+export const ALL_REPORT_FORMATS: readonly ReportFormat[] = [...REPORT_FORMATS, 'share'];
 
 /** Playwright engines a scan can run in. Chromium is the default. */
 export type BrowserEngine = 'chromium' | 'firefox' | 'webkit';

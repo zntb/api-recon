@@ -20,7 +20,7 @@ import type {
   ScanProgressState,
   ScanResult,
 } from './types.js';
-import { REPORT_FORMATS, REPORT_SCHEMA_VERSION } from './types.js';
+import { ALL_REPORT_FORMATS, REPORT_FORMATS, REPORT_SCHEMA_VERSION } from './types.js';
 import { TOOL_VERSION } from './version.js';
 import { createEventHandle } from './core/events.js';
 import { launchSession, resolveEngine } from './core/browser.js';
@@ -351,6 +351,7 @@ export function normalizeFormats(formats: readonly string[] | undefined): Report
     openapi: 'openapi',
     dashboard: 'dashboard',
     dash: 'dashboard',
+    share: 'share',
   };
   if (!formats || formats.length === 0) return [...REPORT_FORMATS];
   const out: ReportFormat[] = [];
@@ -359,7 +360,7 @@ export function normalizeFormats(formats: readonly string[] | undefined): Report
     const resolved = aliases[key];
     if (!resolved) {
       throw new SafetyError(
-        `Unknown report format '${raw}'. Valid formats: ${REPORT_FORMATS.join(', ')}.`,
+        `Unknown report format '${raw}'. Valid formats: ${ALL_REPORT_FORMATS.join(', ')}.`,
       );
     }
     if (!out.includes(resolved)) out.push(resolved);
@@ -410,4 +411,10 @@ export { diffReports, loadBaseline, formatDiffSummary } from './core/diff.js';
 export { collectFindings } from './core/findings.js';
 export { groupResources } from './core/resources.js';
 export { buildRequestGraph } from './reporters/graph.js';
-export { REPORT_FORMATS, REPORT_SCHEMA_VERSION, CATEGORIES, BROWSER_ENGINES } from './types.js';
+export {
+  ALL_REPORT_FORMATS,
+  REPORT_FORMATS,
+  REPORT_SCHEMA_VERSION,
+  CATEGORIES,
+  BROWSER_ENGINES,
+} from './types.js';

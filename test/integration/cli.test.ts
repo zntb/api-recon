@@ -20,6 +20,9 @@ const CLI_ENTRY = join(process.cwd(), 'src', 'cli', 'index.ts');
 // directory — and one of these tests runs the CLI from a temporary project.
 const TSX_LOADER = pathToFileURL(createRequire(import.meta.url).resolve('tsx')).href;
 const NODE_TSX_ARGS = ['--import', TSX_LOADER, CLI_ENTRY];
+// The credential the fixture site accepts, and the value the login flow's
+// `${FIXTURE_PASS}` substitution reads from the environment.
+const FIXTURE_PASS = 'hunter2';
 
 let fixture: FixtureServerHandle;
 let outDir: string;
@@ -37,6 +40,7 @@ const NEEDS_BROWSER = [
   'preset',
   'print',
   '--open',
+  '--share',
 ];
 
 beforeEach((ctx) => {
@@ -104,6 +108,7 @@ describe('api-recon CLI', () => {
       '--preset',
       '--open',
       '--print',
+      '--share',
     ]) {
       expect(stdout, `--help should mention ${flag}`).toContain(flag);
     }
@@ -234,6 +239,41 @@ describe('api-recon CLI', () => {
     expect(report.endpoints.some((e) => e.id === 'GET /api/products')).toBe(true);
     const md = await readFile(join(dir, 'report.md'), 'utf8');
     expect(md).toContain('# API recon report');
+  }, 150_000);
+
+  it('writes only a share-safe summary with --share', async () => {
+    const dir = join(outDir, 'cli-share');
+    const { code, stdout, stderr } = await runCli([
+      fixture.url,
+      '--allow-local',
+      '--depth',
+      '1',
+      '--rate',
+      '0',
+      // The login flow is what puts a secret in the capture, so the summary's
+      // silence about it proves no sample was carried rather than that none
+      // existed.
+      '--login',
+      'test/fixtures/login.yaml',
+      '--out',
+      dir,
+      '--share',
+      '--quiet',
+    ], { FIXTURE_BASE_URL: fixture.url, FIXTURE_USER: 'demo@example.com', FIXTURE_PASS });
+    expect(code, stdout + stderr).toBe(0);
+
+    // --share replaces the whole format set: only the summary is written.
+    const summary = await readFile(join(dir, 'share.md'), 'utf8');
+    expect(summary).toContain('# API surface —');
+    expect(summary).toContain('| Method | Path | Category | Status | Calls |');
+    await expect(readFile(join(dir, 'report.json'), 'utf8')).rejects.toThrow();
+    await expect(readFile(join(dir, 'report.html'), 'utf8')).rejects.toThrow();
+
+    // No body, header, or frame: not the secret, not the redaction placeholder
+    // the full report would keep in its place.
+    expect(summary).not.toContain(FIXTURE_PASS);
+    expect(summary).not.toContain('connect.sid=');
+    expect(summary).not.toContain('[REDACTED]');
   }, 150_000);
 
   it('writes telemetry only when the flag or env enables it', async () => {
