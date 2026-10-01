@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>Scan a GraphQL endpoint · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html" class="active">GraphQL</a></li><li><a href="../cookbook/websocket.html">WebSockets</a></li><li><a href="../cookbook/ci-gate.html">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>Scan a GraphQL endpoint</h1>
+<p>A GraphQL app usually sends everything to one URL — <code>/graphql</code>, <code>/api/graphql</code>,
+<code>/query</code> — with the verb, the operation, and the fields hidden in the request
+body. A URL-only tool reports one endpoint and stops. <code>api-recon</code> recognizes the
+operation, so the report is divided the way the API actually is.</p>
+<h2>Recognize what makes a request GraphQL</h2>
+<p>A captured request is treated as GraphQL when it carries any of:</p>
+<ul>
+<li>a JSON body with a <code>query</code> document (the usual POST),</li>
+<li>a body sent as <code>application/graphql</code>,</li>
+<li>a <code>query</code> search parameter (the GET form),</li>
+<li>the <code>operationName</code> of an automatic persisted query, with no document.</li>
+</ul>
+<p>Nothing is executed or replayed — the document text is only scanned. Such
+endpoints are categorized <code>graphql</code> and gain a <code>graphql</code> object with the
+operations seen and whether the schema was introspected:</p>
+<pre><code class="language-jsonc">&quot;graphql&quot;: {
+  &quot;introspection&quot;: true,
+  &quot;operations&quot;: [
+    { &quot;name&quot;: &quot;IntrospectionQuery&quot;, &quot;type&quot;: &quot;query&quot;, &quot;selections&quot;: [&quot;__schema&quot;] },
+    { &quot;name&quot;: &quot;GetProducts&quot;, &quot;type&quot;: &quot;query&quot;, &quot;selections&quot;: [&quot;products&quot;] }
+  ]
+}
+</code></pre>
+<p>Operation names and their top-level fields are read with a small tokenizer that
+ignores keywords inside strings, comments, nested selection sets, fragments, and
+directives — so a field named <code>mutation</code> is not mistaken for an operation. A
+persisted query that names an operation the document does not declare is kept
+with the <code>unknown</code> type.</p>
+<h2>Make the app do the queries</h2>
+<p>The crawl only sees operations the UI actually fires. Two ways to reach the rest:</p>
+<pre><code class="language-yaml"># flows/graphql.yaml — drive the UI that issues the queries you care about
+- wait: 800
+- fill: { selector: &#39;input[type=&quot;search&quot;]&#39;, value: &#39;widget&#39; }
+- submit: &#39;form.search&#39;
+- click: &#39;button[aria-label=&quot;Next page&quot;]&#39;
+- wait: 1000
+</code></pre>
+<pre><code class="language-bash">api-recon https://app.example.com/graphql-app --actions flows/graphql.yaml \
+  --depth 1
+</code></pre>
+<p>Or record by hand, which is easiest for a query fired from a menu or a detail
+view:</p>
+<pre><code class="language-bash">api-recon https://app.example.com --record
+</code></pre>
+<p>If the app runs an introspection query on load (many dev and tooling builds do),
+you will see it flagged, which is worth knowing before you ship: a production
+schema that can still be introspected is a finding in itself.</p>
+<h2>The report</h2>
+<ul>
+<li><strong>Markdown / HTML / PDF</strong> list the operations under a GraphQL endpoint, with
+the selections and arguments observed for each.</li>
+<li><strong><code>openapi.yaml</code></strong> carries them as <code>x-graphql-operations</code> and
+<code>x-graphql-introspection</code> extensions, so a consumer that only reads OpenAPI
+still sees what each operation asks for.</li>
+<li><strong>The dashboard</strong> shows the same, per endpoint.</li>
+</ul>
+<h2>Diffing GraphQL</h2>
+<p>GraphQL endpoints compare operation by operation rather than field by field:</p>
+<ul>
+<li>a <strong>new</strong> operation, or introspection newly appearing, is additive;</li>
+<li>an operation no longer observed is <strong>breaking</strong> — the crawl may simply not
+have exercised it, but a client that calls it would break;</li>
+<li>losing a selection or an argument is <strong>breaking</strong>, the same as a removed REST
+response field; gaining one is additive.</li>
+</ul>
+<pre><code class="language-bash">api-recon baseline https://app.example.com --actions flows/graphql.yaml
+# later
+api-recon https://app.example.com --actions flows/graphql.yaml \
+  --diff latest --fail-on-diff
+</code></pre>
+<p>See also: <a href="ci-gate.html">CI gate</a> for turning that exit code into a failing build,
+and the <a href="../faq.html">FAQ</a> if the endpoint is categorized <code>mutations</code> instead —
+that means the body did not parse as a GraphQL document.</p>
+</article>
+<footer>api-recon documentation — see the <a href="https://github.com/zntb/api-recon#readme">README</a> for the full CLI and library reference.</footer>
+</main>
+</div>
+</body>
+</html>

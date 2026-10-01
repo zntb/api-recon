@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>Troubleshooting FAQ · api-recon</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="index.html">Overview</a></li><li><a href="cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="cookbook/graphql.html">GraphQL</a></li><li><a href="cookbook/websocket.html">WebSockets</a></li><li><a href="cookbook/ci-gate.html">CI gate</a></li><li><a href="faq.html" class="active">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>Troubleshooting FAQ</h1>
+<p>The questions that come up when a scan does not do what you expected. Every
+error <code>api-recon</code> raises is typed and ends in a hint (the <code>→</code> line); this page is
+the longer version.</p>
+<h2>The scan finished but found no endpoints</h2>
+<p>A scan only sees traffic the crawl triggered. The usual causes, in order:</p>
+<ol>
+<li><strong>The API fires after a login.</strong> Use <code>--login</code> or <code>--auth</code>; see
+<a href="cookbook/authenticated-spa.html">Authenticated SPA</a>.</li>
+<li><strong>The calls need an interaction</strong> — a tab, a search, a &quot;load more&quot;. Script it
+with <code>--actions</code>, or use <code>--record</code> and click it yourself.</li>
+<li><strong>The page is a client-side route</strong> the crawl never reached. Seed the route
+directly: <code>api-recon https://app.example.com/settings</code>.</li>
+<li><strong>The calls are cross-origin</strong> (a separate API host). They are ignored unless
+you pass <code>--include-third-party</code>.</li>
+<li><strong>The calls happen before the tool is listening.</strong> The interceptor attaches
+to every page the context opens, so this is rare — but a service worker can
+serve cached responses that never hit the network. Try a headed <code>--record</code>
+run to watch what actually happens.</li>
+</ol>
+<p>If it works interactively but not in the crawl, the missing step is the action.</p>
+<h2>It refuses to scan localhost</h2>
+<pre><code>Refusing to scan private/local address 127.0.0.1 — this usually means a mistake.
+</code></pre>
+<p>That is the local guard, and it is deliberate: scanning your own machine by
+accident is the common case. Pass <code>--allow-local</code> when the target really is
+yours.</p>
+<h2>robots.txt disallows my seed URL</h2>
+<pre><code>robots.txt disallows /app on https://example.com. Re-run with --force to override.
+</code></pre>
+<p>The seed path must be allowed by <code>robots.txt</code>, and paths under <code>/admin</code> (or
+whatever the site disallows) are skipped during the crawl. <code>--force</code> bypasses
+the rules; use it only for a system you are authorized to test. <code>--force</code> never
+bypasses the local guard — that one still needs <code>--allow-local</code>.</p>
+<h2>The PDF was skipped</h2>
+<p><code>report.pdf</code> needs Chromium, because <code>page.pdf()</code> is Chromium-only. If the scan
+ran in Firefox or WebKit, the PDF is skipped with a warning and everything else
+is written. Install Chromium (<code>npx playwright install chromium</code>) and scan with
+<code>--browser chromium</code>, or just read <code>report.html</code>.</p>
+<h2>Are secrets ending up in the report?</h2>
+<p>Redaction is on by default and runs <strong>at capture time</strong>, so secrets never reach
+any report: <code>Authorization</code>, <code>Proxy-Authorization</code>, <code>Cookie</code>, <code>Set-Cookie</code>,
+<code>X-Api-Key</code>, <code>X-Auth-Token</code>, <code>X-Csrf-Token</code>, and other sensitive headers;
+JSON body fields and WebSocket frames with keys such as <code>password</code>, <code>token</code>,
+<code>secret</code>, <code>apiKey</code>, <code>creditCard</code>, and <code>cvv</code>; and log lines are scrubbed too.</p>
+<p>It is a denylist, not a proof. A report is still a picture of a live system:
+review it before sharing, and prefer <code>--redact</code> (the default) on any scan whose
+output leaves your machine. <code>--no-redact</code> exists for local debugging and is not
+recommended.</p>
+<h2>Can I commit the report or the baseline?</h2>
+<p>Yes — that is what the <a href="cookbook/ci-gate.html">CI gate</a> is built on — but treat
+them as you would any artifact derived from production traffic. Redaction has
+already run; a review is still worth it. A saved <code>session.json</code> is a different
+matter: it is a credential and must not be committed.</p>
+<h2>&quot;No stored baseline found&quot;</h2>
+<pre><code>No stored baseline found. Capture one first with `api-recon baseline &lt;url&gt;`.
+</code></pre>
+<p><code>--diff latest</code> reads <code>.api-recon/baseline.json</code>; there isn&#39;t one yet, or it is
+not in this directory or above it. Run <code>api-recon baseline &lt;url&gt;</code> once, or point
+at a file with <code>--diff ./path/to/report.json</code>.</p>
+<h2>&quot;baseline report is not compatible with this build&quot;</h2>
+<p>The baseline was written by an older build, before the report shape was
+versioned. LoadBaseline refuses it rather than comparing a shape it does not
+understand. Re-scan to produce a current report, then diff against that:</p>
+<pre><code class="language-bash">api-recon baseline https://app.example.com
+</code></pre>
+<h2>The diff reports changes I did not make</h2>
+<p>Some of the time, that is true and useful. The rest of the time:</p>
+<ul>
+<li><strong>&quot;Not seen this time&quot; is not &quot;gone&quot;.</strong> A scan samples the traffic the crawl
+triggered. A removed endpoint, operation, or field is reported with that
+evidence so you can judge whether the crawl simply did not exercise it.</li>
+<li><strong>The two scans may have run in different engines.</strong> Sites serve different
+responses per browser; when the baseline&#39;s engine differs from the current
+scan&#39;s, the CLI summary, the Markdown report, and the dashboard all say so.
+Run both scans in the same engine where you can.</li>
+<li><strong>A response body that was only partly observed</strong> — truncated, not JSON,
+binary — is not compared field by field; the diff says the shape was not
+compared rather than inventing a removal.</li>
+</ul>
+<h2>Firefox and WebKit results differ from Chromium</h2>
+<p>They often do. Different <code>User-Agent</code> and <code>Accept</code> headers mean a site may serve
+different bundles, and some APIs are polyfilled differently. If you only care
+about the API surface, Chromium is the safer default; if you care about what a
+given engine sees, record it in the report&#39;s <code>meta.engine</code> and keep the baseline
+and the scan in the same engine. PDF rendering is always Chromium.</p>
+<h2>A scan seems to hang</h2>
+<p>Navigation is bounded by an internal timeout (30 seconds per page), and
+<code>--max-pages</code> caps the crawl, so a stall should resolve itself. If a large site
+is simply slow, bound it harder:</p>
+<pre><code class="language-bash">api-recon https://app.example.com --depth 1 --max-pages 20 --rate 250
+</code></pre>
+<p>A page that never reaches network-idle is moved past after a short settle, so a
+polling page does not stall the crawl.</p>
+<h2>Where are the reports written?</h2>
+<p><code>./api-recon-output</code> by default, or <code>--out &lt;dir&gt;</code>. <code>--print</code> sends a text format
+to stdout instead, and <code>--open</code> launches the dashboard. A <code>--debug</code> run writes
+its bundle to <code>&lt;out&gt;/debug</code>.</p>
+<h2>The report is enormous</h2>
+<p>Cap it: <code>--max-body-mb</code> (1 MB per body/frame by default), <code>--depth</code>, and
+<code>--max-pages</code> all bound size. The dashboard is the format built for a large
+report — search, filter, and sort rather than scrolling a document.</p>
+<h2>How do I collect a bug report?</h2>
+<pre><code class="language-bash">api-recon https://app.example.com --debug
+</code></pre>
+<p>On failure, <code>--debug</code> writes a bundle to <code>&lt;out&gt;/debug</code>: <code>logs.txt</code> (every line
+the run printed, already scrubbed), <code>trace.zip</code> (open with
+<code>npx playwright show-trace</code>), and <code>partial-report.json</code> (whatever was captured
+before the failure). Attach the three; the log alone usually names the step.</p>
+</article>
+<footer>api-recon documentation — see the <a href="https://github.com/zntb/api-recon#readme">README</a> for the full CLI and library reference.</footer>
+</main>
+</div>
+</body>
+</html>

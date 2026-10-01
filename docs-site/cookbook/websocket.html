@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>Scan a WebSocket app · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html">GraphQL</a></li><li><a href="../cookbook/websocket.html" class="active">WebSockets</a></li><li><a href="../cookbook/ci-gate.html">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>Scan a WebSocket app</h1>
+<p>For a real-time app the contract is not a response schema, it is the messages on
+the socket. <code>api-recon</code> captures WebSocket connections alongside HTTP traffic:
+each connection with the frames sent and received, and an inferred message shape
+per direction.</p>
+<h2>What gets captured</h2>
+<p>A connection is recorded with its URL, the origins that opened it, the page that
+triggered it, and its frames:</p>
+<pre><code class="language-jsonc">{
+  &quot;url&quot;: &quot;wss://example.com/live&quot;,
+  &quot;triggeredBy&quot;: &quot;https://example.com/dashboard&quot;,
+  &quot;frameCount&quot;: 3,
+  &quot;sentCount&quot;: 1,
+  &quot;receivedCount&quot;: 2,
+  &quot;framesTruncated&quot;: false,
+  &quot;frames&quot;: [
+    { &quot;direction&quot;: &quot;sent&quot;, &quot;type&quot;: &quot;text&quot;, &quot;payloadSample&quot;: &quot;{\&quot;subscribe\&quot;:true}&quot;,
+      &quot;size&quot;: 17, &quot;truncated&quot;: false, &quot;at&quot;: 1699999999999 }
+  ]
+}
+</code></pre>
+<p>Frames follow the same rules as HTTP bodies:</p>
+<ul>
+<li><strong>Redaction runs at capture time.</strong> A <code>token</code>-shaped field in a frame is masked
+exactly like one in a request body, so what lands on disk is already safe.</li>
+<li><strong>Sizes are capped</strong> per frame by <code>--max-body-mb</code>, and drawn from the same
+total-size budget as HTTP bodies.</li>
+<li><strong>Chatty streams are bounded</strong> by a per-connection frame cap. The connection
+still reports how many frames were <em>seen</em> in <code>frameCount</code>, and sets
+<code>framesTruncated</code> when some were not stored.</li>
+<li><strong>Binary frames</strong> are stored base64-encoded.</li>
+</ul>
+<p>JSON frames are summarized into <code>sentSchema</code> (what the page sent, like a request
+body) and <code>receivedSchema</code> (what it received, like a response), merged across
+every frame with the same depth-capped inference the HTTP bodies use.</p>
+<h2>Open the socket</h2>
+<p>Sockets usually open after a click, so either drive the UI:</p>
+<pre><code class="language-yaml"># flows/open-socket.yaml
+- click: &#39;button#connect&#39;
+- wait: 2000                  # let the handshake and first messages happen
+- click: &#39;button#send-ping&#39;
+</code></pre>
+<pre><code class="language-bash">api-recon https://app.example.com/dashboard --actions flows/open-socket.yaml \
+  --depth 1
+</code></pre>
+<p>…or open it yourself, which is easier when the trigger is a menu:</p>
+<pre><code class="language-bash">api-recon https://app.example.com --record
+</code></pre>
+<p>If the socket is on another origin — a collaboration or presence service, say —
+it is treated like any cross-origin call and is only captured with
+<code>--include-third-party</code>:</p>
+<pre><code class="language-bash">api-recon https://app.example.com --record --include-third-party
+</code></pre>
+<h2>The report</h2>
+<ul>
+<li><strong>Markdown / HTML / PDF</strong> gain a <strong>WebSocket Traffic</strong> section with each
+connection&#39;s frames and message schemas.</li>
+<li><strong>The dashboard</strong> lists each connection as a row whose expanded view is its
+frames and message shapes.</li>
+<li><strong>Diffing</strong> matches connections by URL and compares the <em>shape</em> of the sent
+and received JSON, so a field dropping out of a received message is flagged
+breaking — <code>WebSocket received message field removed: value</code> — while a new one
+is additive. Frame streams themselves are not compared byte for byte, because
+a scan records whatever the crawl happened to trigger.</li>
+</ul>
+<h2>A note on flakiness</h2>
+<p>Real-time traffic is timing-sensitive: a socket that emits on join may look
+different on a slow run. Give the app a moment (<code>wait</code> actions, or <code>--rate</code>) and
+expect the <em>shape</em> comparison to be stable even when the frame count is not. If
+a socket is persistently missing, it opened before the crawl&#39;s first page was
+attached — in <code>--record</code> mode you can watch it connect, or seed the scan at the
+page that opens it.</p>
+<p>See also: <a href="authenticated-spa.html">Authenticated SPA</a> when the socket needs a
+session, and the <a href="../faq.html">FAQ</a> for size caps and redaction.</p>
+</article>
+<footer>api-recon documentation — see the <a href="https://github.com/zntb/api-recon#readme">README</a> for the full CLI and library reference.</footer>
+</main>
+</div>
+</body>
+</html>

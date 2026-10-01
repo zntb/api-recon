@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>Gate CI on API changes · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html">GraphQL</a></li><li><a href="../cookbook/websocket.html">WebSockets</a></li><li><a href="../cookbook/ci-gate.html" class="active">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>Gate CI on API changes</h1>
+<p>The API surface should not change by accident. A scan is a cheap way to build a
+contract test you did not have to write: capture a baseline once, then fail the
+build when a later scan differs in a way that could break a client.</p>
+<h2>1. Capture a baseline</h2>
+<pre><code class="language-bash">api-recon baseline https://app.example.com --depth 2 --formats json
+</code></pre>
+<p><code>baseline</code> scans and stores the report at <code>.api-recon/baseline.json</code>, discovered
+by walking up from the working directory like the project config. Commit it:
+it is the contract the gate compares against.</p>
+<pre><code class="language-bash">git add .api-recon/baseline.json
+git commit -m &quot;Capture the API baseline&quot;
+</code></pre>
+<p>Because the baseline is ordinary <code>report.json</code>, redaction already ran at capture
+time — commit it with the same care you would give any report.</p>
+<h2>2. Gate a build</h2>
+<pre><code class="language-bash">api-recon https://app.example.com --depth 2 \
+  --diff latest --fail-on-diff \
+  --formats json,md --quiet
+</code></pre>
+<p><code>--diff latest</code> reads the stored baseline, so no job has to remember a path.
+<code>--fail-on-diff</code> turns a finding into exit code <code>3</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Exit</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>0</code></td>
+<td>Success — no changes, or changes with <code>--fail-on-diff</code> off</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>Runtime failure</td>
+</tr>
+<tr>
+<td><code>2</code></td>
+<td>Refused by a safety guard (a bad <code>--diff</code> file, a missing <code>latest</code> baseline, …)</td>
+</tr>
+<tr>
+<td><code>3</code></td>
+<td><code>--fail-on-diff</code> found endpoint changes</td>
+</tr>
+</tbody></table>
+<p>A change is flagged <strong>breaking</strong> when it can plausibly break a client — an
+endpoint disappearing, a response no longer returning 2xx, a removed or retyped
+response field, a lost GraphQL selection, a removed WebSocket message field.
+Additions never are. The diff is also embedded in <code>report.json</code> and rendered in
+<code>report.md</code> as <strong>Changes Since Baseline</strong>.</p>
+<h2>3. A GitHub Actions workflow</h2>
+<pre><code class="language-yaml">name: api-contract
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  api-recon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4          # includes .api-recon/baseline.json
+      - uses: actions/setup-node@v4
+        with: { node-version: &#39;22&#39; }
+      - run: npm install -g api-recon
+      - run: npx playwright install --with-deps chromium
+
+      - name: Compare against the baseline
+        run: &gt;
+          api-recon https://staging.example.com
+          --diff latest --fail-on-diff
+          --preset ci --out reports
+
+      - name: Upload the report and any debug bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-recon
+          path: reports
+</code></pre>
+<p><code>--preset ci</code> is the bounded, quiet, machine-readable bundle (<code>depth 2</code>,
+<code>maxPages 50</code>, <code>formats json,md</code>, <code>quiet</code>); see the README&#39;s presets table. The
+<code>--out reports</code> directory holds <code>report.json</code> and <code>report.md</code>, and a failing run
+with <code>--debug</code> adds a diagnostic bundle worth uploading for triage.</p>
+<h2>Refreshing the baseline</h2>
+<p>A breaking change is sometimes intended. Refresh the baseline in the same pull
+request and let the reviewer see both the code change and the new contract:</p>
+<pre><code class="language-bash">api-recon baseline https://staging.example.com --depth 2 --formats json
+git add .api-recon/baseline.json
+git commit -m &quot;Accept the new /api/orders field&quot;
+</code></pre>
+<p>Do it deliberately and review the diff — a baseline updated to silence a failing
+gate is a gate that has stopped working.</p>
+<h2>Parallel jobs and per-branch baselines</h2>
+<p><code>--baseline &lt;file&gt;</code> overrides the stored location on both sides, so several
+scans can keep separate baselines without touching the committed one:</p>
+<pre><code class="language-bash">api-recon baseline https://staging.example.com --baseline baselines/main.json
+api-recon https://staging.example.com --diff latest --baseline baselines/main.json \
+  --fail-on-diff
+</code></pre>
+<p>A relative <code>baseline</code> path in a config file resolves against that file, so a
+committed <code>.api-reconrc</code> can point the whole team at one baseline.</p>
+<h2>Watching a long run</h2>
+<p>For a pipeline that wants a heartbeat rather than a progress table:</p>
+<pre><code class="language-bash">api-recon https://staging.example.com --preset ci --json-progress | jq -c .
+</code></pre>
+<p><code>--json-progress</code> emits one JSON object per line, ending in a <code>done</code> event.
+Human output — the banner, the summary — stays off stdout in a pipe.</p>
+<p>See also: <a href="graphql.html">GraphQL</a> and <a href="websocket.html">WebSockets</a> for the API
+shapes the gate also compares.</p>
+</article>
+<footer>api-recon documentation — see the <a href="https://github.com/zntb/api-recon#readme">README</a> for the full CLI and library reference.</footer>
+</main>
+</div>
+</body>
+</html>

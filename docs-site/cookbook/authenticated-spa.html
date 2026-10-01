@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>Scan an authenticated SPA · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../cookbook/authenticated-spa.html" class="active">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html">GraphQL</a></li><li><a href="../cookbook/websocket.html">WebSockets</a></li><li><a href="../cookbook/ci-gate.html">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>Scan an authenticated SPA</h1>
+<p>A single-page app is the case that breaks naive crawlers. There are no server
+rendered links to follow, the interesting APIs only answer after a login, and
+the URL changes without a page load. <code>api-recon</code> handles all three, but it needs
+a little help from you for the login.</p>
+<h2>1. Describe the login once</h2>
+<p>A <strong>scripted login</strong> is a small YAML file. Credentials are read from the
+environment with <code>${VAR}</code> substitution and are never logged or written into a
+report.</p>
+<pre><code class="language-yaml"># flows/login.yaml
+loginUrl: https://app.example.com/login
+steps:
+  - fill: { selector: &#39;#email&#39;, value: &#39;${APP_USER}&#39; }
+  - fill: { selector: &#39;#password&#39;, value: &#39;${APP_PASS}&#39; }
+  - click: &#39;button[type=&quot;submit&quot;]&#39;
+  - waitForURL: &#39;**/dashboard&#39;
+saveStateTo: ./session.json
+</code></pre>
+<p>The steps are <code>fill</code>, <code>click</code>, <code>submit</code>, <code>waitForURL</code>, <code>waitForSelector</code>, and
+<code>waitForTimeout</code>. <code>submit</code> calls the form&#39;s native submit, so a site that
+validates a button click still works. <code>saveStateTo</code> persists the cookies and
+localStorage so later runs do not have to log in again.</p>
+<pre><code class="language-bash">APP_USER=you@example.com APP_PASS=&#39;…&#39; \
+  api-recon https://app.example.com --login flows/login.yaml --depth 2
+</code></pre>
+<blockquote>
+<p>If the app logs you out between runs, the session file is a credential. Keep
+it out of version control and off shared machines. <code>api-recon</code> only writes it
+when <code>saveStateTo</code> asks.</p>
+</blockquote>
+<h2>2. Reuse the session</h2>
+<pre><code class="language-bash">api-recon https://app.example.com --auth ./session.json --depth 2 \
+  --out ./reports
+</code></pre>
+<p><code>--auth</code> takes a Playwright <code>storageState.json</code>, which is also what
+<code>saveStateTo</code> produces — so the two halves are the same file.</p>
+<h2>3. Let the SPA change routes</h2>
+<p>Client-side navigation (<code>history.pushState</code> / <code>replaceState</code> / <code>popstate</code>) is
+recorded, so the pages the app visits in place are followed like real links up
+to <code>--depth</code>. If a route is reached only through a click, drive that click with
+<code>--actions</code>:</p>
+<pre><code class="language-yaml"># flows/actions.yaml
+- wait: 500
+- scroll: { to: bottom }        # trigger lazy-loaded widgets
+- click: &#39;button.load-more&#39;     # paginate
+- wait: 1000
+- click: &#39;a[href=&quot;/settings&quot;]&#39;  # a route with no visible link on load
+</code></pre>
+<pre><code class="language-bash">api-recon https://app.example.com --auth ./session.json \
+  --depth 2 --actions flows/actions.yaml
+</code></pre>
+<p>Actions run on every crawled page and are resilient: a missing selector logs a
+warning and the crawl continues.</p>
+<h2>4. When clicks are too fiddly, record</h2>
+<p>If the flow is hard to script — a modal, an OAuth redirect — record it by hand:</p>
+<pre><code class="language-bash">api-recon https://app.example.com --record
+</code></pre>
+<p>A headed browser opens; browse normally and click through the app. Every
+XHR/fetch call is captured. Type <code>done</code> and press Enter (or press Ctrl+C) to
+finish, and the same report is written as any other run.</p>
+<h2>Putting it together</h2>
+<pre><code class="language-bash"># First run: log in and keep the session
+APP_USER=you@example.com APP_PASS=&#39;…&#39; \
+  api-recon https://app.example.com \
+  --login flows/login.yaml --depth 2 --actions flows/actions.yaml \
+  --formats json,md,dashboard --out ./reports
+
+# Later runs: reuse the session
+api-recon https://app.example.com --auth ./session.json \
+  --depth 2 --actions flows/actions.yaml --out ./reports
+</code></pre>
+<h2>Reading the report</h2>
+<ul>
+<li><code>authentication</code> endpoints are the login and token calls; they are the ones to
+check for overly broad responses.</li>
+<li><code>/api/...</code> entries under <code>data-fetching</code> are the app&#39;s read surface. Their
+inferred schemas are merged across every sample the crawl saw.</li>
+<li>The <strong>Page → request graph</strong> (in <code>report.md</code> and the dashboard) shows which
+route triggered which call, which is usually how you find a missing one.</li>
+<li>If a route never appears, it was not exercised — add an action for it, or scan
+it directly as the seed: <code>api-recon https://app.example.com/settings --auth …</code>.</li>
+</ul>
+<p>See also: <a href="graphql.html">GraphQL</a> for an app whose whole API is one endpoint, and
+the <a href="../faq.html">FAQ</a> when a page loads but no calls show up.</p>
+</article>
+<footer>api-recon documentation — see the <a href="https://github.com/zntb/api-recon#readme">README</a> for the full CLI and library reference.</footer>
+</main>
+</div>
+</body>
+</html>

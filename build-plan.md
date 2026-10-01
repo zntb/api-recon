@@ -527,6 +527,17 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   rethrown by both `await` and the iterator, and a defensive `catch` keeps an
   unattended rejection quiet when the caller only iterates. `ScanEvent` and
   `ScanHandle` are exported, and `onProgress` is unchanged.
+- **A docs site and cookbook** — the task-shaped material now lives under
+  `docs/` instead of swelling the README: a recipe for an authenticated SPA, a
+  GraphQL endpoint, a WebSocket app, and a CI gate, plus a troubleshooting FAQ.
+  `src/docs/site.ts` renders the Markdown into a small static site under
+  `docs-site/` using the same theme and brand as every report, with a sidebar,
+  a shared `style.css`, and a responsive/print layout; links written as `.md`
+  (so the sources read correctly on GitHub) are rewritten to `.html`. The
+  output is deterministic, and `scripts/generate-docs.ts`
+  (`npm run docs:generate`) rewrites it; `test/unit/docs.test.ts` fails when a
+  committed page is stale, so a source edit without regenerating is caught the
+  way a changed flag is in the completion scripts.
 
 **Proposed updates & features**
 
@@ -598,10 +609,6 @@ so it can be scoped without re-reading the source.
 
 **User experience**
 
-- **A docs site and cookbook.** Recipes for an authenticated SPA, a GraphQL
-  endpoint, a WebSocket app, and a CI gate, plus a troubleshooting FAQ; the
-  README is already long enough that the detailed material deserves its own
-  space.
 - **Accessibility of the dashboard.** Keyboard-reachable controls, ARIA labels
   on the table and tiles, a sane focus order, and WCAG AA contrast, so the
   artifact is usable with a screen reader rather than only a mouse.

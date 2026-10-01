@@ -20,6 +20,9 @@ npx playwright install chromium   # only Chromium is used
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier write |
 | `npm run test:server` | Start the fixture site on :4599 |
+| `npm run docs:generate` | Rebuild `docs-site/` from `docs/` (a test fails when it is stale) |
+| `npm run completions:generate` | Rewrite the committed shell completions after changing a flag |
+| `npm run examples:generate` | Rewrite the committed sample reports |
 
 ## Tests
 

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>api-recon documentation · api-recon</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="index.html" class="active">Overview</a></li><li><a href="cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="cookbook/graphql.html">GraphQL</a></li><li><a href="cookbook/websocket.html">WebSockets</a></li><li><a href="cookbook/ci-gate.html">CI gate</a></li><li><a href="faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>api-recon documentation</h1>
+<p><strong>Discover a website&#39;s APIs by driving a real browser.</strong> Give it one seed URL;
+it crawls (or you drive it interactively), records every XHR/fetch call and
+WebSocket frame, infers schemas, categorizes the endpoints, and writes a report
+in JSON, Markdown, HTML, PDF, and OpenAPI 3.0.</p>
+<p>The <a href="https://github.com/zntb/api-recon#readme">README</a> is the reference for every
+flag and option. This site is the part you read when you have a specific app in
+front of you and want the shortest path to a good report.</p>
+<h2>Start here</h2>
+<pre><code class="language-bash">npm install -g api-recon
+npx playwright install chromium
+
+# Look at one page — no crawl, no slow PDF render
+api-recon https://example.com --preset quick
+
+# A bounded, quiet scan for a pipeline
+api-recon https://app.example.com --preset ci
+</code></pre>
+<p><code>api-recon --help</code> lists every flag, and <code>api-recon completion bash</code> (or <code>zsh</code>,
+<code>fish</code>) teaches your shell to complete them.</p>
+<h2>Cookbook</h2>
+<table>
+<thead>
+<tr>
+<th>Recipe</th>
+<th>Use it when</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="cookbook/authenticated-spa.html">Authenticated SPA</a></td>
+<td>The APIs only appear after logging in, and routing happens client-side</td>
+</tr>
+<tr>
+<td><a href="cookbook/graphql.html">GraphQL</a></td>
+<td>The app talks to one <code>/graphql</code> endpoint and you want the operations, not the URL</td>
+</tr>
+<tr>
+<td><a href="cookbook/websocket.html">WebSockets</a></td>
+<td>Real-time traffic is where the interesting contract lives</td>
+</tr>
+<tr>
+<td><a href="cookbook/ci-gate.html">CI gate</a></td>
+<td>You want a build to fail when the API surface changes</td>
+</tr>
+<tr>
+<td><a href="faq.html">Troubleshooting FAQ</a></td>
+<td>A scan found nothing, refused to run, or you need a bug report</td>
+</tr>
+</tbody></table>
+<h2>How a scan works</h2>
+<ol>
+<li><strong>Guardrails first.</strong> robots.txt is fetched and enforced, the rate limiter is
+set from it, and localhost/private ranges are refused unless <code>--allow-local</code>
+says otherwise.</li>
+<li><strong>A real browser</strong> loads the pages. Same-origin links are followed to
+<code>--depth</code>, cross-origin calls are ignored unless <code>--include-third-party</code>.</li>
+<li><strong>Every XHR/fetch and WebSocket is captured</strong> — method, URL, status, redacted
+headers, body samples, timing, and the page that triggered it. Secrets are
+scrubbed at capture time, not at report time.</li>
+<li><strong>Calls are grouped into endpoints</strong> by <code>(method, URL pattern, status)</code>, then
+categorized, and JSON schemas are inferred and merged across samples.</li>
+<li><strong>Reporters</strong> derive every format from the one JSON report, so the formats
+cannot disagree.</li>
+</ol>
+<p>Two behaviors are worth internalizing early, because they explain most surprises:</p>
+<ul>
+<li><strong>A scan samples the traffic the crawl happened to trigger.</strong> &quot;Not seen this
+time&quot; is not proof an endpoint is gone; the diff says so in as many words.</li>
+<li><strong>Redaction is on by default</strong>, so what you see in a report is already the safe
+version. Review it before sharing all the same.</li>
+</ul>
+</article>
+<footer>api-recon documentation — see the <a href="https://github.com/zntb/api-recon#readme">README</a> for the full CLI and library reference.</footer>
+</main>
+</div>
+</body>
+</html>

@@ -20,6 +20,27 @@ authentication, or defeat CAPTCHAs and bot protections.
   └─────────────────────────────────────────────────────────────┘
 ```
 
+## Documentation
+
+This README is the reference for every flag and option. The task-shaped
+material — a recipe per kind of app, and what to do when a scan misbehaves —
+lives in the docs, because it outgrew the reference:
+
+- [Authenticated SPA](docs/cookbook/authenticated-spa.md) — a scripted login,
+  a reused session, and client-side routes
+- [GraphQL endpoint](docs/cookbook/graphql.md) — operations, selections, and
+  introspection rather than one opaque URL
+- [WebSocket app](docs/cookbook/websocket.md) — frames, message shapes, and
+  cross-origin sockets
+- [CI gate](docs/cookbook/ci-gate.md) — a baseline, `--fail-on-diff`, and a
+  working GitHub Actions job
+- [Troubleshooting FAQ](docs/faq.md) — when a scan finds nothing or refuses to
+  run
+
+A rendered copy of the same sources is committed under [`docs-site/`](docs-site)
+and opens straight from `file://` or serves as-is; `npm run docs:generate`
+rebuilds it.
+
 ## Requirements
 
 - Node.js **22+**

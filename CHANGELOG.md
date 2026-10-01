@@ -56,6 +56,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pattern, and `done` last with the same `ScanResult` that `await scan()`
   resolves to; a failure is rethrown by both. `ScanEvent` and `ScanHandle` are
   exported, and the existing `onProgress` callback is unchanged.
+- **A docs site and cookbook** — the task-shaped material now lives under
+  `docs/`, linked from the README rather than swelling it: recipes for an
+  [authenticated SPA](docs/cookbook/authenticated-spa.md), a
+  [GraphQL endpoint](docs/cookbook/graphql.md), a
+  [WebSocket app](docs/cookbook/websocket.md), and a
+  [CI gate](docs/cookbook/ci-gate.md), plus a
+  [troubleshooting FAQ](docs/faq.md). `src/docs/site.ts` renders the Markdown
+  into a static site under `docs-site/` with the same theme and brand as every
+  report; `npm run docs:generate` rebuilds it, and a test fails when a committed
+  page is stale.
 
 ## [0.3.9] - 2026-09-30
 
