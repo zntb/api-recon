@@ -220,6 +220,58 @@ describe('authentication', () => {
   }, 120_000);
 });
 
+describe('scan scope', () => {
+  it('skips excluded paths, so the pages behind them are never visited', async () => {
+    const result = await scan({
+      url: fixture.url,
+      depth: 1,
+      allowLocal: true,
+      rate: 0,
+      formats: ['json'],
+      excludePath: ['/products'],
+      logger: silent(),
+    });
+
+    const report = result.report;
+    expect(report.pages.some((p) => p.normalizedUrl.endsWith('/products'))).toBe(false);
+    expect(findEndpoint(report, 'GET /api/products')).toBeUndefined();
+    // A sibling link on the same page is still crawled.
+    expect(report.pages.some((p) => p.url.endsWith('/about.html'))).toBe(true);
+  }, 120_000);
+
+  it('refuses to follow a cross-origin redirect by default', async () => {
+    const result = await scan({
+      url: `${fixture.url}/redirect-offsite`,
+      depth: 0,
+      allowLocal: true,
+      rate: 0,
+      formats: ['json'],
+      logger: silent(),
+    });
+
+    const report = result.report;
+    // The seed redirects off-origin, so nothing is recorded or inspected.
+    expect(report.pages).toHaveLength(0);
+    expect(report.endpoints.some((e) => e.origins.includes(fixture.thirdPartyUrl))).toBe(false);
+  }, 120_000);
+
+  it('follows the redirect once the destination host is included', async () => {
+    const result = await scan({
+      url: `${fixture.url}/redirect-offsite`,
+      depth: 0,
+      allowLocal: true,
+      rate: 0,
+      formats: ['json'],
+      includeHost: [new URL(fixture.thirdPartyUrl).host],
+      logger: silent(),
+    });
+
+    const report = result.report;
+    expect(report.pages).toHaveLength(1);
+    expect(report.pages[0]!.url).toContain('/sdk/config.json');
+  }, 120_000);
+});
+
 describe('scripted actions', () => {
   it('clicks "load more" and submits the search form', async () => {
     const result = await scan({

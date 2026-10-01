@@ -83,6 +83,8 @@ const OPTION_SPECS: OptionSpec[] = [
   { key: 'failOnDiff', kind: 'bool', env: 'API_RECON_FAIL_ON_DIFF' },
   { key: 'respectRobots', kind: 'bool', env: 'API_RECON_RESPECT_ROBOTS' },
   { key: 'includeThirdParty', kind: 'bool', env: 'API_RECON_INCLUDE_THIRD_PARTY' },
+  { key: 'includeHost', kind: 'list', env: 'API_RECON_INCLUDE_HOST' },
+  { key: 'excludePath', kind: 'list', env: 'API_RECON_EXCLUDE_PATH' },
   {
     key: 'redact',
     kind: 'bool',

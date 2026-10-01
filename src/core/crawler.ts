@@ -3,9 +3,10 @@
 import type { Page } from 'playwright';
 import type { CapturedPage } from '../types.js';
 import { drainSpaRoutes } from './browser.js';
-import { extractLinks, isSameDomain, normalizeUrl } from '../utils/url.js';
+import { extractLinks, normalizeUrl } from '../utils/url.js';
 import type { RateLimiter } from '../utils/rateLimit.js';
 import type { Logger } from '../utils/logger.js';
+import type { ScanScope } from './scope.js';
 
 export interface RobotsLike {
   isAllowed: (path: string, userAgent?: string) => boolean;
@@ -26,6 +27,8 @@ export interface CrawlOptions {
     headers: Record<string, string>,
   ) => Promise<void> | void;
   runActions?: (page: Page) => Promise<void>;
+  /** Hosts and paths the crawl may follow; also guards redirect destinations. */
+  scope: ScanScope;
   /** Fired for every page recorded, including SPA routes discovered in place. */
   onPageVisited?: (page: CapturedPage) => void;
   navTimeoutMs?: number;
@@ -86,6 +89,20 @@ export async function crawl(page: Page, options: CrawlOptions): Promise<CrawlOut
       const response = await page.goto(item.url, { waitUntil: 'load', timeout: navTimeout });
       options.logger.debug(`  ${response ? response.status() : 'no response'} ${item.url}`);
       if (response) mainHeaders = response.headers();
+
+      // Playwright follows redirects automatically, so the destination is only
+      // visible afterwards. Refuse to process one that left the agreed scope —
+      // the page already loaded, but none of it is recorded or inspected.
+      const landed = page.url();
+      if (landed && !options.scope.allows(landed)) {
+        options.logger.warn(
+          `refusing cross-origin redirect from ${item.url} to ${landed}` +
+            (options.scope.allowsHost(landed)
+              ? ' (its path is excluded)'
+              : ` — add --include-host ${safeHostname(landed)} to allow it`),
+        );
+        continue;
+      }
     } catch (err) {
       options.logger.warn(
         `could not load ${item.url}: ${err instanceof Error ? err.message.split('\n')[0] : String(err)}`,
@@ -112,7 +129,7 @@ export async function crawl(page: Page, options: CrawlOptions): Promise<CrawlOut
 
     // SPA route changes observed while on this page.
     for (const route of await drainSpaRoutes(page)) {
-      if (!isSameDomain(route, options.seedUrl)) continue;
+      if (!options.scope.allows(route)) continue;
       recordPage(route, item.depth + 1, null);
       if (item.depth + 1 <= options.maxDepth && !visited.has(normalizeUrl(route))) {
         queue.push({ url: route, depth: item.depth + 1 });
@@ -121,7 +138,7 @@ export async function crawl(page: Page, options: CrawlOptions): Promise<CrawlOut
 
     if (item.depth < options.maxDepth) {
       for (const link of extractLinks(html, page.url())) {
-        if (!isSameDomain(link, options.seedUrl)) continue;
+        if (!options.scope.allows(link)) continue;
         const linkNormalized = normalizeUrl(link);
         if (visited.has(linkNormalized)) continue;
         queue.push({ url: link, depth: item.depth + 1 });
@@ -135,6 +152,14 @@ export async function crawl(page: Page, options: CrawlOptions): Promise<CrawlOut
 function safeOrigin(url: string): string {
   try {
     return new URL(url).origin;
+  } catch {
+    return url;
+  }
+}
+
+function safeHostname(url: string): string {
+  try {
+    return new URL(url).hostname;
   } catch {
     return url;
   }

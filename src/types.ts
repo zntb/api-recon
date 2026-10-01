@@ -572,6 +572,17 @@ export interface ScanOptions {
   respectRobots?: boolean;
   force?: boolean;
   includeThirdParty?: boolean;
+  /**
+   * Extra hosts the crawl may follow beyond the seed's, for a multi-host app.
+   * Each entry is a bare host, a `host:port`, or a full URL; a non-default port
+   * is part of the host, so include `host:8443` to reach that origin.
+   */
+  includeHost?: string[];
+  /**
+   * URL-path patterns the crawl must skip: a path prefix (`/admin`) or a glob
+   * (`*.pdf`, `/orders/*`). Applied to discovered links and SPA routes.
+   */
+  excludePath?: string[];
   redact?: boolean;
   /**
    * After the report is assembled, check it for the values redaction removed.

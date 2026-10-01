@@ -5,7 +5,7 @@ _api_recon_completions() {
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-  local flags="--version -V --depth -d --max-pages -m --open --share --print --preset --config --no-config --out -o --formats -f --browser -b --auth -a --login -l --record --actions --rate -r --respect-robots --no-respect-robots --diff --baseline --fail-on-diff --include-third-party --redact --no-redact --strict-redaction --force --allow-local --telemetry --telemetry-preview --max-body-mb --quiet -q --verbose -v --json-progress --debug --help -h"
+  local flags="--version -V --depth -d --max-pages -m --open --share --print --preset --config --no-config --out -o --formats -f --browser -b --auth -a --login -l --record --actions --rate -r --respect-robots --no-respect-robots --diff --baseline --fail-on-diff --include-third-party --include-host --exclude-path --redact --no-redact --strict-redaction --force --allow-local --telemetry --telemetry-preview --max-body-mb --quiet -q --verbose -v --json-progress --debug --help -h"
 
   case "${prev}" in
     --browser) COMPREPLY=( $(compgen -W "chromium firefox webkit" -- "${cur}") ); return 0 ;;

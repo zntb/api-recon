@@ -96,6 +96,8 @@ describe('api-recon CLI', () => {
       '--fail-on-diff',
       '--rate',
       '--include-third-party',
+      '--include-host',
+      '--exclude-path',
       '--force',
       '--allow-local',
       '--telemetry',

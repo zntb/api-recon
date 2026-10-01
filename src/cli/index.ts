@@ -117,6 +117,16 @@ function registerScanOptions(command: Command): Command {
     )
     .option('--fail-on-diff', 'with --diff, exit 3 when any endpoint changed (for CI gating)', false)
     .option('--include-third-party', 'capture cross-origin XHR/fetch calls as well', false)
+    .option(
+      '--include-host <hosts>',
+      'comma-separated hosts to treat as in scope beyond the seed, for a multi-host app',
+      '',
+    )
+    .option(
+      '--exclude-path <paths>',
+      'comma-separated URL paths to skip, as a prefix (/admin) or a glob (*.pdf)',
+      '',
+    )
     .option('--redact', 'redact sensitive headers such as Authorization and Cookie (default)', true)
     .option('--no-redact', 'disable header redaction (not recommended)')
     .option(
@@ -217,6 +227,10 @@ interface CliOptions {
   failOnDiff: boolean;
   respectRobots: boolean;
   includeThirdParty: boolean;
+  /** Comma-separated extra hosts to treat as in scope. */
+  includeHost: string;
+  /** Comma-separated URL paths to skip. */
+  excludePath: string;
   redact: boolean;
   /** Refuse to write the reports if a redacted value survived into them. */
   strictRedaction: boolean;
@@ -247,6 +261,14 @@ interface CliOptions {
  * difference is that the latter saves its report as the canonical baseline,
  * which `--diff latest` later reads.
  */
+/** Split a comma-separated flag value into a trimmed, non-empty list. */
+function splitList(raw: string | undefined): string[] {
+  return (raw ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 async function runScan(
   command: Command,
   seedUrl: string,
@@ -385,6 +407,8 @@ async function runScan(
       respectRobots: opts.respectRobots,
       force: opts.force,
       includeThirdParty: opts.includeThirdParty,
+      includeHost: splitList(opts.includeHost),
+      excludePath: splitList(opts.excludePath),
       redact: opts.redact,
       strictRedaction: opts.strictRedaction,
       allowLocal: opts.allowLocal,

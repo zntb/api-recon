@@ -31,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   report paths (never the secret), or a refusal to write under
   `--strict-redaction`. Values shorter than six characters are not tracked, so a
   short secret cannot be mistaken for a status code on a clean report.
+- **Explicit scan scope** — `--include-host` adds hosts the crawl may follow
+  beyond the seed's (a bare host, a `host:port`, or a URL), for a multi-host app,
+  and `--exclude-path` skips a path prefix (`/admin`) or a glob (`*.pdf`). A
+  redirect that leaves scope is now refused rather than followed — the
+  destination is neither recorded nor inspected, and the warning names the
+  `--include-host` that would allow it — so a hostile or sprawling site cannot
+  bounce the scan somewhere you never agreed to. Scope is host-with-port,
+  matching the existing same-domain rule, so an `http -> https` upgrade or a
+  `www` redirect stays in scope while a different port does not.
 
 ## [0.4.0] - 2026-10-01
 

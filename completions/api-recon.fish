@@ -29,6 +29,8 @@ complete -c api-recon -l diff -r -F -d 'compare this scan against a previous rep
 complete -c api-recon -l baseline -r -F -d 'override where the stored baseline lives (used by the `baseline` subcommand and `--diff latest`)'
 complete -c api-recon -l fail-on-diff -d 'with --diff, exit 3 when any endpoint changed (for CI gating)'
 complete -c api-recon -l include-third-party -d 'capture cross-origin XHR/fetch calls as well'
+complete -c api-recon -l include-host -r -d 'comma-separated hosts to treat as in scope beyond the seed, for a multi-host app'
+complete -c api-recon -l exclude-path -r -d 'comma-separated URL paths to skip, as a prefix (/admin) or a glob (*.pdf)'
 complete -c api-recon -l redact -d 'redact sensitive headers such as Authorization and Cookie (default)'
 complete -c api-recon -l no-redact -d 'disable header redaction (not recommended)'
 complete -c api-recon -l strict-redaction -d 'refuse to write the reports if a redacted value still appears in them'

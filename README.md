@@ -116,6 +116,8 @@ api-recon https://example.com --browser firefox
 | `-r, --rate <ms>` | `500` | Minimum delay between requests to the same origin |
 | `--respect-robots` / `--no-respect-robots` | on | robots.txt compliance (`--no-…` requires `--force`) |
 | `--include-third-party` | off | Also capture cross-origin XHR/fetch calls and WebSockets |
+| `--include-host <hosts>` | — | Comma-separated extra hosts the crawl may follow, for a multi-host app (a `host:port` for a non-default port) |
+| `--exclude-path <paths>` | — | Comma-separated URL paths to skip, as a prefix (`/admin`) or a glob (`*.pdf`) |
 | `--redact` / `--no-redact` | on | Redact sensitive headers and secret- or PII-shaped values in bodies and WebSocket frames |
 | `--strict-redaction` | off | After the scan, refuse to write the reports if a redacted value still appears in them (by default that is a loud warning) |
 | `--force` | off | Bypass robots.txt restrictions (only for systems you may test) |
@@ -263,7 +265,8 @@ The environment variables are the flags in `SCREAMING_SNAKE_CASE`:
 `API_RECON_DEPTH`, `API_RECON_MAX_PAGES`, `API_RECON_OUT`, `API_RECON_FORMATS`,
 `API_RECON_BROWSER`, `API_RECON_AUTH`, `API_RECON_LOGIN`, `API_RECON_ACTIONS`,
 `API_RECON_RATE`, `API_RECON_DIFF`, `API_RECON_BASELINE`, `API_RECON_FAIL_ON_DIFF`,
-`API_RECON_RESPECT_ROBOTS`, `API_RECON_INCLUDE_THIRD_PARTY`, `API_RECON_REDACT`,
+`API_RECON_RESPECT_ROBOTS`, `API_RECON_INCLUDE_THIRD_PARTY`,
+`API_RECON_INCLUDE_HOST`, `API_RECON_EXCLUDE_PATH`, `API_RECON_REDACT`,
 `API_RECON_STRICT_REDACTION`, `API_RECON_FORCE`, `API_RECON_ALLOW_LOCAL`, `API_RECON_TELEMETRY`,
 `API_RECON_TELEMETRY_PREVIEW`, `API_RECON_MAX_BODY_MB`, `API_RECON_QUIET`,
 `API_RECON_VERBOSE`, `API_RECON_JSON_PROGRESS`, `API_RECON_RECORD`,
@@ -948,6 +951,12 @@ resolves to. A caller that only awaits still works unchanged; so does the
   also **verified rather than assumed**: after the report is assembled it is
   searched for the original values redaction removed, and any survivor is a loud
   warning — or, with `--strict-redaction`, a refusal to write the reports.
+- **The crawl stays in scope.** Links and SPA routes are followed only on the
+  seed's host (plus any `--include-host`), `--exclude-path` skips paths you name,
+  and a redirect that leaves that scope is refused — the destination is neither
+  recorded nor inspected — so a hostile or sprawling site cannot bounce the scan
+  somewhere you never agreed to. Add the destination's `host:port` to
+  `--include-host` to follow it deliberately.
 - **Local/private targets are refused** unless `--allow-local` is passed.
 - **Size caps**: 1 MB per response body (`--max-body-mb`) and a global capture
   budget, plus `--max-pages` and `--depth` bounds.

@@ -13,6 +13,7 @@ import type { Page, Request, Response, WebSocket } from 'playwright';
 import type { CapturedCall, CapturedWebSocket, WebSocketDirection } from '../types.js';
 import { redactBody, redactHeaders, type SecretRecorder } from '../utils/redact.js';
 import { isSameDomain, normalizeUrl } from '../utils/url.js';
+import type { ScanScope } from './scope.js';
 
 export interface InterceptorOptions {
   redact: boolean;
@@ -22,6 +23,8 @@ export interface InterceptorOptions {
   totalBodyBytes?: number;
   includeThirdParty: boolean;
   seedUrl: string;
+  /** Hosts in scope beyond the seed's, from --include-host. */
+  scope?: ScanScope;
   /** Frames stored per WebSocket connection; later frames are counted but not kept. */
   maxWebSocketFrames?: number;
   onCapture?: (call: CapturedCall) => void;
@@ -70,6 +73,9 @@ export class TrafficInterceptor {
 
   private shouldCapture(url: string): boolean {
     if (this.options.includeThirdParty) return true;
+    // --include-host widens what counts as same-site; without it, the seed's
+    // host is the whole scope.
+    if (this.options.scope) return this.options.scope.allowsHost(url);
     return isSameDomain(url, this.options.seedUrl);
   }
 

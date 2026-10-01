@@ -227,6 +227,16 @@ export async function startFixtureServer(options: FixtureServerOptions = {}): Pr
         return page(res, html.replaceAll('__THIRD_PARTY_BASE__', thirdPartyOrigin));
       }
 
+      // A same-site URL that bounces to the third-party origin, to exercise the
+      // cross-origin redirect guard.
+      if (path === '/redirect-offsite') {
+        res.writeHead(302, {
+          Location: `${thirdPartyOrigin}/sdk/config.json`,
+          'X-Powered-By': 'Express',
+        });
+        return res.end();
+      }
+
       if (path === '/websocket') return serveSiteFile(res, 'websocket.html');
 
       const staticMap: Record<string, string> = {

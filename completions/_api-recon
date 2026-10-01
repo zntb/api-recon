@@ -31,6 +31,8 @@ _api_recon() {
     '--baseline:override where the stored baseline lives (used by the `baseline` subcommand and `--diff latest`)'
     '--fail-on-diff:with --diff, exit 3 when any endpoint changed (for CI gating)'
     '--include-third-party:capture cross-origin XHR/fetch calls as well'
+    '--include-host:comma-separated hosts to treat as in scope beyond the seed, for a multi-host app'
+    '--exclude-path:comma-separated URL paths to skip, as a prefix (/admin) or a glob (*.pdf)'
     '--redact:redact sensitive headers such as Authorization and Cookie (default)'
     '--no-redact:disable header redaction (not recommended)'
     '--strict-redaction:refuse to write the reports if a redacted value still appears in them'

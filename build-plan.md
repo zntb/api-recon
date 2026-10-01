@@ -594,6 +594,17 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   leak fail the run. Values shorter than six characters are not tracked, so a
   short password cannot be confused with a status code or a byte count on a
   clean report.
+- **Explicit scan scope** — a scan follows only the seed's host unless you widen
+  it, and `--include-host` (bare host, `host:port`, or a URL) adds each host a
+  multi-host app needs; `--exclude-path` skips a path prefix (`/admin`) or a glob
+  (`*.pdf`). `src/core/scope.ts` holds the rule and both the crawler and the
+  interceptor read it, so widening the crawl and widening what is captured move
+  together. A redirect that leaves scope is refused rather than followed — the
+  destination is neither recorded nor inspected, since Playwright follows
+  redirects before the crawler can see them — and the warning names the
+  `--include-host` that would allow it. Scope is host-with-port, matching the
+  existing `isSameDomain`, so an `http -> https` upgrade or `www` redirect stays
+  in scope while a different port does not.
 
 **Proposed updates & features**
 
@@ -633,9 +644,6 @@ so it can be scoped without re-reading the source.
 
 **Security & privacy**
 
-- **Scope the scan explicitly.** Add `--include-host` / `--exclude-path`, and
-  refuse to follow cross-origin redirects by default, so a scan cannot wander
-  outside the agreed scope on a large or hostile site.
 - **Safer credential handling.** Write a saved `storageState` with owner-only
   permissions, warn when an `--auth` file is group- or world-readable, and never
   persist a session unless `saveStateTo` asks for it.

@@ -30,6 +30,7 @@ import { runActions, loadActions } from './core/actions.js';
 import { loadLoginFlow, runLoginFlow, validateStorageState } from './core/authenticator.js';
 import { runRecordSession } from './core/record.js';
 import { analyzeCalls, analyzeWebSockets } from './core/analyzer.js';
+import { ScanScope } from './core/scope.js';
 import { verifyRedaction } from './core/verifyRedaction.js';
 import { SecretLedger } from './utils/redactionLedger.js';
 import { groupResources } from './core/resources.js';
@@ -39,6 +40,7 @@ import { buildTelemetry, resolveTelemetryPlan, writeTelemetryFile } from './core
 import { detectTechnologies, type TechEvidence } from './core/techStack.js';
 import { writeReports } from './reporters/index.js';
 import { fetchRobots } from './utils/robots.js';
+import { isPrivateHost } from './utils/url.js';
 import { RateLimiter } from './utils/rateLimit.js';
 import { Logger } from './utils/logger.js';
 import { SafetyError, assertScanAllowed } from './utils/safety.js';
@@ -89,6 +91,18 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   const logger = options.logger ?? new Logger({ quiet: options.quiet, verbose: options.verbose });
 
   assertScanAllowed(seedUrl, { allowLocal });
+  // Every host the crawl may follow, and every path it must skip. An included
+  // host goes through the same local-address guard as the seed, so the flag
+  // cannot smuggle in a private target.
+  for (const host of options.includeHost ?? []) {
+    if (isPrivateHost(host) && !allowLocal) {
+      throw new SafetyError(
+        `Refusing to include private/local host ${host} — pass --allow-local to include it.`,
+        { hint: 'Add --allow-local if this host is a machine you own or may test.' },
+      );
+    }
+  }
+  const scope = new ScanScope(seedUrl, options.includeHost, options.excludePath);
   const origin = new URL(seedUrl).origin;
   const startedAt = Date.now();
 
@@ -136,6 +150,7 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
     maxBodyBytes,
     includeThirdParty,
     seedUrl,
+    scope,
     onSecret: (value) => ledger.add(value),
   });
   interceptor.attach(session.page);
@@ -241,6 +256,7 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
         maxPages,
         limiter,
         robots,
+        scope,
         logger,
         onPageVisited: () => publishProgress('crawling'),
         ...(actionSteps.length
