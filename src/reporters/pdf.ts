@@ -29,7 +29,7 @@ const PDF_STYLE = `
     letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
   .pdf-cover .pdf-kicker .brand-mark { vertical-align: -0.25em; margin-right: .45em; }
   .pdf-cover .pdf-title { margin: .4rem 0 0; font-size: 2.4rem; letter-spacing: -0.02em; }
-  .pdf-cover .pdf-host { margin: .3rem 0 2rem; font-size: 1.15rem; color: var(--accent); }
+  .pdf-cover .pdf-host { margin: .3rem 0 2rem; font-size: 1.15rem; color: var(--link); }
   .pdf-cover .pdf-summary { margin: 0 0 2rem; color: var(--muted); }
   .pdf-cover .pdf-facts { display: grid; grid-template-columns: 9rem 1fr; gap: .35rem 1rem;
     margin: 0 0 2rem; font-size: .85rem; }

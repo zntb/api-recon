@@ -63,6 +63,11 @@ export const THEME_TOKENS = `
     --bad: var(--red-700); --bad-bg: var(--red-50);
     --info: var(--blue-700); --info-bg: var(--blue-50);
     --accent: var(--brand-500); --accent-soft: var(--brand-200); --note-bg: var(--brand-50);
+    /* Link and accent-coloured *text*. --accent is the brand hue at full
+       strength, for focus rings and fills; as text on a light surface it lands at
+       4.3:1, below AA. Links take the ramp's readable-ink step instead, and it
+       follows the dark and print overrides because it points at --brand-700. */
+    --link: var(--brand-700);
     --shadow: 0 1px 2px rgba(16,24,40,.04);
     --pre-bg: #0f172a; --pre-ink: #e2e8f0;
     /* typography */

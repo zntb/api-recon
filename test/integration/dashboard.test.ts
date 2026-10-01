@@ -214,7 +214,8 @@ describe('dashboard', () => {
     expect(details).toContain('page = 2');
     expect(details).toContain('Change since baseline');
     expect(details).toContain('removed field products[].id');
-    expect(await page.getAttribute('#rows tr.row', 'aria-expanded')).toBe('true');
+    // The disclosure's state lives on its button, which the row's click drives.
+    expect(await page.getAttribute('#rows tr.row .row-toggle', 'aria-expanded')).toBe('true');
 
     // --- reset -------------------------------------------------------------
     await page.click('#reset');
@@ -323,12 +324,65 @@ describe('dashboard', () => {
     expect(await page.evaluate(() => (document.activeElement as HTMLElement | null)?.id)).toBe('q');
 
     // --- keyboard: arrow keys walk the rows ---------------------------------
-    await page.locator('#rows tr.row').first().focus();
-    const first = await page.evaluate(() => document.activeElement?.getAttribute('data-id'));
+    // The row's tab stop is its expand button, so that is what the arrows move
+    // between; each one belongs to the row it sits in.
+    const focusedRow = () =>
+      page.evaluate(() => document.activeElement?.closest('tr.row')?.getAttribute('data-id') ?? null);
+    await page.locator('#rows tr.row .row-toggle').first().focus();
+    const first = await focusedRow();
     await page.keyboard.press('ArrowDown');
-    const next = await page.evaluate(() => document.activeElement?.getAttribute('data-id'));
+    const next = await focusedRow();
     expect(next).not.toBe(first);
     expect(next).not.toBeNull();
+
+    expect(pageErrors).toEqual([]);
+  }, 90_000);
+
+  it('sorts from the keyboard and describes the table to assistive technology', async () => {
+    const file = await writeDashboardReport(REPORT, join(outDir, 'a11y'));
+    page = await browser!.newPage();
+    pageErrors = [];
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+
+    await page.goto(pathToFileURL(file).href);
+
+    // --- structure ---------------------------------------------------------
+    // The result count is a live region, and the table is a named region whose
+    // scroll box can take focus (so it can be scrolled from the keyboard).
+    expect(await page.getAttribute('#count', 'role')).toBe('status');
+    expect(await page.getAttribute('.tablewrap', 'role')).toBe('region');
+    expect(await page.getAttribute('.tablewrap', 'tabindex')).toBe('0');
+    expect(await page.locator('table caption.sr-only').count()).toBe(1);
+
+    // --- sorting by keyboard ----------------------------------------------
+    const sortCount = page.locator('th[data-sort="count"] .sort-btn');
+    expect(await sortCount.count()).toBe(1);
+    expect(await page.getAttribute('th[data-sort="count"]', 'aria-sort')).toBe('none');
+
+    await sortCount.focus();
+    expect(await page.evaluate(() => document.activeElement?.textContent)).toContain('Calls');
+    await page.keyboard.press('Enter');
+    expect(await page.getAttribute('th[data-sort="count"]', 'aria-sort')).toBe('ascending');
+    // Ascending: the endpoint never called in this scan sorts first.
+    expect((await rows())[0]).toContain('/api/legacy/orders');
+
+    await page.keyboard.press('Enter');
+    expect(await page.getAttribute('th[data-sort="count"]', 'aria-sort')).toBe('descending');
+    expect((await rows())[0]).toContain('/api/products');
+
+    // --- the row disclosure is a named button that points at its detail ----
+    const toggle = page.locator('#rows tr.row .row-toggle').first();
+    expect(await toggle.getAttribute('aria-label')).toContain('Expand');
+    expect(await toggle.getAttribute('aria-expanded')).toBe('false');
+    const controls = await toggle.getAttribute('aria-controls');
+    expect(controls).toBeTruthy();
+    // Nothing to point at until it is opened.
+    expect(await page.locator(`#${controls}`).count()).toBe(0);
+
+    await toggle.press('Enter');
+    expect(await toggle.getAttribute('aria-expanded')).toBe('true');
+    // The detail row it controls now exists and carries the referenced id.
+    expect(await page.locator(`#${controls}`).count()).toBe(1);
 
     expect(pageErrors).toEqual([]);
   }, 90_000);

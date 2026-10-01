@@ -483,6 +483,12 @@ pressed or hovered control, and `-700` readable ink for text and icons. Surfaces
 and text (`--panel`, `--ink`, `--line`, …) are roles rather than ramp steps,
 because print flattens them to greys instead of scaling them.
 
+Link text uses a `--link` role rather than `--accent`: `--accent` is the brand
+hue at full strength for focus rings and fills, but at 4.3:1 on a light surface
+it falls below WCAG AA as text. `--link` points at `--brand-700`, the
+readable-ink step, which clears AA in light mode (8.0:1) and stays legible in
+dark and print. `test/unit/contrast.test.ts` holds every text token at 4.5:1.
+
 `report.md` closes with a **page → request graph**, rendered as Mermaid for a
 Markdown viewer and as inline SVG in `report.html` and `dashboard.html` (no
 Mermaid runtime, so both stay self-contained and work offline). It joins each
@@ -657,8 +663,13 @@ open ./reports/dashboard.html
 - **Findings at a glance** — when the report carries findings, the summary tiles
   show their counts coloured by severity and a panel lists every cue, so the
   things to act on are the first thing you see.
-- **Keyboard** — `/` focuses search, the arrow keys move between rows, and
-  Enter/Space expands the focused one.
+- **Keyboard and screen reader** — `/` focuses search, the arrow keys move
+  between rows, and Enter/Space expands the focused one. Every sortable header
+  is a button, so the sort order can be set from the keyboard, and each header
+  announces its direction (`aria-sort`). Rows name the endpoint they expand and
+  point at the detail they open (`aria-controls`); the result count is a live
+  region; each summary tile is labelled; and the table's scroll box takes focus,
+  so a long table can be scrolled without a mouse.
 - **Dark mode** — the theme follows `prefers-color-scheme`, so the page darkens
   with the rest of your desktop rather than flashing white.
 - **Sticky table** — the header row and the method column stay pinned while you

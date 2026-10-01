@@ -538,6 +538,19 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   (`npm run docs:generate`) rewrites it; `test/unit/docs.test.ts` fails when a
   committed page is stale, so a source edit without regenerating is caught the
   way a changed flag is in the completion scripts.
+- **Dashboard accessibility** — the dashboard is usable without a mouse and
+  readable by a screen reader. Every sortable header is now a real button that
+  carries `aria-sort`, so the order can be set and its state announced from the
+  keyboard; the row-disclosure control is a button that names the endpoint and
+  points at the detail row it toggles (`aria-controls`, with a stable id per
+  row); the result count is an `aria-live` region; each summary tile is a named
+  group; and the table has a caption over a focusable, labelled scroll region, so
+  a wide table can be scrolled from the keyboard. The shared theme gained a
+  `--link` role pointing at the ramp's readable-ink step (`--brand-700`), which
+  takes light-mode link text from 4.3:1 — below AA — to 8.0:1; the accent stays
+  for focus rings and fills. `test/unit/contrast.test.ts` fails if any text
+  token drops below 4.5:1, and the browser suite sets a sort and opens a row by
+  key, asserting the announced state.
 
 **Proposed updates & features**
 
@@ -609,9 +622,6 @@ so it can be scoped without re-reading the source.
 
 **User experience**
 
-- **Accessibility of the dashboard.** Keyboard-reachable controls, ARIA labels
-  on the table and tiles, a sane focus order, and WCAG AA contrast, so the
-  artifact is usable with a screen reader rather than only a mouse.
 - **A share-safe mode.** `--share` that strips bodies, samples, and headers
   entirely — keeping only patterns, categories, and schemas — and emits a
   one-page summary suitable for pasting into a ticket.

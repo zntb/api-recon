@@ -211,6 +211,31 @@ describe('renderDashboard', () => {
     expect(html).toContain('th:first-child, td:first-child { position: sticky; left: 0;');
   });
 
+  it('exposes accessible controls, labels, and structure', () => {
+    const html = renderDashboard(report([endpoint({ id: 'GET /api/products' })]));
+
+    // Sortable headers are real buttons that carry the current sort state.
+    expect(html).toContain('class="sort-btn"');
+    expect(html).toContain('aria-sort="none"');
+    expect(html).toContain('aria-label="Sort by Method"');
+    // The result count is a live region, announced as filters change it.
+    expect(html).toContain('id="count" role="status" aria-live="polite"');
+    // The table is named by a caption, and its scroll box is a focusable region.
+    expect(html).toContain('<caption class="sr-only">');
+    expect(html).toContain('role="region" aria-label="Endpoint table (scrollable)"');
+    expect(html).toContain('tabindex="0"');
+    // Tiles, rows, and the sort control are wired for assistive technology in
+    // the client script (the parts that only exist once it runs).
+    for (const wire of [
+      "setAttribute('role', 'group')",
+      "el('button', 'row-toggle')",
+      "setAttribute('aria-controls', detailsId(e))",
+      "setAttribute('aria-sort'",
+    ]) {
+      expect(html).toContain(wire);
+    }
+  });
+
   it('colours finding counts by severity and wires keyboard shortcuts', () => {
     const html = renderDashboard(report([endpoint({ id: 'GET /api/products' })]));
 

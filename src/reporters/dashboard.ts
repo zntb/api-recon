@@ -75,20 +75,41 @@ const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}${BRAND_STYLE}
     border: 1px solid var(--input-border); background: var(--panel); color: inherit; cursor: pointer; }
   button:hover { background: var(--row-hover); }
   .count { margin-left: auto; font-size: .8rem; color: var(--muted); white-space: nowrap; }
+  /* Visually hidden, still announced: a table caption and instructions that
+     would be noise on screen but orient a screen-reader user. */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
   /* The table scrolls inside its own box so the header row and the method column
-     can stay pinned while you scroll a long report. */
+     can stay pinned while you scroll a long report. The box is focusable so the
+     table can be scrolled from the keyboard, not only by the mouse. */
   .tablewrap { overflow: auto; max-height: 72vh; }
+  .tablewrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   table { width: 100%; border-collapse: collapse; font-size: .86rem; }
   th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line);
     vertical-align: top; }
   th { background: var(--head); font-weight: 600; white-space: nowrap;
     position: sticky; top: 0; z-index: 2; }
-  th.sortable { cursor: pointer; user-select: none; }
-  th.sortable:hover { background: var(--head-hover); }
+  /* A sortable header is a real button inside the cell, so it is reachable and
+     operable by keyboard and announces its direction through the th's
+     aria-sort. The button fills the cell, so the whole header stays clickable. */
+  th.sortable { padding: 0; }
+  th.sortable .sort-btn { display: flex; align-items: center; width: 100%;
+    font: inherit; font-weight: 600; color: inherit; background: none; border: 0;
+    padding: .5rem .7rem; text-align: left; cursor: pointer; }
+  th.sortable .sort-btn:hover { background: var(--head-hover); }
+  th.sortable .sort-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   th .arrow { color: var(--muted); font-size: .7rem; margin-left: .25rem; }
   tbody tr.row { cursor: pointer; }
   tbody tr.row:hover td { background: var(--row-hover); }
-  tbody tr.row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  /* The row's expand control is a real button, so the row keeps its table
+     semantics while the disclosure has a name and a state. */
+  .row-toggle { display: inline-flex; align-items: center; gap: .3rem; font: inherit;
+    padding: 0; border: 0; background: none; color: inherit; cursor: pointer;
+    border-radius: 4px; }
+  .row-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row-toggle .caret { color: var(--muted); font-size: .7rem; }
   tbody tr.row.open td { background: var(--row-open); }
   /* Pin the method column too, so a wide row stays anchored. */
   th:first-child, td:first-child { position: sticky; left: 0; z-index: 1;
@@ -244,6 +265,12 @@ const SCRIPT = `
   });
   var allRows = endpoints.concat(removed).concat(sockets);
 
+  // A stable id per row, so a row's expand button can point its aria-controls at
+  // the detail row it opens regardless of filtering, sorting, or grouping.
+  var indexById = {};
+  allRows.forEach(function (entry, index) { indexById[entry.id] = index; });
+  function detailsId(entry) { return 'endpoint-details-' + indexById[entry.id]; }
+
   // Which resource each path belongs to, so the table can group by it. A report
   // written before resources existed simply groups every endpoint as "Other".
   var resourceByPath = {};
@@ -296,8 +323,17 @@ const SCRIPT = `
   // ---- summary tiles -------------------------------------------------------
   function tile(label, value, tone) {
     var box = el('div', 'tile' + (tone ? ' ' + tone : ''));
-    box.appendChild(el('div', 'n', value));
-    box.appendChild(el('div', 'l', label));
+    // A tile reads as one item, not two loose strings: the group carries the
+    // label and number as a single accessible name, and the visible pieces are
+    // hidden from the accessibility tree so it is not repeated.
+    box.setAttribute('role', 'group');
+    box.setAttribute('aria-label', label + ': ' + value);
+    var number = el('div', 'n', value);
+    var caption = el('div', 'l', label);
+    number.setAttribute('aria-hidden', 'true');
+    caption.setAttribute('aria-hidden', 'true');
+    box.appendChild(number);
+    box.appendChild(caption);
     return box;
   }
 
@@ -537,6 +573,7 @@ const SCRIPT = `
 
   function details(e) {
     var row = el('tr', 'details');
+    row.id = detailsId(e);
     var cell = el('td');
     cell.colSpan = document.querySelectorAll('thead th').length;
     var blocks = el('div', 'blocks');
@@ -655,13 +692,22 @@ const SCRIPT = `
   }
 
   function rowFor(e) {
-    var row = el('tr', 'row' + (e.removed ? ' removed' : '') + (expanded[e.id] ? ' open' : ''));
-    row.tabIndex = 0;
+    var open = !!expanded[e.id];
+    var row = el('tr', 'row' + (e.removed ? ' removed' : '') + (open ? ' open' : ''));
     row.setAttribute('data-id', e.id);
-    row.setAttribute('aria-expanded', expanded[e.id] ? 'true' : 'false');
 
     var method = el('td');
-    method.appendChild(el('span', 'method m-' + e.method, e.method));
+    // The whole row is still clickable, but what a keyboard or screen reader
+    // lands on is this button: it names the endpoint, reports whether it is
+    // expanded, and points at the detail row it toggles.
+    var toggle = el('button', 'row-toggle');
+    toggle.type = 'button';
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-controls', detailsId(e));
+    toggle.setAttribute('aria-label', (open ? 'Collapse ' : 'Expand ') + e.method + ' ' + e.urlPattern);
+    toggle.appendChild(el('span', 'caret', open ? '\\u25be' : '\\u25b8'));
+    toggle.appendChild(el('span', 'method m-' + e.method, e.method));
+    method.appendChild(toggle);
     row.appendChild(method);
 
     row.appendChild(el('td', 'path', e.urlPattern));
@@ -814,13 +860,8 @@ const SCRIPT = `
     if (row) toggleRow(row.getAttribute('data-id'));
   });
 
-  rowsEl.addEventListener('keydown', function (event) {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    var row = event.target.closest ? event.target.closest('tr.row') : null;
-    if (!row) return;
-    event.preventDefault();
-    toggleRow(row.getAttribute('data-id'));
-  });
+  // The expand control is a real button, so it raises a click on Enter and
+  // Space on its own; the delegated click handler above catches it.
 
   qEl.addEventListener('input', function () { state.q = qEl.value; render(); });
   categoryEl.addEventListener('change', function () { state.category = categoryEl.value; render(); });
@@ -843,6 +884,7 @@ const SCRIPT = `
     document.querySelectorAll('thead th.sortable').forEach(function (th) {
       var arrow = th.querySelector('.arrow');
       if (arrow) arrow.textContent = '';
+      th.setAttribute('aria-sort', 'none');
     });
     render();
   });
@@ -872,7 +914,10 @@ const SCRIPT = `
     var next = index === -1 ? 0 : index + (event.key === 'ArrowDown' ? 1 : -1);
     next = Math.max(0, Math.min(rows.length - 1, next));
     event.preventDefault();
-    rows[next].focus();
+    // Focus the row's expand button, since that is the row's tab stop.
+    var target = rows[next].querySelector('.row-toggle');
+    if (target) target.focus();
+    else rows[next].focus();
   });
 
   document.querySelectorAll('thead th.sortable').forEach(function (th) {
@@ -886,8 +931,10 @@ const SCRIPT = `
       }
       document.querySelectorAll('thead th.sortable').forEach(function (other) {
         var arrow = other.querySelector('.arrow');
-        if (!arrow) return;
-        arrow.textContent = other === th ? (state.dir > 0 ? '▲' : '▼') : '';
+        if (arrow) arrow.textContent = other === th ? (state.dir > 0 ? '▲' : '▼') : '';
+        // aria-sort is how a screen reader is told the current order; the arrow
+        // is only the visual half of it.
+        other.setAttribute('aria-sort', other === th ? (state.dir > 0 ? 'ascending' : 'descending') : 'none');
       });
       render();
     });
@@ -961,8 +1008,9 @@ export function renderDashboard(report: ReconReport, title?: string): string {
   const head = columns
     .map(
       (column) =>
-        `<th class="sortable" data-sort="${column.key}" scope="col">${escapeHtml(column.label)}` +
-        `<span class="arrow" aria-hidden="true"></span></th>`,
+        `<th class="sortable" data-sort="${column.key}" scope="col" aria-sort="none">` +
+        `<button type="button" class="sort-btn" aria-label="Sort by ${escapeHtml(column.label)}">` +
+        `${escapeHtml(column.label)}<span class="arrow" aria-hidden="true"></span></button></th>`,
     )
     .join('\n        ');
 
@@ -1019,10 +1067,11 @@ ${faviconLink()}
         <label class="check"><input type="checkbox" id="changed" /> Changed only</label>
         <label class="check"><input type="checkbox" id="breaking" /> Breaking only</label>
         <button type="button" id="reset">Reset</button>
-        <span class="count" id="count"></span>
+        <span class="count" id="count" role="status" aria-live="polite"></span>
       </div>
-      <div class="tablewrap">
+      <div class="tablewrap" tabindex="0" role="region" aria-label="Endpoint table (scrollable)">
         <table>
+          <caption class="sr-only">Captured endpoints, one row per request pattern. Use the column buttons to sort, and expand a row for its details.</caption>
           <thead>
             <tr>
             ${head}

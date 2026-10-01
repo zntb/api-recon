@@ -66,6 +66,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   into a static site under `docs-site/` with the same theme and brand as every
   report; `npm run docs:generate` rebuilds it, and a test fails when a committed
   page is stale.
+- **Dashboard accessibility** — `dashboard.html` is operable without a mouse and
+  readable with a screen reader. Sortable column headers are real buttons that
+  carry `aria-sort`, so the order can be set and its direction announced from the
+  keyboard; each row's disclosure is a button that names the endpoint and points
+  at the detail row it opens (`aria-controls`); the result count is an
+  `aria-live` region; each summary tile is a named group; and the table has a
+  caption over a focusable, labelled scroll region, so a wide table scrolls from
+  the keyboard. The shared theme gained a `--link` role at the ramp's
+  readable-ink step, taking light-mode link text from 4.3:1 (below AA) to 8.0:1
+  while the accent stays for focus rings and fills; `test/unit/contrast.test.ts`
+  now fails if any text token drops under 4.5:1.
 
 ## [0.3.9] - 2026-09-30
 

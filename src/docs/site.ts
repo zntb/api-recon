@@ -60,14 +60,14 @@ export function docsCss(): string {
   .sidebar a { display: block; padding: .4rem .6rem; border-radius: var(--radius-sm);
     color: var(--muted); text-decoration: none; font-size: .92rem; }
   .sidebar a:hover { background: var(--row-hover); color: var(--ink); }
-  .sidebar a.active { background: var(--note-bg); color: var(--accent); font-weight: 600; }
+  .sidebar a.active { background: var(--note-bg); color: var(--link); font-weight: 600; }
   main { padding: 2.5rem 2rem; max-width: 920px; }
   article { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
     padding: 2.2rem; box-shadow: var(--shadow); }
   h1 { font-size: 1.9rem; margin-top: 0; letter-spacing: -0.02em; }
   h2 { font-size: 1.28rem; margin-top: 2.2rem; padding-bottom: .35rem; border-bottom: 2px solid var(--chip); }
   h3 { font-size: 1.06rem; margin-top: 1.6rem; }
-  a { color: var(--accent); }
+  a { color: var(--link); }
   table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .9rem; }
   th, td { text-align: left; padding: .5rem .65rem; border: 1px solid var(--line); vertical-align: top; }
   th { background: var(--head); font-weight: 600; }
