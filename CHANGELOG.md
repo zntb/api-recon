@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-01
+
 ### Added
 
 - **A first-class diff workflow** — `api-recon baseline <url>` scans and stores
@@ -643,7 +645,8 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
-[Unreleased]: https://github.com/zntb/api-recon/compare/v0.3.9...HEAD
+[Unreleased]: https://github.com/zntb/api-recon/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/zntb/api-recon/compare/v0.3.9...v0.4.0
 [0.3.9]: https://github.com/zntb/api-recon/compare/v0.3.8...v0.3.9
 [0.3.8]: https://github.com/zntb/api-recon/compare/v0.3.7...v0.3.8
 [0.3.7]: https://github.com/zntb/api-recon/compare/v0.3.6...v0.3.7
