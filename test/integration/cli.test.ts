@@ -115,6 +115,28 @@ describe('api-recon CLI', () => {
     for (const format of ['json', 'md', 'html', 'pdf', 'openapi', 'dashboard']) {
       expect(stdout, `--help should mention the ${format} format`).toContain(format);
     }
+    // The subcommands document themselves too.
+    for (const command of ['baseline', 'completion']) {
+      expect(stdout, `--help should list the ${command} command`).toContain(command);
+    }
+  }, 60_000);
+
+  it('generates a completion script per shell, and refuses an unknown one', async () => {
+    for (const shell of ['bash', 'zsh', 'fish']) {
+      const { code, stdout, stderr } = await runCli(['completion', shell]);
+      expect(code, `${shell}: ${stdout}${stderr}`).toBe(0);
+      // Built from the live program, so real flags and their values are present.
+      expect(stdout, shell).toContain('api-recon');
+      expect(stdout, shell).toContain('browser');
+      expect(stdout, shell).toContain('chromium firefox webkit');
+      expect(stdout, shell).toContain('baseline');
+      expect(stdout, shell).toContain('completion');
+    }
+
+    const unknown = await runCli(['completion', 'powershell']);
+    expect(unknown.code).toBe(2);
+    expect(`${unknown.stdout}${unknown.stderr}`).toMatch(/Unknown shell "powershell"/);
+    expect(`${unknown.stdout}${unknown.stderr}`).toMatch(/→/);
   }, 60_000);
 
   it('refuses localhost without --allow-local, and prints what to try next', async () => {

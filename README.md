@@ -79,6 +79,7 @@ api-recon https://example.com --browser firefox
 | --- | --- | --- |
 | `<seedUrl>` | — | Start URL (required) |
 | `baseline <seedUrl>` | — | Subcommand: scan and store the report as the baseline for `--diff latest` |
+| `completion <shell>` | — | Subcommand: print a completion script for `bash`, `zsh`, or `fish` |
 | `-d, --depth <n>` | `1` | Same-domain crawl depth (0 = seed page only) |
 | `-m, --max-pages <n>` | `25` | Hard cap on pages visited |
 | `-o, --out <dir>` | `./api-recon-output` | Output directory |
@@ -144,6 +145,29 @@ Debug bundle written to ./api-recon-output/debug:
 Writing the bundle is best-effort: if it cannot be written, that is a warning
 and the original error still stands. In the library, the same behavior is
 `scan({ debug: true, debugDir: './debug' })`.
+
+### Shell completion
+
+`api-recon completion <shell>` prints a completion script for bash, zsh, or
+fish, so the flag set stops being something to remember:
+
+```console
+# bash — for the current shell
+source <(api-recon completion bash)
+
+# zsh — write it where zsh looks for functions
+api-recon completion zsh > "${fpath[1]}/_api-recon"
+
+# fish
+api-recon completion fish > ~/.config/fish/completions/api-recon.fish
+```
+
+The script completes the subcommands (`baseline`, `completion`), every flag,
+and the values that matter — engines, presets, print formats, report formats,
+and file paths for `--auth`, `--login`, `--actions`, `--config`, `--diff`,
+`--baseline`, and `--out`. It is generated from the same command definition the
+CLI parses with, so a flag added there is completed without a second list, and
+the output is deterministic — commit it or regenerate it in a toolchain step.
 
 ### Presets
 

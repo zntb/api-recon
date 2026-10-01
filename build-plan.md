@@ -493,6 +493,16 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   paths to the thrown error through `src/utils/debug.ts` (a `WeakMap`), so a
   library caller still gets an ordinary error. The bundle is best-effort and
   never replaces the real failure.
+- **Shell completion** — `api-recon completion bash|zsh|fish` prints a script for
+  the shell, so the large flag set stops being something to remember. The
+  scripts are generated from the same `commander` program the CLI parses with
+  (`src/cli/completion.ts`), so a flag added there shows up without a second
+  list: only the *values* a flag accepts (an engine, a preset, a format, a file)
+  are declared, since commander knows a flag takes an argument but not its
+  choices. Bash gets a completion function plus `complete -F`, zsh a `#compdef`
+  function using `_describe`/`_values`/`_files`, and fish one `complete` line per
+  flag with descriptions. Output is environment-independent, so a committed
+  script can be diffed. An unknown shell is a `SafetyError` with a hint.
 
 **Proposed updates & features**
 
@@ -564,8 +574,6 @@ so it can be scoped without re-reading the source.
 
 **User experience**
 
-- **Shell completion.** Generated `bash`/`zsh`/`fish` completions, which
-  `commander` makes cheap now that the flag set is large.
 - **An events API for the library.** Expose the scan as an async iterator
   (`for await (const event of scan(...))`) so an embedding application can show
   its own progress and stream endpoints as they are discovered.

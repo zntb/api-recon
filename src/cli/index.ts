@@ -8,6 +8,7 @@ import { Command, InvalidArgumentError } from 'commander';
 import { BROWSER_ENGINES, formatDiffSummary, normalizeFormats, scan } from '../index.js';
 import { resolveEngine } from '../core/browser.js';
 import { CONFIG_FILENAMES, PRINT_FORMATS } from './config.js';
+import { COMPLETION_SHELLS, completionScript, isCompletionShell } from './completion.js';
 import {
   baselineExists,
   findBaseline,
@@ -164,6 +165,27 @@ registerScanOptions(
 ).action(function (this: Command, seedUrl: string, raw: CliOptions) {
   return runScan(this, seedUrl, raw, true);
 });
+
+program
+  .command('completion <shell>')
+  .description(
+    `print a shell completion script for ${COMPLETION_SHELLS.join(', ')} — ` +
+      'install it once and the flags stop being something to remember',
+  )
+  .action((shell: string) => {
+    if (!isCompletionShell(shell)) {
+      const logger = new Logger({});
+      logger.error(
+        `Unknown shell "${shell}". Supported shells: ${COMPLETION_SHELLS.join(', ')}.`,
+      );
+      logger.always(
+        `  ${chalk.cyan('→')} Try \`api-recon completion bash\` (or zsh, fish).`,
+      );
+      process.exitCode = 2;
+      return;
+    }
+    process.stdout.write(completionScript(shell, program));
+  });
 
 interface CliOptions {
   depth: number;

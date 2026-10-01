@@ -32,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `debug/partial-report.json` (the report built from whatever was captured
   before the failure). The bundle is best-effort and never replaces the error;
   the library gets the same behavior with `scan({ debug: true, debugDir })`.
+- **Shell completion** — `api-recon completion bash|zsh|fish` prints a completion
+  script for the shell. It is generated from the same `commander` program the
+  CLI parses with, so a flag added there is completed without a second list;
+  only the values a flag accepts (an engine, a preset, a format, a file) are
+  declared. It completes the subcommands, every flag, and the values that
+  matter — engines, presets, print formats, report formats, and file paths — and
+  the output is deterministic, so a committed script can be diffed.
 
 ## [0.3.9] - 2026-09-30
 
