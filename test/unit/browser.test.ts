@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isBrowserEngine, resolveEngine } from '../../src/core/browser.js';
+import {
+  isBrowserEngine,
+  resolveEngine,
+  SESSION_LAUNCH_OPTIONS,
+} from '../../src/core/browser.js';
 import { BROWSER_ENGINES, SafetyError, scan } from '../../src/index.js';
 import type { BrowserEngine } from '../../src/index.js';
 
@@ -35,6 +39,16 @@ describe('isBrowserEngine', () => {
     expect(isBrowserEngine('chromium')).toBe(true);
     expect(isBrowserEngine('webkit')).toBe(true);
     expect(isBrowserEngine('safari')).toBe(false);
+  });
+});
+
+describe('SESSION_LAUNCH_OPTIONS', () => {
+  // Playwright's default SIGINT handling hard-exits with 130 the moment the
+  // browser closes, which raced the flush of the partial report on Ctrl+C and
+  // lost it. This asserts the option stays off, so restoring the default cannot
+  // pass silently.
+  it('keeps Playwright from exiting the process on SIGINT', () => {
+    expect(SESSION_LAUNCH_OPTIONS.handleSIGINT).toBe(false);
   });
 });
 

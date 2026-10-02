@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Ctrl+C no longer loses the partial report** — Playwright installs its own
+  `SIGINT` handler by default, and it does `process.exit(130)` as soon as it has
+  closed the browser: a hard exit that waits for nothing else in the process.
+  That raced this tool's own interrupt handling, which closes the session *and*
+  flushes the capture to `report.json`, so the browser closed first and the
+  process was gone before the report was written — leaving only
+  `checkpoint.json` behind. Sessions are now launched with
+  `handleSIGINT: false`, so the flush decides when the process ends; Playwright
+  still installs its `exit` handler, so a browser cannot outlive the process.
+  The PDF render's throwaway browser had the same race and is fixed the same
+  way. Exit codes are unchanged (`130` for `SIGINT`, `143` for `SIGTERM`).
+
 ### Added
 
 - **A security policy** — [`SECURITY.md`](SECURITY.md) states how to report a

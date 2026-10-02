@@ -59,9 +59,27 @@ export interface LaunchOptions {
   trace?: boolean;
 }
 
+/**
+ * Launch options every session passes to Playwright.
+ *
+ * `handleSIGINT: false` is load-bearing. By default Playwright installs its own
+ * `SIGINT` listener that closes the browser and then calls `process.exit(130)`
+ * — a hard exit that does not wait for anything else in the process. That races
+ * the CLI's own signal handling, which closes the session *and* flushes the
+ * capture to `report.json`: the browser closed first, Playwright exited, and the
+ * partial report was lost. This tool owns its own interrupt contract (flush,
+ * then exit 130), so Playwright must not also own the process lifetime. It still
+ * installs an `exit` listener, so a browser cannot outlive the process on the
+ * paths where nothing else closes it.
+ */
+export const SESSION_LAUNCH_OPTIONS = { handleSIGINT: false } as const;
+
 export async function launchSession(options: LaunchOptions): Promise<BrowserSession> {
   const engine = options.engine ?? 'chromium';
-  const browser = await ENGINE_LAUNCHERS[engine].launch({ headless: options.headless });
+  const browser = await ENGINE_LAUNCHERS[engine].launch({
+    headless: options.headless,
+    ...SESSION_LAUNCH_OPTIONS,
+  });
   const context = await browser.newContext({
     ...(options.storageState ? { storageState: options.storageState } : {}),
     ignoreHTTPSErrors: true,

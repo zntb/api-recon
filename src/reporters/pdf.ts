@@ -10,6 +10,7 @@
  */
 
 import { chromium } from 'playwright';
+import { SESSION_LAUNCH_OPTIONS } from '../core/browser.js';
 import { escapeHtml } from './html.js';
 import { brandMark } from './brand.js';
 
@@ -104,7 +105,10 @@ export async function writePdfReport(
 ): Promise<boolean> {
   let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
   try {
-    browser = await chromium.launch({ headless: true });
+    // The same reason as the scan's own session: Playwright's default SIGINT
+    // handling hard-exits with 130, which would truncate the set of formats
+    // half-written. This render finishes and the CLI reports the signal.
+    browser = await chromium.launch({ headless: true, ...SESSION_LAUNCH_OPTIONS });
     const page = await browser.newPage();
     await page.setContent(buildPdfDocument(html, info), { waitUntil: 'load' });
     await page.pdf({
