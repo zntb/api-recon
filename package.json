@@ -78,7 +78,6 @@
     "commander": "^15.0.0",
     "js-yaml": "^5.4.2",
     "marked": "^18.0.14",
-    "openapi3-ts": "^4.6.1",
     "playwright": "^1.63.0"
   },
   "devDependencies": {

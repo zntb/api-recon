@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inside are unaffected, including a nested `payloads/…` entry and one that
   normalizes back in (`a/../b.json`), and existing manifests verify unchanged.
 
+### Changed
+
+- **`openapi3-ts` removed from the dependencies** — the OpenAPI reporter is
+  hand-rolled and serializes its document with `js-yaml`, so nothing ever
+  imported this package; it was an install cost for every user and nothing
+  else. The production dependency count drops from six to five, the lockfile
+  no longer mentions it, and `openapi.yaml` is byte-for-byte unchanged.
+
 ## [0.4.2] - 2026-10-02
 
 ### Added
