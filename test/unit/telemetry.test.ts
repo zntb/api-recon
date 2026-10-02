@@ -3,9 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  TELEMETRY_PAYLOAD_KEYS,
+  TELEMETRY_SIGNAL_KEYS,
   buildTelemetry,
   formatTelemetry,
   resolveTelemetryPlan,
+  telemetryBoundaryViolations,
   writeTelemetryFile,
 } from '../../src/core/telemetry.js';
 import type { CapturedCall, Endpoint, ReconReport } from '../../src/types.js';
@@ -155,6 +158,71 @@ describe('buildTelemetry', () => {
       'authentication',
       'uncategorized',
     ]);
+  });
+});
+
+describe('the telemetry boundary', () => {
+  /** A payload with one endpoint of every category, so no signal shape is missed. */
+  function fullPayload() {
+    const calls = [
+      call({ url: `${SEED}/api/orders/42` }),
+      call({ url: `${SEED}/api/login`, method: 'POST' }),
+      call({ url: 'https://www.google-analytics.com/collect', method: 'POST', mimeType: 'image/gif' }),
+      call({ url: 'https://partner.example.org/sdk/config.json' }),
+    ];
+    return buildTelemetry(
+      report([
+        endpoint({ id: 'GET /api/orders/{id}' }),
+        endpoint({ id: 'POST /api/login', category: 'authentication' }),
+        endpoint({ id: 'POST /collect', category: 'analytics', mimeTypes: ['image/gif'] }),
+        endpoint({ id: 'GET /sdk/config.json', category: 'third-party' }),
+      ]),
+      calls,
+    );
+  }
+
+  it('carries exactly the documented fields, at every level', () => {
+    const payload = fullPayload();
+
+    expect(Object.keys(payload).sort()).toEqual([...TELEMETRY_PAYLOAD_KEYS].sort());
+    expect(payload.signals.length).toBeGreaterThan(0);
+    for (const signal of payload.signals) {
+      expect(Object.keys(signal).sort()).toEqual([...TELEMETRY_SIGNAL_KEYS].sort());
+    }
+    expect(telemetryBoundaryViolations(payload)).toEqual([]);
+  });
+
+  it('flags a widened payload, so the guard is what keeps the boundary closed', () => {
+    const payload = fullPayload();
+
+    // A new top-level field — the case a future telemetry addition would hit.
+    expect(telemetryBoundaryViolations({ ...payload, host: 'example.com' })).toContain(
+      '$: unexpected field "host"',
+    );
+
+    // A new field on a signal, where an endpoint could leak.
+    const signals = payload.signals.map((signal) => ({ ...signal, url: '/api/orders' }));
+    expect(telemetryBoundaryViolations({ ...payload, signals })).toContain(
+      '$.signals[0]: unexpected field "url"',
+    );
+
+    // A nested object hidden under an allowed field name.
+    expect(telemetryBoundaryViolations({ ...payload, contains: { secret: 'host' } })).toContain(
+      '$.contains: must be a scalar, not a nested value',
+    );
+    expect(
+      telemetryBoundaryViolations({
+        ...payload,
+        signals: [{ ...payload.signals[0]!, extra: { nested: true } }],
+      }),
+    ).toContain('$.signals[0]: unexpected field "extra"');
+  });
+
+  it('refuses a payload that is not shaped like one at all', () => {
+    expect(telemetryBoundaryViolations(null)).toEqual(['$: the payload must be a JSON object']);
+    expect(telemetryBoundaryViolations({ ...fullPayload(), signals: 'nope' })).toContain(
+      '$.signals: must be an array',
+    );
   });
 });
 

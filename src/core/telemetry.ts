@@ -28,6 +28,81 @@ import { TOOL_VERSION } from '../version.js';
 
 export const TELEMETRY_FILENAME = 'telemetry.json';
 
+/**
+ * The exact fields a payload may carry. This is the privacy boundary written
+ * down: `test/unit/telemetry.test.ts` asserts a built payload has exactly these
+ * keys, so a field added to the interface or the builder fails the build until
+ * it is deliberately added here.
+ */
+export const TELEMETRY_PAYLOAD_KEYS: readonly string[] = [
+  'version',
+  'apiReconVersion',
+  'generatedAt',
+  'endpointCount',
+  'contains',
+  'signals',
+];
+
+/** The exact fields one signal may carry, pinned the same way. */
+export const TELEMETRY_SIGNAL_KEYS: readonly string[] = ['category', 'heuristic', 'method', 'json'];
+
+const PAYLOAD_KEY_SET = new Set<string>(TELEMETRY_PAYLOAD_KEYS);
+const SIGNAL_KEY_SET = new Set<string>(TELEMETRY_SIGNAL_KEYS);
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isStructural(value: unknown): boolean {
+  return value !== null && typeof value === 'object';
+}
+
+/**
+ * One line per way a payload widens the boundary; empty when it is exactly the
+ * documented shape. It checks the key sets at both levels and refuses any nested
+ * object or array other than the `signals` list itself, since a nested value is
+ * where a captured host or path could hide behind an allowed field name.
+ *
+ * Exported rather than merely used by the test so an embedding application can
+ * assert the same contract on a payload it receives.
+ */
+export function telemetryBoundaryViolations(payload: unknown): string[] {
+  const problems: string[] = [];
+  if (!isPlainObject(payload)) return ['$: the payload must be a JSON object'];
+
+  for (const key of Object.keys(payload)) {
+    if (!PAYLOAD_KEY_SET.has(key)) problems.push(`$: unexpected field "${key}"`);
+  }
+  for (const [key, value] of Object.entries(payload)) {
+    if (key !== 'signals' && isStructural(value)) {
+      problems.push(`$.${key}: must be a scalar, not a nested value`);
+    }
+  }
+
+  const signals = payload['signals'];
+  if (!Array.isArray(signals)) {
+    problems.push('$.signals: must be an array');
+    return problems;
+  }
+  signals.forEach((signal, index) => {
+    const path = `$.signals[${index}]`;
+    if (!isPlainObject(signal)) {
+      problems.push(`${path}: must be an object`);
+      return;
+    }
+    for (const key of Object.keys(signal)) {
+      if (!SIGNAL_KEY_SET.has(key)) problems.push(`${path}: unexpected field "${key}"`);
+    }
+    for (const [key, value] of Object.entries(signal)) {
+      if (isStructural(value)) {
+        problems.push(`${path}.${key}: must be a scalar, not a nested value`);
+      }
+    }
+  });
+
+  return problems;
+}
+
 const CONTAINS =
   'categorization decisions only: category, heuristic, HTTP method, and whether ' +
   'the response was JSON. No host, path, query values, headers, or bodies.';

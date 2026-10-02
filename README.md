@@ -1058,6 +1058,14 @@ The `heuristic` names the rule that matched (`auth-path`, `analytics-host`,
 `fallback`). Read the file before you send it — it exists to tune the
 heuristics, and a pile of `fallback` signals shows which paths still need a rule.
 
+The payload's field set is itself a contract. `src/core/telemetry.ts` names the
+exact keys (`TELEMETRY_PAYLOAD_KEYS`, `TELEMETRY_SIGNAL_KEYS`), and
+`telemetryBoundaryViolations` checks a payload against them at both levels —
+refusing a nested object or array where a scalar belongs, which is where a
+captured host or path could otherwise hide behind an allowed field name. A new
+field fails `test/unit/telemetry.test.ts` until it is deliberately added to the
+boundary, so the local, key-free shape cannot widen by accident.
+
 ## Development
 
 ```bash

@@ -70,6 +70,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `dist/`, `schema/`, `completions/`, `README.md`, `LICENSE`, `CHANGELOG.md`, and
   `package.json` — so a session file, a debug bundle, or the source tree cannot
   ship by accident.
+- **The telemetry boundary is a contract** — the anonymized payload's shape is
+  written down as `TELEMETRY_PAYLOAD_KEYS` / `TELEMETRY_SIGNAL_KEYS` in
+  `src/core/telemetry.ts`, and `test/unit/telemetry.test.ts` asserts a built
+  payload carries exactly those keys at both levels. A future field therefore
+  fails the build until it is deliberately added to the boundary.
+  `telemetryBoundaryViolations` also refuses a nested object or array where a
+  scalar belongs — the place a captured host or path could hide behind an
+  allowed field name — and is exported so an embedding application can assert
+  the same contract on a payload it receives.
 
 ## [0.4.0] - 2026-10-01
 

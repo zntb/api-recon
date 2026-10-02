@@ -635,6 +635,15 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   `dist/`, `schema/`, `completions/`, `README.md`, `LICENSE`, `CHANGELOG.md`, and
   `package.json` — so a session file, a debug bundle, or the source tree cannot
   ship by accident.
+- **The telemetry boundary as a contract** — the payload's shape is now written
+  down (`TELEMETRY_PAYLOAD_KEYS` / `TELEMETRY_SIGNAL_KEYS` in
+  `src/core/telemetry.ts`) and asserted by `test/unit/telemetry.test.ts`, so a
+  field added to the interface or the builder fails the build until it is
+  deliberately part of the boundary. `telemetryBoundaryViolations` checks the
+  key set at both levels and refuses any nested object or array other than the
+  `signals` list, which is where a captured host or path could otherwise hide
+  behind an allowed field name; it is exported so an embedding application can
+  assert the same contract on a payload it receives.
 
 **Proposed updates & features**
 
@@ -673,11 +682,6 @@ so it can be scoped without re-reading the source.
 **Aesthetics**
 
 **Security & privacy**
-
-- **Pin the telemetry boundary as a contract.** The payload is local and
-  key-free by construction, but nothing stops a future field from being added to
-  it; assert the exact key set in a test so widening the boundary cannot happen
-  by accident.
 
 **User experience**
 

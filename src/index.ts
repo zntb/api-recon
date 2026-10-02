@@ -486,6 +486,11 @@ export type {
   IntegrityManifest,
   IntegrityVerification,
 } from './utils/integrity.js';
+export {
+  TELEMETRY_PAYLOAD_KEYS,
+  TELEMETRY_SIGNAL_KEYS,
+  telemetryBoundaryViolations,
+} from './core/telemetry.js';
 export { collectFindings } from './core/findings.js';
 export { groupResources } from './core/resources.js';
 export { buildRequestGraph } from './reporters/graph.js';
