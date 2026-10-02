@@ -66,6 +66,23 @@ export class TrafficInterceptor {
     return this.calls.length;
   }
 
+  /**
+   * Seed traffic captured before a checkpoint, so `--resume` continues one
+   * report instead of starting a second. The stored payloads are counted
+   * against the total-size budget too, so a resumed run cannot exceed it.
+   */
+  restore(state: { calls?: CapturedCall[]; webSockets?: CapturedWebSocket[] }): void {
+    for (const call of state.calls ?? []) {
+      this.calls.push(call);
+      this.bytesStored +=
+        (call.requestBodySample?.length ?? 0) + (call.responseBodySample?.length ?? 0);
+    }
+    for (const connection of state.webSockets ?? []) {
+      this.webSockets.push(connection);
+      for (const frame of connection.frames) this.bytesStored += frame.payloadSample?.length ?? 0;
+    }
+  }
+
   private isApi(req: Request): boolean {
     const type = req.resourceType();
     return type === 'xhr' || type === 'fetch';

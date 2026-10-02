@@ -653,6 +653,16 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   files such as `examples/output/README.md` are excluded. Generating into a temp
   directory rather than over `examples/output/` means the check never clobbers
   uncommitted local edits, and the run is part of the Linux CI gate.
+- **Timeouts, retries, and a resumable checkpoint** — `--timeout <ms>` bounds
+  each navigation (default 30s), and a page that fails to load is retried once
+  before it is recorded without its content, so a flaky page cannot stall or
+  drop a crawl. `crawl()` also takes `initial` state and reports its state after
+  each page; the scan serializes that plus the captured calls, sockets, and
+  technology evidence into `<out>/checkpoint.json` (`src/core/checkpoint.ts`),
+  and `--resume` reads it back and seeds the interceptor, so a crashed or
+  cancelled run continues instead of starting over. The checkpoint is versioned
+  and deleted when a run completes, so only a run that stopped early leaves one;
+  `navigateWithRetry` and the checkpoint parser are unit-tested directly.
 
 **Proposed updates & features**
 
@@ -666,10 +676,6 @@ so it can be scoped without re-reading the source.
 
 **Stability & performance**
 
-- **Timeouts, retries, and a checkpoint.** A page that never finishes loading can
-  stall a crawl; add a per-navigation timeout with a `--timeout` flag, one retry
-  for a flaky load, and a checkpoint written after each page so a crashed or
-  cancelled run can `--resume` instead of starting over.
 - **Guaranteed teardown.** Handle `SIGINT`/`SIGTERM` so the browser context is
   always closed and a partial `report.json` is still flushed; today a Ctrl+C
   during a long crawl can leave a Chromium process behind.

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Timeouts, retries, and a resumable crawl** — a page that never finishes
+  loading can no longer stall or silently drop a crawl. Every navigation is
+  bounded by `--timeout <ms>` (default 30s) and retried once, and a page that
+  still fails is recorded without its content. After each page the scan writes a
+  `<out>/checkpoint.json` with the crawl frontier, the pages, and the traffic
+  captured so far; `--resume` reads it back and continues instead of starting
+  over, seeding the interceptor so the finished report covers the whole run. The
+  seed URL must match, the checkpoint is versioned and holds only redacted
+  capture data, and it is deleted once a run completes — so a leftover file
+  means exactly one thing: a run that stopped early.
+
 ### Internal
 
 - **Example freshness in CI** — because generation is deterministic,

@@ -24,6 +24,8 @@ complete -c api-recon -l login -s l -r -F -d 'path to a login-flow config (YAML/
 complete -c api-recon -l record -d 'interactive recording mode: drive the browser yourself, type "done" to finish'
 complete -c api-recon -l actions -r -F -d 'path to scripted interaction steps (YAML/JSON)'
 complete -c api-recon -l rate -s r -r -d 'minimum delay between requests to the same origin'
+complete -c api-recon -l timeout -r -d 'per-navigation timeout in milliseconds, with one retry on failure'
+complete -c api-recon -l resume -d 'continue from <out>/checkpoint.json left by a crashed or cancelled run'
 complete -c api-recon -l respect-robots -d 'respect robots.txt (default)'
 complete -c api-recon -l no-respect-robots -d 'ignore robots.txt (requires --force to acknowledge ownership)'
 complete -c api-recon -l diff -r -F -d 'compare this scan against a previous report.json — or the stored baseline with `--diff latest`'

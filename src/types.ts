@@ -624,6 +624,17 @@ export interface ScanOptions {
   /** Directory the debug bundle is written to. */
   debugDir?: string;
   /**
+   * Per-navigation timeout, in milliseconds. A page that does not load within
+   * it is retried once, then recorded without its content. Defaults to 30000.
+   */
+  timeoutMs?: number;
+  /**
+   * Continue the crawl from `<out>/checkpoint.json`, written after each page by
+   * an earlier run that crashed or was cancelled. Requires `out`, and the seed
+   * URL must match the checkpoint's. Off by default.
+   */
+  resume?: boolean;
+  /**
    * Write a `checksums.json` integrity manifest beside the reports, so a
    * recipient can confirm the files were not edited. `true` uses `sha256`;
    * name `sha256` or `sha512` explicitly for another digest. Off by default.

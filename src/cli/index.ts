@@ -107,6 +107,17 @@ function registerScanOptions(command: Command): Command {
     .option('--record', 'interactive recording mode: drive the browser yourself, type "done" to finish', false)
     .option('--actions <file>', 'path to scripted interaction steps (YAML/JSON)')
     .option('-r, --rate <ms>', 'minimum delay between requests to the same origin', intArg, 500)
+    .option(
+      '--timeout <ms>',
+      'per-navigation timeout in milliseconds, with one retry on failure',
+      intArg,
+      30_000,
+    )
+    .option(
+      '--resume',
+      'continue from <out>/checkpoint.json left by a crashed or cancelled run',
+      false,
+    )
     .option('--respect-robots', 'respect robots.txt (default)', true)
     .option('--no-respect-robots', 'ignore robots.txt (requires --force to acknowledge ownership)')
     .option(
@@ -241,6 +252,10 @@ interface CliOptions {
   record: boolean;
   actions?: string;
   rate: number;
+  /** Per-navigation timeout in milliseconds. */
+  timeout: number;
+  /** Continue from the checkpoint in the output directory. */
+  resume: boolean;
   browser: BrowserEngine;
   diff?: string;
   /** Overrides the canonical baseline path for `baseline` and `--diff latest`. */
@@ -427,6 +442,8 @@ async function runScan(
       record: opts.record,
       ...(opts.actions ? { actions: opts.actions } : {}),
       rate: opts.rate,
+      timeoutMs: opts.timeout,
+      resume: opts.resume,
       browser: opts.browser,
       ...(opts.diff ? { diff: opts.diff } : {}),
       respectRobots: opts.respectRobots,

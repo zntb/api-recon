@@ -1,6 +1,6 @@
 /** Breadth-first crawler over same-domain links, respecting robots and rate limits. */
 
-import type { Page } from 'playwright';
+import type { Page, Response } from 'playwright';
 import type { CapturedPage } from '../types.js';
 import { drainSpaRoutes } from './browser.js';
 import { extractLinks, normalizeUrl } from '../utils/url.js';
@@ -10,6 +10,21 @@ import type { ScanScope } from './scope.js';
 
 export interface RobotsLike {
   isAllowed: (path: string, userAgent?: string) => boolean;
+}
+
+/**
+ * Everything a crawl needs to continue: the frontier still to visit, the URLs
+ * already seen, and the pages recorded so far. A scan serializes this into a
+ * checkpoint after each page so a crashed run can resume where it stopped.
+ */
+export interface CrawlState {
+  queue: Array<{ url: string; depth: number }>;
+  /** Normalized URLs already visited. */
+  visited: string[];
+  /** Normalized URLs already recorded as pages. */
+  seenPages: string[];
+  pages: CapturedPage[];
+  blockedByRobots: string[];
 }
 
 export interface CrawlOptions {
@@ -31,6 +46,14 @@ export interface CrawlOptions {
   scope: ScanScope;
   /** Fired for every page recorded, including SPA routes discovered in place. */
   onPageVisited?: (page: CapturedPage) => void;
+  /**
+   * Called after each page with the crawl's state, so the scan can write a
+   * checkpoint. Failures are the callback's to handle; the crawl keeps going.
+   */
+  onCheckpoint?: (state: CrawlState) => Promise<void> | void;
+  /** State from a checkpoint, to continue a previous crawl instead of starting over. */
+  initial?: CrawlState;
+  /** Per-navigation timeout, in milliseconds. */
   navTimeoutMs?: number;
   settleMs?: number;
 }
@@ -40,14 +63,73 @@ export interface CrawlOutcome {
   blockedByRobots: string[];
 }
 
+export interface NavigateOutcome {
+  response: Response | null;
+  /** The last error, or null when a navigation succeeded. */
+  error: unknown;
+  attempts: number;
+}
+
+/**
+ * Navigate once, and retry once on failure — a flaky load must not drop a
+ * page. A navigation that returns no response (a same-document navigation, for
+ * example) is still a success; only a thrown error is retried. Errors are
+ * returned rather than thrown so the caller can record the page and move on.
+ */
+export async function navigateWithRetry(
+  page: Pick<Page, 'goto'>,
+  url: string,
+  timeoutMs: number,
+  onRetry?: (error: unknown, attempt: number) => void,
+): Promise<NavigateOutcome> {
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const response = await page.goto(url, { waitUntil: 'load', timeout: timeoutMs });
+      return { response, error: null, attempts: attempt };
+    } catch (error) {
+      lastError = error;
+      if (attempt === 1) onRetry?.(error, attempt);
+    }
+  }
+  return { response: null, error: lastError, attempts: 2 };
+}
+
+/** The first line of an error, so a warning stays one line. */
+function firstLine(err: unknown): string {
+  if (err instanceof Error) return err.message.split('\n')[0] ?? err.message;
+  return String(err);
+}
+
 export async function crawl(page: Page, options: CrawlOptions): Promise<CrawlOutcome> {
-  const queue: Array<{ url: string; depth: number }> = [{ url: options.seedUrl, depth: 0 }];
-  const visited = new Set<string>();
-  const seenPages = new Set<string>();
-  const pages: CapturedPage[] = [];
-  const blockedByRobots: string[] = [];
+  const queue: Array<{ url: string; depth: number }> = options.initial
+    ? options.initial.queue.map((item) => ({ ...item }))
+    : [{ url: options.seedUrl, depth: 0 }];
+  const visited = new Set<string>(options.initial?.visited ?? []);
+  const seenPages = new Set<string>(options.initial?.seenPages ?? []);
+  const pages: CapturedPage[] = options.initial ? [...options.initial.pages] : [];
+  const blockedByRobots: string[] = options.initial ? [...options.initial.blockedByRobots] : [];
   const navTimeout = options.navTimeoutMs ?? 30_000;
   const settle = options.settleMs ?? 3_000;
+
+  const snapshot = (): CrawlState => ({
+    queue: queue.map((item) => ({ ...item })),
+    visited: [...visited],
+    seenPages: [...seenPages],
+    pages: [...pages],
+    blockedByRobots: [...blockedByRobots],
+  });
+
+  // A checkpoint is a convenience, never a reason to stop crawling: a write
+  // failure is a warning.
+  const checkpoint = async (): Promise<void> => {
+    if (!options.onCheckpoint) return;
+    try {
+      await options.onCheckpoint(snapshot());
+    } catch (err) {
+      options.logger.warn(`could not write the checkpoint: ${firstLine(err)}`);
+    }
+  };
 
   const recordPage = (url: string, depth: number, title: string | null): void => {
     if (!url) return;
@@ -85,29 +167,36 @@ export async function crawl(page: Page, options: CrawlOptions): Promise<CrawlOut
     options.logger.debug(`→ ${item.url} (depth ${item.depth})`);
     let html = '';
     let mainHeaders: Record<string, string> = {};
-    try {
-      const response = await page.goto(item.url, { waitUntil: 'load', timeout: navTimeout });
-      options.logger.debug(`  ${response ? response.status() : 'no response'} ${item.url}`);
-      if (response) mainHeaders = response.headers();
 
-      // Playwright follows redirects automatically, so the destination is only
-      // visible afterwards. Refuse to process one that left the agreed scope —
-      // the page already loaded, but none of it is recorded or inspected.
-      const landed = page.url();
-      if (landed && !options.scope.allows(landed)) {
-        options.logger.warn(
-          `refusing cross-origin redirect from ${item.url} to ${landed}` +
-            (options.scope.allowsHost(landed)
-              ? ' (its path is excluded)'
-              : ` — add --include-host ${safeHostname(landed)} to allow it`),
-        );
-        continue;
-      }
-    } catch (err) {
+    const nav = await navigateWithRetry(page, item.url, navTimeout, (err, attempt) => {
       options.logger.warn(
-        `could not load ${item.url}: ${err instanceof Error ? err.message.split('\n')[0] : String(err)}`,
+        `retrying ${item.url} after a failed load (attempt ${attempt + 1} of 2): ${firstLine(err)}`,
       );
+    });
+
+    if (nav.error !== null) {
+      options.logger.warn(`could not load ${item.url}: ${firstLine(nav.error)}`);
       recordPage(item.url, item.depth, null);
+      await checkpoint();
+      continue;
+    }
+    if (nav.response) {
+      options.logger.debug(`  ${nav.response.status()} ${item.url}`);
+      mainHeaders = nav.response.headers();
+    }
+
+    // Playwright follows redirects automatically, so the destination is only
+    // visible afterwards. Refuse to process one that left the agreed scope —
+    // the page already loaded, but none of it is recorded or inspected.
+    const landed = page.url();
+    if (landed && !options.scope.allows(landed)) {
+      options.logger.warn(
+        `refusing cross-origin redirect from ${item.url} to ${landed}` +
+          (options.scope.allowsHost(landed)
+            ? ' (its path is excluded)'
+            : ` — add --include-host ${safeHostname(landed)} to allow it`),
+      );
+      await checkpoint();
       continue;
     }
 
@@ -144,6 +233,8 @@ export async function crawl(page: Page, options: CrawlOptions): Promise<CrawlOut
         queue.push({ url: link, depth: item.depth + 1 });
       }
     }
+
+    await checkpoint();
   }
 
   return { pages, blockedByRobots };

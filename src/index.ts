@@ -44,8 +44,15 @@ import { collectFindings } from './core/findings.js';
 import { buildTelemetry, resolveTelemetryPlan, writeTelemetryFile } from './core/telemetry.js';
 import { detectTechnologies, type TechEvidence } from './core/techStack.js';
 import { writeReports } from './reporters/index.js';
+import {
+  checkpointPath,
+  readScanCheckpoint,
+  removeScanCheckpoint,
+  SCAN_CHECKPOINT_VERSION,
+  writeScanCheckpoint,
+} from './core/checkpoint.js';
 import { fetchRobots } from './utils/robots.js';
-import { isPrivateHost } from './utils/url.js';
+import { isPrivateHost, normalizeUrl } from './utils/url.js';
 import { RateLimiter } from './utils/rateLimit.js';
 import { Logger } from './utils/logger.js';
 import { SafetyError, assertScanAllowed } from './utils/safety.js';
@@ -99,6 +106,23 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   // implies checksumming, with sha256 unless one was named.
   const integrityAlgorithm = resolveIntegrityAlgorithm(options.checksum) ?? (options.signKey ? 'sha256' : null);
   const signKey = options.signKey ? await readSignKeyFile(options.signKey) : undefined;
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  const resume = options.resume ?? false;
+  if (resume && !options.out) {
+    throw new SafetyError('--resume needs an output directory to read the checkpoint from.', {
+      hint: 'Pass --out <dir>, or start a fresh scan without --resume.',
+    });
+  }
+  const checkpointFile = options.out ? checkpointPath(options.out) : null;
+  // Loaded before the browser launches, so a missing or mismatched checkpoint
+  // fails in milliseconds rather than after a crawl.
+  const resumed = resume && checkpointFile ? await readScanCheckpoint(checkpointFile) : null;
+  if (resumed && checkpointFile && normalizeUrl(resumed.seedUrl) !== normalizeUrl(seedUrl)) {
+    throw new SafetyError(
+      `The checkpoint at ${checkpointFile} is for ${resumed.seedUrl}, not ${seedUrl}.`,
+      { hint: 'Pass the same seed URL, or start a fresh scan without --resume.' },
+    );
+  }
 
   assertScanAllowed(seedUrl, { allowLocal });
   // Every host the crawl may follow, and every path it must skip. An included
@@ -114,7 +138,9 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   }
   const scope = new ScanScope(seedUrl, options.includeHost, options.excludePath);
   const origin = new URL(seedUrl).origin;
-  const startedAt = Date.now();
+  // A resumed run keeps the original start time, so its report spans the whole
+  // capture rather than only the part after the resume.
+  const startedAt = resumed ? resumed.startedAt : Date.now();
 
   // ---- robots.txt ---------------------------------------------------------
   let robots: { isAllowed: (path: string, userAgent?: string) => boolean } | null = null;
@@ -165,10 +191,13 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   });
   interceptor.attach(session.page);
   session.context.on('page', (page) => interceptor.attach(page));
+  // A resumed scan continues one report, so the traffic captured before the
+  // checkpoint is seeded back into the interceptor.
+  if (resumed) interceptor.restore({ calls: resumed.calls, webSockets: resumed.webSockets });
 
-  const evidence: TechEvidence[] = [];
-  let pages: CapturedPage[] = [];
-  let blockedByRobots: string[] = [];
+  const evidence: TechEvidence[] = resumed ? resumed.evidence : [];
+  let pages: CapturedPage[] = resumed ? resumed.pages : [];
+  let blockedByRobots: string[] = resumed ? resumed.blockedByRobots : [];
 
   // Progress is push-based and purely observational: the reporters (the
   // onProgress callback and the event stream) decide how to use it, and never
@@ -268,6 +297,33 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
         robots,
         scope,
         logger,
+        navTimeoutMs: timeoutMs,
+        ...(resumed
+          ? {
+              initial: {
+                queue: resumed.queue,
+                visited: resumed.visited,
+                seenPages: resumed.seenPages,
+                pages: resumed.pages,
+                blockedByRobots: resumed.blockedByRobots,
+              },
+            }
+          : {}),
+        // Written after every page, so a crash or Ctrl+C leaves a usable
+        // starting point rather than throwing the run away.
+        onCheckpoint: async (state) => {
+          if (!checkpointFile) return;
+          await writeScanCheckpoint(checkpointFile, {
+            version: SCAN_CHECKPOINT_VERSION,
+            seedUrl,
+            engine,
+            startedAt,
+            ...state,
+            calls: interceptor.calls,
+            webSockets: interceptor.webSockets,
+            evidence,
+          });
+        },
         onPageVisited: () => publishProgress('crawling'),
         ...(actionSteps.length
           ? { runActions: (page) => runActions(page, actionSteps, logger) }
@@ -396,6 +452,9 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
 
   let files: string[] = [];
   if (options.out) files = await writeReportsTo(options.out);
+  // The run completed, so the checkpoint has done its job; only a run that
+  // stopped early leaves one behind for --resume.
+  if (checkpointFile) await removeScanCheckpoint(checkpointFile).catch(() => {});
 
   return {
     report,
@@ -491,6 +550,11 @@ export {
   TELEMETRY_SIGNAL_KEYS,
   telemetryBoundaryViolations,
 } from './core/telemetry.js';
+export {
+  SCAN_CHECKPOINT_FILENAME,
+  checkpointPath,
+  readScanCheckpoint,
+} from './core/checkpoint.js';
 export { collectFindings } from './core/findings.js';
 export { groupResources } from './core/resources.js';
 export { buildRequestGraph } from './reporters/graph.js';

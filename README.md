@@ -86,6 +86,10 @@ APP_USER=you@example.com APP_PASS='…' \
 # Drive the browser yourself and capture as you click
 api-recon https://app.example.com --record
 
+# A long crawl that stopped early picks up where it left off
+api-recon https://app.example.com --max-pages 500 --out ./reports
+api-recon https://app.example.com --max-pages 500 --out ./reports --resume
+
 # Save a baseline, then compare against it later without naming a path
 api-recon baseline https://app.example.com
 api-recon https://app.example.com --diff latest --fail-on-diff
@@ -115,6 +119,8 @@ api-recon https://example.com --browser firefox
 | `--baseline <file>` | `.api-recon/baseline.json` | Override where the stored baseline lives (for the `baseline` subcommand and `--diff latest`) |
 | `--fail-on-diff` | off | With `--diff`, exit `3` when any endpoint changed (CI gating) |
 | `-r, --rate <ms>` | `500` | Minimum delay between requests to the same origin |
+| `--timeout <ms>` | `30000` | Per-navigation timeout; a page that does not load is retried once |
+| `--resume` | off | Continue from `<out>/checkpoint.json` left by a crashed or cancelled run |
 | `--respect-robots` / `--no-respect-robots` | on | robots.txt compliance (`--no-…` requires `--force`) |
 | `--include-third-party` | off | Also capture cross-origin XHR/fetch calls and WebSockets |
 | `--include-host <hosts>` | — | Comma-separated extra hosts the crawl may follow, for a multi-host app (a `host:port` for a non-default port) |
@@ -274,9 +280,10 @@ The environment variables are the flags in `SCREAMING_SNAKE_CASE`:
 `API_RECON_STRICT_REDACTION`, `API_RECON_FORCE`, `API_RECON_ALLOW_LOCAL`, `API_RECON_TELEMETRY`,
 `API_RECON_TELEMETRY_PREVIEW`, `API_RECON_MAX_BODY_MB`, `API_RECON_QUIET`,
 `API_RECON_VERBOSE`, `API_RECON_JSON_PROGRESS`, `API_RECON_RECORD`,
-`API_RECON_SHARE`, `API_RECON_DEBUG`, `API_RECON_CHECKSUM`, `API_RECON_SIGN_KEY`.
-Booleans take `1`/`0` (also `true`/`false`, `yes`/`no`, `on`/`off`), and
-`API_RECON_CHECKSUM` also accepts `sha256` or `sha512`.
+`API_RECON_SHARE`, `API_RECON_DEBUG`, `API_RECON_CHECKSUM`, `API_RECON_SIGN_KEY`,
+`API_RECON_TIMEOUT`, `API_RECON_RESUME`. Booleans take `1`/`0` (also
+`true`/`false`, `yes`/`no`, `on`/`off`), and `API_RECON_CHECKSUM` also accepts
+`sha256` or `sha512`.
 
 Two values cannot be committed in a shared file: `force: true` and
 `redact: false`. Each loosens a safety default for everyone who clones the
@@ -347,6 +354,32 @@ await scan({
 
 For an event-oriented API — phases, pages, and endpoints as they are discovered —
 see [Events](#events) under the library API.
+
+### Timeouts and resuming
+
+A page that never finishes loading must not stall the whole crawl, so every
+navigation is bounded by `--timeout <ms>` (default 30s) and retried once before
+it is recorded without its content. A flaky page costs a retry, not the page.
+
+After each page the scan writes everything it takes to continue — the crawl
+frontier, the pages, and the traffic captured so far — to
+`<out>/checkpoint.json`. If a run crashes or you cancel it with Ctrl+C, point
+the same command at the same output directory with `--resume`:
+
+```bash
+# A long crawl that stopped partway through…
+api-recon https://app.example.com --depth 5 --max-pages 500 --out ./reports
+
+# …continues from ./reports/checkpoint.json instead of starting over
+api-recon https://app.example.com --depth 5 --max-pages 500 --out ./reports --resume
+```
+
+The seed URL must match the checkpoint's, and the checkpoint is deleted once a
+run completes, so a leftover file means exactly one thing: a run that stopped
+early. It is versioned, so a checkpoint from an older shape is refused rather
+than misread, and it holds only redacted capture data — the same fields the
+reports keep. Resuming keeps the original start time, so the finished report
+spans the whole capture rather than only the part after the resume.
 
 ## What it captures
 

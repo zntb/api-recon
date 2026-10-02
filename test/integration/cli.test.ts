@@ -116,6 +116,8 @@ describe('api-recon CLI', () => {
       '--strict-redaction',
       '--checksum',
       '--sign-key',
+      '--timeout',
+      '--resume',
     ]) {
       expect(stdout, `--help should mention ${flag}`).toContain(flag);
     }
@@ -719,6 +721,25 @@ describe('api-recon CLI', () => {
     );
     expect(code).toBe(2);
     expect(stderr).toMatch(/No stored baseline found.*api-recon baseline/s);
+  }, 60_000);
+
+  it('refuses --resume when the output directory has no checkpoint', async () => {
+    const dir = join(outDir, 'cli-resume-missing');
+
+    const { code, stdout, stderr } = await runCli([
+      fixture.url,
+      '--allow-local',
+      '--resume',
+      '--out',
+      dir,
+      '--formats',
+      'json',
+    ]);
+
+    expect(code).toBe(2);
+    expect(stderr).toMatch(/No checkpoint found/);
+    // The next step prints on the human stream (stdout without --print).
+    expect(`${stdout}${stderr}`).toMatch(/→/);
   }, 60_000);
 
   it('refuses --fail-on-diff with no baseline', async () => {

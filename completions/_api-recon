@@ -26,6 +26,8 @@ _api_recon() {
     '--record:interactive recording mode  drive the browser yourself, type "done" to finish'
     '--actions:path to scripted interaction steps (YAML/JSON)'
     '--rate:minimum delay between requests to the same origin'
+    '--timeout:per-navigation timeout in milliseconds, with one retry on failure'
+    '--resume:continue from <out>/checkpoint.json left by a crashed or cancelled run'
     '--respect-robots:respect robots.txt (default)'
     '--no-respect-robots:ignore robots.txt (requires --force to acknowledge ownership)'
     '--diff:compare this scan against a previous report.json — or the stored baseline with `--diff latest`'

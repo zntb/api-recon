@@ -88,6 +88,8 @@ const OPTION_SPECS: OptionSpec[] = [
   { key: 'actions', kind: 'path', env: 'API_RECON_ACTIONS' },
   { key: 'record', kind: 'bool', env: 'API_RECON_RECORD' },
   { key: 'rate', kind: 'int', env: 'API_RECON_RATE' },
+  { key: 'timeout', kind: 'int', env: 'API_RECON_TIMEOUT' },
+  { key: 'resume', kind: 'bool', env: 'API_RECON_RESUME' },
   { key: 'diff', kind: 'path', env: 'API_RECON_DIFF' },
   { key: 'baseline', kind: 'path', env: 'API_RECON_BASELINE' },
   { key: 'failOnDiff', kind: 'bool', env: 'API_RECON_FAIL_ON_DIFF' },
