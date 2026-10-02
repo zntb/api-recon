@@ -781,10 +781,13 @@ describe('api-recon CLI', () => {
         stderr += String(chunk);
       });
       // Registered before the signal, so a child that exits in between cannot
-      // leave this promise unresolved.
+      // leave this promise unresolved. `exit` fires when the process is gone,
+      // but the pipes can still hold buffered output, so `close` — which fires
+      // once stdout and stderr are drained — is what the assertions below read.
       const exited = new Promise<number | null>((resolve) =>
         child.once('exit', (value) => resolve(value)),
       );
+      const drained = new Promise<void>((resolve) => child.once('close', () => resolve()));
       const detail = (): string => `\n--- stdout ---\n${stdout}\n--- stderr ---\n${stderr}`;
 
       // Wait until the crawl has actually recorded a page before interrupting.
@@ -808,6 +811,7 @@ describe('api-recon CLI', () => {
       child.kill('SIGINT');
 
       const code = await exited;
+      await drained;
       expect(code, `the CLI should exit 130 on SIGINT${detail()}`).toBe(130);
       expect(stdout, `the CLI should say it wrote the partial report${detail()}`).toMatch(
         /partial report written/i,
