@@ -170,15 +170,22 @@ describe('parseIntegrityManifest', () => {
     // A manifest arrives with the artifact, from whoever sent it, so a name
     // that climbs out of the directory must never be resolved — otherwise a
     // crafted manifest steers a read of any file the process can reach.
-    for (const name of [
+    const refused = [
       '../escape.txt',
       '../../../../etc/passwd',
       'payloads/../../escape.txt',
+      // A backslash separator, which is a literal character on POSIX and a
+      // separator on Windows; both must be read as climbing out.
       '..\\escape.txt',
       '/etc/passwd',
-      'C:\\Windows\\win.ini',
       '..',
-    ]) {
+    ];
+    // A drive letter is only an absolute path on Windows. On POSIX
+    // `C:\...` is an ordinary file name *inside* the directory, so refusing it
+    // there would reject a name that cannot escape anything.
+    if (process.platform === 'win32') refused.push('C:\\Windows\\win.ini');
+
+    for (const name of refused) {
       expect(
         () => parseIntegrityManifest({ algorithm: 'sha256', files: { [name]: SHA256_ABC } }),
         `${name} should be refused`,
