@@ -688,6 +688,16 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   memory. Spilling is off when there is no output directory to write to; the
   spilled files are covered by the integrity manifest, which now keys files by
   their path relative to the output directory rather than by basename.
+- **A flake budget for the browser suite** — `vitest.config.ts` now defines two
+  projects, `unit` and `browser` (`npm run test:unit` / `test:browser`), and CI
+  runs them as separate jobs. The browser job is the heavy one: it installs the
+  three engines, and its project retries a failed test once (`retry: 1`) rather
+  than re-running the whole suite. With `API_RECON_TEST_TRACE=1` every scan
+  records a Playwright trace through the library's existing `--debug` machinery
+  (`test/helpers/trace.ts`), kept when the scan fails; the job uploads
+  `test/output/traces` as the `browser-traces` artifact on failure, so a flake is
+  triaged from the trace instead of reproduced. `test/helpers/traceSetup.ts`
+  points a failed test at that directory.
 
 **Proposed updates & features**
 
@@ -701,10 +711,6 @@ so it can be scoped without re-reading the source.
 
 **Stability & performance**
 
-- **Give the browser suite a flake budget.** Mark the browser-driven integration
-  tests as a separate job, record a Playwright trace on failure for triage, and
-  allow a single retry on the known-flaky assertions instead of re-running the
-  whole suite.
 - **Validate `--login` / `--actions` input up front.** A malformed step currently
   fails — or is skipped — deep inside a run; validate the YAML against a schema
   first and report the offending path and line.

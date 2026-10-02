@@ -31,12 +31,36 @@ function jsToTsResolver(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [jsToTsResolver()],
   test: {
-    include: ['test/**/*.test.ts'],
-    // Browser-driven integration tests are heavy; run files one at a time.
-    fileParallelism: false,
-    testTimeout: 120_000,
-    hookTimeout: 120_000,
+    // Two projects, so CI can run the heavy browser suite as its own job with a
+    // flake budget, while the unit suite stays fast and deterministic:
+    //
+    //   npm run test:unit      test/unit only, no browser
+    //   npm run test:browser   test/integration, one file at a time, retry once
+    //   npm test               both
+    projects: [
+      {
+        plugins: [jsToTsResolver()],
+        test: {
+          name: 'unit',
+          include: ['test/unit/**/*.test.ts'],
+        },
+      },
+      {
+        plugins: [jsToTsResolver()],
+        test: {
+          name: 'browser',
+          include: ['test/integration/**/*.test.ts'],
+          // Browser-driven tests are heavy; run files one at a time.
+          fileParallelism: false,
+          testTimeout: 120_000,
+          hookTimeout: 120_000,
+          // The flake budget: retry a failed browser test once, rather than
+          // re-running the whole suite to find out whether it was a flake.
+          retry: 1,
+          setupFiles: ['test/helpers/traceSetup.ts'],
+        },
+      },
+    ],
   },
 });

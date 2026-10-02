@@ -10,6 +10,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startFixtureServer, type FixtureServerHandle } from '../fixtures/server.js';
 import { browserAvailable } from '../helpers/browser.js';
+import { traceOptions } from '../helpers/trace.js';
 import { BROWSER_ENGINES, Logger, scan } from '../../src/index.js';
 import type { BrowserEngine } from '../../src/index.js';
 
@@ -41,6 +42,7 @@ describe('browser engines', () => {
         formats: ['json'],
         browser: engine,
         logger: silent(),
+        ...traceOptions('scan'),
       });
 
       // Same assertions as the Chromium suite's happy path: interception,
@@ -70,6 +72,7 @@ describe('browser engines', () => {
         formats: ['json'],
         browser: engine,
         logger: silent(),
+        ...traceOptions('scan'),
       }),
     ).rejects.toThrow(/robots\.txt disallows/);
 

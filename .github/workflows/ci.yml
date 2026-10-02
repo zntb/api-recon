@@ -6,7 +6,9 @@ on:
   pull_request:
 
 jobs:
-  test:
+  # Static checks and the fast, deterministic unit suite. Runs on every OS so a
+  # path or line-ending mistake is caught where it happens.
+  unit:
     name: ${{ matrix.os }} / node ${{ matrix.node }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -28,8 +30,8 @@ jobs:
         run: npm ci
 
       # Runs once, on Linux: it inspects the tracked blobs, so its verdict is
-      # the same on every OS. Place it before the browser download so a line
-      # ending mistake fails fast. See scripts/check-line-endings.ts.
+      # the same on every OS. Place it before the rest so a line ending mistake
+      # fails fast. See scripts/check-line-endings.ts.
       - name: Check line endings
         run: npm run check:line-endings
         if: runner.os == 'Linux'
@@ -55,23 +57,6 @@ jobs:
         run: npm run check:examples
         if: runner.os == 'Linux'
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
-
-      # All three engines: the suite drives Chromium by default and Firefox +
-      # WebKit via --browser. Installing only Chromium would make those cases
-      # skip silently instead of proving the feature works.
-      - name: Install browsers
-        run: npx playwright install chromium firefox webkit
-        if: runner.os != 'Linux'
-
-      - name: Install browsers + system deps (Linux)
-        run: npx playwright install --with-deps chromium firefox webkit
-        if: runner.os == 'Linux'
-
       - name: Lint
         run: npm run lint
 
@@ -88,7 +73,56 @@ jobs:
         run: npm run check:pack
         if: runner.os == 'Linux'
 
-      - name: Test
-        run: npm test
+      - name: Unit tests
+        run: npm run test:unit
         env:
           CI: 'true'
+
+  # The browser-driven integration suite, as its own job: it is heavy, it can
+  # flake for reasons outside the code, and it needs the browsers installed. It
+  # runs once, on Linux, with a flake budget (one retry per test — see
+  # vitest.config.ts) and records a Playwright trace per scan so a failure can be
+  # triaged from the uploaded artifact instead of reproduced locally.
+  browser:
+    name: browser suite (one retry per test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      # All three engines: the suite drives Chromium by default and Firefox +
+      # WebKit via --browser. Installing only Chromium would make those cases
+      # skip silently instead of proving the feature works.
+      - name: Install browsers + system deps
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Browser tests
+        run: npm run test:browser
+        env:
+          CI: 'true'
+          # Records a Playwright trace per scan, kept when a scan fails.
+          API_RECON_TEST_TRACE: '1'
+
+      # Only on failure: the traces are large and there is nothing to look at
+      # when the suite passed. See test/helpers/trace.ts.
+      - name: Upload traces
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-traces
+          path: test/output/traces
+          if-no-files-found: ignore
+          retention-days: 7

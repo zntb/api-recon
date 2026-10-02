@@ -1148,7 +1148,9 @@ npx playwright install chromium firefox webkit   # the suite drives all three
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
 npm run build       # tsc -> dist/
-npm test            # unit + integration (drives a real browser)
+npm test            # both suites (`vitest run`)
+npm run test:unit   # test/unit only — fast, no browser
+npm run test:browser # test/integration only — drives a real browser
 
 npm run test:server # fixture site on http://127.0.0.1:4599
 npm run examples:generate  # regenerate examples/output
@@ -1173,6 +1175,13 @@ regenerated cannot merge. Generating into a temp directory rather than over
 `examples/output/` means the check never overwrites uncommitted local edits, and
 files written by hand (`examples/output/README.md`) are excluded. It runs as a
 Linux CI gate.
+
+The two suites are separate CI jobs, and the browser one gets a flake budget:
+its vitest project retries a failed test once (`retry: 1`) rather than
+re-running the whole suite, and with `API_RECON_TEST_TRACE=1` every scan records
+a Playwright trace, kept when the scan fails and uploaded as the
+`browser-traces` artifact for triage. Run `API_RECON_TEST_TRACE=1 npm run
+test:browser` locally to get the same traces under `test/output/traces/`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for test expectations.
 

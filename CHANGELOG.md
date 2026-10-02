@@ -41,6 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
+- **A flake budget for the browser suite** — the tests are now two vitest
+  projects (`unit` and `browser`, run by `npm run test:unit` / `test:browser`),
+  and CI runs them as separate jobs. The browser project retries a failed test
+  once instead of re-running the whole suite, and with `API_RECON_TEST_TRACE=1`
+  every scan records a Playwright trace that is kept on failure and uploaded as
+  the `browser-traces` artifact for triage.
 - **Dependency refresh** — updated the lockfile to the latest versions that
   remain mutually compatible (`@types/node`, `typescript-eslint`, `vitest`, and
   transitive packages), all within the existing ranges, so no manifest change

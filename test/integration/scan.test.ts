@@ -10,6 +10,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { load } from 'js-yaml';
 import { startFixtureServer, type FixtureServerHandle } from '../fixtures/server.js';
 import { browserAvailable } from '../helpers/browser.js';
+import { traceOptions } from '../helpers/trace.js';
 import { scan, CancelledError, Logger } from '../../src/index.js';
 import type { Endpoint, ReconReport } from '../../src/index.js';
 
@@ -61,6 +62,7 @@ describe('capture and categorization', () => {
       formats: ['json'],
       out: dir,
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     const report = result.report;
@@ -128,6 +130,7 @@ describe('capture and categorization', () => {
       formats: ['json'],
       out: join(outDir, 'third-party'),
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     const partnerConfig = result.report.endpoints.find(
@@ -152,6 +155,7 @@ describe('capture and categorization', () => {
         formats: ['json'],
         out: join(outDir, 'blocked'),
         logger: silent(),
+        ...traceOptions('scan'),
       }),
     ).rejects.toThrow(/robots\.txt disallows/);
 
@@ -162,6 +166,7 @@ describe('capture and categorization', () => {
       force: true,
       formats: ['json'],
       logger: silent(),
+      ...traceOptions('scan'),
     });
     expect(forced.report.safety.robotsRespected).toBe(false);
     expect(forced.report.pages.length).toBeGreaterThan(0);
@@ -180,6 +185,7 @@ describe('authentication', () => {
       formats: ['json'],
       out: dir,
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     const report = result.report;
@@ -216,6 +222,7 @@ describe('authentication', () => {
       auth: SESSION_FILE,
       formats: ['json'],
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     const user = findEndpoint(result.report, 'GET /api/user');
@@ -235,6 +242,7 @@ describe('scan scope', () => {
       formats: ['json'],
       excludePath: ['/products'],
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     const report = result.report;
@@ -252,6 +260,7 @@ describe('scan scope', () => {
       rate: 0,
       formats: ['json'],
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     const report = result.report;
@@ -269,6 +278,7 @@ describe('scan scope', () => {
       formats: ['json'],
       includeHost: [new URL(fixture.thirdPartyUrl).host],
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     const report = result.report;
@@ -287,6 +297,7 @@ describe('scripted actions', () => {
       actions: 'test/fixtures/actions.json',
       formats: ['json'],
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     const products = findEndpoint(result.report, 'GET /api/products');
@@ -311,6 +322,7 @@ describe('error contracts', () => {
       rate: 0,
       formats: ['json'],
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     const report = result.report;
@@ -342,6 +354,7 @@ describe('opt-in telemetry', () => {
       rate: 0,
       formats: ['json'],
       logger: silent(),
+      ...traceOptions('scan'),
     });
     expect(off.telemetry).toBeUndefined();
     expect(off.files.some((f) => f.endsWith('telemetry.json'))).toBe(false);
@@ -356,6 +369,7 @@ describe('opt-in telemetry', () => {
       out: dir,
       telemetry: true,
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     expect(on.telemetry?.endpointCount).toBeGreaterThan(0);
@@ -383,6 +397,7 @@ describe('opt-in telemetry', () => {
       out: previewDir,
       telemetryPreview: true,
       logger: silent(),
+      ...traceOptions('scan'),
     });
     expect(preview.telemetry?.endpointCount).toBeGreaterThan(0);
     expect(preview.files.some((f) => f.endsWith('telemetry.json'))).toBe(false);
@@ -405,6 +420,7 @@ describe('report formats', () => {
       formats: ['json', 'md', 'html', 'pdf', 'openapi', 'dashboard'],
       out: dir,
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     const names = result.files.map((f) => basename(f));
@@ -485,6 +501,7 @@ describe('record mode', () => {
         formats: ['json'],
         out: dir,
         logger: silent(),
+        ...traceOptions('scan'),
       });
       expect(result.report.endpoints.some((e) => e.id === 'GET /api/products')).toBe(true);
       expect(result.report.pages.length).toBeGreaterThan(0);
@@ -505,6 +522,7 @@ describe('events API', () => {
       formats: ['json'],
       out: join(outDir, 'events'),
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     const phases: string[] = [];
@@ -550,6 +568,7 @@ describe('events API', () => {
       formats: ['json'],
       out: join(outDir, 'events-await'),
       logger: silent(),
+      ...traceOptions('scan'),
     });
     expect(result.report.endpoints.some((e) => e.id === 'GET /api/products')).toBe(true);
   }, 120_000);
@@ -571,6 +590,7 @@ describe('cancellation', () => {
         formats: ['json', 'md'],
         out: dir,
         logger: silent(),
+        ...traceOptions('scan'),
         signal: controller.signal,
         // Abort once traffic has been captured, i.e. mid-crawl: the run should
         // stop, tear down, and still leave a usable report behind.
@@ -609,6 +629,7 @@ describe('memory bounds', () => {
       formats: ['json'],
       out: dir,
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     const products = findEndpoint(result.report, 'GET /api/products');
@@ -635,6 +656,7 @@ describe('memory bounds', () => {
       formats: ['json'],
       out: join(outDir, 'capped'),
       logger: silent(),
+      ...traceOptions('scan'),
     });
 
     expect(result.report.endpoints.length).toBeLessThanOrEqual(1);

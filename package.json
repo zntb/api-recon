@@ -53,6 +53,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:browser": "vitest run --project browser",
     "test:watch": "vitest",
     "test:server": "tsx test/fixtures/server.ts --port 4599",
     "lint": "eslint src test scripts",
