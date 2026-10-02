@@ -15,9 +15,11 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node: ['22']
     steps:
-      - uses: actions/checkout@v6
+      # Actions are pinned to a commit SHA (with the release in a comment), so a
+      # repointed tag cannot run new code unnoticed. Dependabot moves the SHA.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node }}
           cache: npm
@@ -32,6 +34,12 @@ jobs:
         run: npm run check:line-endings
         if: runner.os == 'Linux'
 
+      # Fails on a high or critical advisory in the dependency tree, so a bad
+      # transitive update cannot ship quietly. Runs once, on Linux.
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+        if: runner.os == 'Linux'
+
       # Validates the committed example report against schema/report.schema.json
       # so a renamed or dropped field fails here rather than in a consumer.
       # Runs once, on Linux: the files are committed, so the verdict is the same
@@ -41,7 +49,7 @@ jobs:
         if: runner.os == 'Linux'
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
@@ -65,6 +73,13 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # Asserts the tarball npm would publish holds only the expected files and
+      # nothing else (a session file, a debug bundle, the source tree). Runs
+      # after the build, because dist/ has to exist. See scripts/check-pack.ts.
+      - name: Check the published file list
+        run: npm run check:pack
+        if: runner.os == 'Linux'
 
       - name: Test
         run: npm test

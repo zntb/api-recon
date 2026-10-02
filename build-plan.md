@@ -625,6 +625,16 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   tarball — and lives in `src/utils/integrity.ts` with the pure digest, HMAC,
   build, and verify functions exported for library use. Off by default, and the
   manifest never covers itself.
+- **Supply-chain hygiene** — every GitHub Action is pinned to a commit SHA
+  (named by release in a trailing comment) so a repointed tag cannot run new
+  code unnoticed, with [`.github/dependabot.yml`](.github/dependabot.yml)
+  keeping both the actions and the npm dependencies current. CI gained two
+  gates: `npm audit --audit-level=high` fails on a high or critical advisory in
+  the dependency tree, and `npm run check:pack` (`scripts/check-pack.ts`) runs
+  `npm pack --dry-run` and fails if the published tarball holds anything outside
+  `dist/`, `schema/`, `completions/`, `README.md`, `LICENSE`, `CHANGELOG.md`, and
+  `package.json` — so a session file, a debug bundle, or the source tree cannot
+  ship by accident.
 
 **Proposed updates & features**
 
@@ -664,10 +674,6 @@ so it can be scoped without re-reading the source.
 
 **Security & privacy**
 
-- **Supply-chain hygiene.** Pin GitHub Actions by commit SHA, enable Dependabot,
-  and add an `npm audit` gate to CI. The published `files` list is already tight
-  (`dist`, `README`, `LICENSE`, `CHANGELOG`); keep it that way with an
-  `npm pack --dry-run` assertion in CI.
 - **Pin the telemetry boundary as a contract.** The payload is local and
   key-free by construction, but nothing stops a future field from being added to
   it; assert the exact key set in a test so widening the boundary cannot happen

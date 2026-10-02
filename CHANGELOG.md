@@ -58,6 +58,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   startup; and nothing is persisted unless `saveStateTo` asks for it, so passing
   `--auth` reads a session but never rewrites it.
 
+### Internal
+
+- **Supply-chain hygiene** — GitHub Actions in every workflow are now pinned to
+  a commit SHA (named by release in a trailing comment) so a repointed tag
+  cannot run new code unnoticed, and [`.github/dependabot.yml`](.github/dependabot.yml)
+  keeps both the actions and the npm dependencies current. CI gained two gates:
+  `npm audit --audit-level=high` fails on a high or critical advisory in the
+  dependency tree, and `npm run check:pack` (`scripts/check-pack.ts`) runs
+  `npm pack --dry-run` and fails if the published tarball holds anything outside
+  `dist/`, `schema/`, `completions/`, `README.md`, `LICENSE`, `CHANGELOG.md`, and
+  `package.json` — so a session file, a debug bundle, or the source tree cannot
+  ship by accident.
+
 ## [0.4.0] - 2026-10-01
 
 ### Added

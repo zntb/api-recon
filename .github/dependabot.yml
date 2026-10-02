@@ -1,0 +1,34 @@
+# Dependabot keeps dependencies and the pinned GitHub Actions current.
+#
+# Actions in `.github/workflows/` are pinned to a commit SHA (see the workflows
+# for the `# vX.Y.Z` comment naming the release each SHA came from), because a
+# moving tag can be repointed at new code without a review. Dependabot reads
+# that comment and opens a PR that moves the SHA — it is what keeps a pinned
+# workflow from going stale.
+#
+# Both ecosystems are grouped so a routine round of bumps is one reviewable PR
+# rather than a dozen.
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore'
+    groups:
+      npm:
+        patterns: ['*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'ci'
+    groups:
+      actions:
+        patterns: ['*']

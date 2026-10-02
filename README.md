@@ -1085,6 +1085,34 @@ when the report itself changed, not when it merely ran again.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for test expectations.
 
+## Supply chain
+
+The release pipeline is built to be auditable:
+
+- **Actions are pinned by commit SHA** in every workflow, with the release the
+  SHA came from in a trailing comment (`actions/checkout@d23441a48 # v6.1.0`),
+  so a repointed tag cannot silently run new code. Dependabot
+  ([`.github/dependabot.yml`](.github/dependabot.yml)) opens the PR that moves
+  the SHA when a new release lands, along with routine npm updates.
+- **CI audits dependencies** with `npm audit --audit-level=high`, so a bad
+  transitive update fails the build rather than shipping quietly.
+- **CI asserts the published file list** with `npm run check:pack`
+  (`scripts/check-pack.ts`): it runs `npm pack --dry-run` and fails if the
+  tarball holds anything outside `dist/`, `schema/`, `completions/`, `README.md`,
+  `LICENSE`, `CHANGELOG.md`, and `package.json`, or is missing a file the package
+  needs — so a session file, a debug bundle, or the source tree cannot ride into
+  a release.
+- **Publishing is attested** — `npm publish --provenance` attaches a signed
+  attestation linking the tarball to the workflow run that built it (see
+  [`.github/workflows/publish.yml`](.github/workflows/publish.yml)).
+
+Run the same gates locally:
+
+```bash
+npm audit --audit-level=high
+npm run build && npm run check:pack
+```
+
 ## Limitations
 
 - Chromium, Firefox, and WebKit are supported through `--browser`, but the
