@@ -1,7 +1,7 @@
 /** CLI end-to-end tests: spawn the real CLI against the local fixture site. */
 
 import { execFile, spawn } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -784,11 +784,17 @@ describe('api-recon CLI', () => {
       // leave this promise unresolved. `exit` fires when the process is gone,
       // but the pipes can still hold buffered output, so `close` — which fires
       // once stdout and stderr are drained — is what the assertions below read.
-      const exited = new Promise<number | null>((resolve) =>
-        child.once('exit', (value) => resolve(value)),
+      const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
+        (resolve) => child.once('exit', (code, signal) => resolve({ code, signal })),
       );
       const drained = new Promise<void>((resolve) => child.once('close', () => resolve()));
-      const detail = (): string => `\n--- stdout ---\n${stdout}\n--- stderr ---\n${stderr}`;
+      // What the child left behind, so a failure says what actually happened
+      // rather than only that a file was missing.
+      let listing: string[] = [];
+      const detail = (outcome?: { code: number | null; signal: NodeJS.Signals | null }): string =>
+        `\n--- outcome ---\n${outcome ? JSON.stringify(outcome) : 'still running'}` +
+        `\n--- out dir (${dir}) ---\n${listing.join(', ') || '(empty)'}` +
+        `\n--- stdout ---\n${stdout}\n--- stderr ---\n${stderr}`;
 
       // Wait until the crawl has actually recorded a page before interrupting.
       // The checkpoint is written after every page, so its arrival is a
@@ -810,20 +816,24 @@ describe('api-recon CLI', () => {
       }
       child.kill('SIGINT');
 
-      const code = await exited;
+      const outcome = await exited;
       await drained;
-      expect(code, `the CLI should exit 130 on SIGINT${detail()}`).toBe(130);
-      expect(stdout, `the CLI should say it wrote the partial report${detail()}`).toMatch(
-        /partial report written/i,
-      );
+      listing = await readdir(dir).catch(() => [] as string[]);
 
+      // The behaviour first: the point of Ctrl+C is that the capture survives it.
       const reportPath = join(dir, 'report.json');
-      let text: string;
+      let text: string | null = null;
       try {
         text = await readFile(reportPath, 'utf8');
       } catch {
-        throw new Error(`report.json was not flushed on SIGINT${detail()}`);
+        text = null;
       }
+      if (text === null) throw new Error(`report.json was not flushed on SIGINT${detail(outcome)}`);
+
+      expect(outcome.code, `the CLI should exit 130 on SIGINT${detail(outcome)}`).toBe(130);
+      expect(stdout, `the CLI should say it wrote the partial report${detail(outcome)}`).toMatch(
+        /partial report written/i,
+      );
       const report = JSON.parse(text) as { meta: { pagesVisited: number } };
       expect(report.meta.pagesVisited).toBeGreaterThanOrEqual(1);
     },
