@@ -750,7 +750,9 @@ describe('api-recon CLI', () => {
   it.runIf(process.platform !== 'win32')(
     'stops a running scan on SIGINT and still flushes report.json',
     async () => {
-      const dir = join(outDir, 'cli-sigint');
+      // A fresh directory per attempt: a retry must not find the previous
+      // attempt's checkpoint and signal before this run has recorded a page.
+      const dir = await mkdtemp(join(outDir, 'cli-sigint-'));
       const child = spawn(
         process.execPath,
         [
@@ -771,10 +773,19 @@ describe('api-recon CLI', () => {
         { env: { ...process.env }, stdio: ['ignore', 'pipe', 'pipe'] },
       );
       let stdout = '';
+      let stderr = '';
       child.stdout.on('data', (chunk) => {
         stdout += String(chunk);
       });
-      child.stderr.on('data', () => {});
+      child.stderr.on('data', (chunk) => {
+        stderr += String(chunk);
+      });
+      // Registered before the signal, so a child that exits in between cannot
+      // leave this promise unresolved.
+      const exited = new Promise<number | null>((resolve) =>
+        child.once('exit', (value) => resolve(value)),
+      );
+      const detail = (): string => `\n--- stdout ---\n${stdout}\n--- stderr ---\n${stderr}`;
 
       // Wait until the crawl has actually recorded a page before interrupting.
       // The checkpoint is written after every page, so its arrival is a
@@ -784,27 +795,32 @@ describe('api-recon CLI', () => {
       const checkpoint = join(dir, 'checkpoint.json');
       const deadline = Date.now() + 90_000;
       for (;;) {
+        if (Date.now() > deadline) {
+          throw new Error(`the scan never wrote a checkpoint to interrupt${detail()}`);
+        }
         try {
           await readFile(checkpoint, 'utf8');
           break;
         } catch {
-          if (Date.now() > deadline) {
-            throw new Error('the scan never wrote a checkpoint to interrupt');
-          }
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
       }
       child.kill('SIGINT');
 
-      const code = await new Promise<number | null>((resolve) =>
-        child.once('exit', (value) => resolve(value)),
+      const code = await exited;
+      expect(code, `the CLI should exit 130 on SIGINT${detail()}`).toBe(130);
+      expect(stdout, `the CLI should say it wrote the partial report${detail()}`).toMatch(
+        /partial report written/i,
       );
 
-      expect(code).toBe(130);
-      expect(stdout).toMatch(/partial report/i);
-      const report = JSON.parse(await readFile(join(dir, 'report.json'), 'utf8')) as {
-        meta: { pagesVisited: number };
-      };
+      const reportPath = join(dir, 'report.json');
+      let text: string;
+      try {
+        text = await readFile(reportPath, 'utf8');
+      } catch {
+        throw new Error(`report.json was not flushed on SIGINT${detail()}`);
+      }
+      const report = JSON.parse(text) as { meta: { pagesVisited: number } };
       expect(report.meta.pagesVisited).toBeGreaterThanOrEqual(1);
     },
     120_000,
