@@ -14,12 +14,14 @@
     --amber-50: #fdf2e4; --amber-700: #b54708;
     --red-50: #fdeceb; --red-700: #b42318;
     --blue-50: #e8f0fe; --blue-700: #0552b5;
-    /* surfaces, text, and the status roles built on the ramp */
-    --line: #e3e7ee; --muted: #5b6675; --ink: #1c2430;
-    --bg: #f6f7f9; --panel: #ffffff; --panel-2: #fbfcfe; --head: #f4f6fa;
-    --head-hover: #e9eef7; --row-hover: #f7f9fd; --row-open: #f2f5fd;
-    --row-removed: #fff7f6; --row-removed-hover: #fdeceb;
-    --chip: #eef1f6; --chip-ink: #404a5c; --input-border: #cbd3df;
+    /* surfaces, text, and the status roles built on the ramp. The neutrals are
+       cool steel blues rather than true greys, so the brand hue sits on the page
+       as one family instead of a colour dropped onto a neutral ground. */
+    --line: #dde3ec; --muted: #566276; --ink: #16202c;
+    --bg: #f3f6fa; --panel: #ffffff; --panel-2: #f8fafc; --head: #edf1f7;
+    --head-hover: #e2e9f4; --row-hover: #f4f7fb; --row-open: #eef3fb;
+    --row-removed: #fff6f5; --row-removed-hover: #fdeceb;
+    --chip: #eaeef4; --chip-ink: #3d475a; --input-border: #c6cfdd;
     --ok: var(--green-700); --ok-bg: var(--green-50);
     --warn: var(--amber-700); --warn-bg: var(--amber-50);
     --bad: var(--red-700); --bad-bg: var(--red-50);
@@ -30,13 +32,15 @@
        4.3:1, below AA. Links take the ramp's readable-ink step instead, and it
        follows the dark and print overrides because it points at --brand-700. */
     --link: var(--brand-700);
-    --shadow: 0 1px 2px rgba(16,24,40,.04);
+    --shadow: 0 1px 2px rgba(16,24,40,.05);
     --pre-bg: #0f172a; --pre-ink: #e2e8f0;
-    /* typography */
+    /* typography: display (a document voice), sans (controls), mono (data). */
+    --font-display: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "Times New Roman", Georgia, serif;
     --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    /* spacing & shape */
-    --radius: 12px; --radius-sm: 7px; --space: 1rem;
+    /* spacing & shape: a tight radius set, with a pill reserved for chips, so not
+       everything on the page rounds to the same corner. */
+    --radius: 10px; --radius-sm: 6px; --space: 1rem;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -49,13 +53,13 @@
     --amber-50: #33260d; --amber-700: #fbbf24;
     --red-50: #3a1a1c; --red-700: #f87171;
     --blue-50: #10263a; --blue-700: #7dd3fc;
-      --line: #2a3342; --muted: #97a3b4; --ink: #e6ebf2;
-      --bg: #0e131b; --panel: #161d27; --panel-2: #131a23; --head: #1b2330;
-      --head-hover: #243043; --row-hover: #1b2330; --row-open: #1d2738;
+      --line: #26313f; --muted: #93a0b3; --ink: #e8edf4;
+      --bg: #0c1219; --panel: #141c26; --panel-2: #111923; --head: #1a2330;
+      --head-hover: #232f40; --row-hover: #1a2330; --row-open: #1c2738;
       --row-removed: #2a1a1c; --row-removed-hover: #361f22;
-      --chip: #232d3b; --chip-ink: #c4cfdd; --input-border: #38445a;
+      --chip: #212b39; --chip-ink: #c2cddb; --input-border: #364254;
       --shadow: 0 1px 2px rgba(0,0,0,.45);
-      --pre-bg: #0b1018; --pre-ink: #e2e8f0;
+      --pre-bg: #0a0f17; --pre-ink: #e2e8f0;
     }
   }
   @media print {
@@ -95,8 +99,11 @@
 
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-  body { margin: 0; font-family: var(--font-sans); background: var(--bg); color: var(--ink); line-height: 1.6; }
+  body { margin: 0; font-family: var(--font-display); background: var(--bg); color: var(--ink); line-height: 1.7;
+    -webkit-font-smoothing: antialiased; }
   .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); }
+  /* The page prose is a document; the sidebar and the data tables are chrome. */
+  .sidebar, footer, table { font-family: var(--font-sans); }
   .sidebar { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
     background: var(--panel); border-right: 1px solid var(--line); padding: 1.4rem 1rem; }
   .brand { display: flex; align-items: center; gap: .5rem; font-weight: 700; text-decoration: none;
@@ -107,12 +114,14 @@
     color: var(--muted); text-decoration: none; font-size: .92rem; }
   .sidebar a:hover { background: var(--row-hover); color: var(--ink); }
   .sidebar a.active { background: var(--note-bg); color: var(--link); font-weight: 600; }
-  main { padding: 2.5rem 2rem; max-width: 920px; }
+  main { padding: 2.5rem 2rem; max-width: 880px; }
   article { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
     padding: 2.2rem; box-shadow: var(--shadow); }
-  h1 { font-size: 1.9rem; margin-top: 0; letter-spacing: -0.02em; }
-  h2 { font-size: 1.28rem; margin-top: 2.2rem; padding-bottom: .35rem; border-bottom: 2px solid var(--chip); }
-  h3 { font-size: 1.06rem; margin-top: 1.6rem; }
+  h1 { font-family: var(--font-display); font-size: 2rem; font-weight: 600; margin-top: 0;
+    letter-spacing: -0.015em; }
+  h2 { font-family: var(--font-display); font-size: 1.4rem; font-weight: 600; margin-top: 2.2rem;
+    padding-bottom: .4rem; border-bottom: 1px solid var(--line); }
+  h3 { font-family: var(--font-display); font-size: 1.12rem; font-weight: 600; margin-top: 1.6rem; }
   a { color: var(--link); }
   table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .9rem; }
   th, td { text-align: left; padding: .5rem .65rem; border: 1px solid var(--line); vertical-align: top; }

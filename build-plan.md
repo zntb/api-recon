@@ -709,6 +709,20 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   returning, so a bad file is a `SafetyError` (exit `2`) rather than a warning
   mid-run. The schema also rejects extra fields, a multi-key step, and an empty
   object, so a typo cannot be ignored.
+- **A demanding, mobile-friendly visual system** — the shared theme
+  (`src/reporters/theme.ts`) now defines three type roles rather than one: a
+  serif display face for headings and the report's prose, a neutral sans for
+  controls, and mono for machine data (paths, methods, numbers, code). Neutral
+  surfaces moved to cool steel blues so the brand hue reads as one family, and
+  the corner radius is no longer a single value applied to everything. The
+  dashboard drops its row of identical bordered tiles for one hairline-divided
+  *instrument strip* of mono readouts under a serif masthead, and the findings
+  and resource panels gained the padding they were missing. Below 720px the
+  dashboard table stops being a grid: each row becomes a card and each cell
+  carries its column label — drawn in CSS from `data-label`, so no label text
+  enters the DOM — which the browser suite asserts, along with the absence of
+  horizontal overflow. `report.html` and the docs site are set in the same type
+  system, so every artifact reads as one product.
 
 **Proposed updates & features**
 

@@ -29,52 +29,63 @@ const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}${BRAND_STYLE}
      explicit display, or hiding an element from script silently does nothing. */
   [hidden] { display: none !important; }
   body {
-    margin: 0; padding: 2rem 1.5rem 4rem;
+    margin: 0; padding: 2.25rem 1.75rem 5rem;
     font-family: var(--font-sans);
     background: var(--bg); color: var(--ink); line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 1200px; margin: 0 auto; }
-  header.top { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: flex-end;
-    justify-content: space-between; margin-bottom: 1.25rem; }
-  h1 { font-size: 1.6rem; margin: 0 0 .25rem; letter-spacing: -0.02em; }
-  .seed { margin: 0; color: var(--muted); font-size: .9rem; word-break: break-all; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  /* The masthead is the one ceremonial line on the page: a serif title, a mono
+     seed, and a hairline under it that separates prose from readouts. */
+  header.top { display: flex; flex-wrap: wrap; gap: .75rem 2rem; align-items: flex-end;
+    justify-content: space-between; margin-bottom: 1.35rem; padding-bottom: 1.15rem;
+    border-bottom: 1px solid var(--line); }
+  h1 { font-family: var(--font-display); font-size: 2rem; font-weight: 600;
+    margin: 0 0 .3rem; letter-spacing: -0.015em; line-height: 1.1; }
+  .brand-mark { vertical-align: -0.12em; margin-right: .5rem; }
+  .seed { margin: 0; color: var(--muted); font-size: .8rem; word-break: break-all;
+    font-family: var(--font-mono); }
   .seed a { color: inherit; }
-  dl.meta { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; margin: 0; font-size: .82rem;
-    color: var(--muted); }
-  dl.meta div { display: flex; gap: .35rem; }
-  dl.meta dt { margin: 0; }
-  dl.meta dd { margin: 0; color: var(--ink); font-weight: 600; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: .75rem; margin-bottom: 1.25rem; }
-  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-    padding: .7rem .85rem; }
-  .tile .n { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
-  .tile .l { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-  /* A severity tile wears its tone on the number and the edge, so the eye lands
-     on the count before it reads the label. */
-  .tile.good { border-left: 3px solid var(--ok); }
+  dl.meta { display: flex; flex-wrap: wrap; gap: .2rem 1.15rem; margin: 0;
+    font-size: .72rem; color: var(--muted); }
+  dl.meta div { display: flex; gap: .35rem; align-items: baseline; }
+  dl.meta dt { margin: 0; font-family: var(--font-display); }
+  dl.meta dd { margin: 0; color: var(--ink); font-family: var(--font-mono); font-size: .95em; }
+  /* The instrument strip: readouts divided by hairlines drawn as the grid gap,
+     so the numbers read as one panel rather than a row of separate cards. */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    gap: 1px; background: var(--line); border: 1px solid var(--line);
+    border-radius: var(--radius); overflow: hidden; margin: 0 0 1.35rem; }
+  .tile { background: var(--panel); padding: .8rem 1rem 1rem; }
+  .tile .n { font-family: var(--font-mono); font-size: 1.6rem; font-weight: 600;
+    line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .tile .l { font-family: var(--font-display); font-size: .9rem; color: var(--muted); margin-top: .3rem; }
+  /* A severity readout wears its tone on the number, so the eye lands on the
+     count before it reads the label. */
   .tile.good .n { color: var(--ok); }
-  .tile.warn { border-left: 3px solid var(--warn); }
   .tile.warn .n { color: var(--warn); }
-  .tile.bad { border-left: 3px solid var(--bad); }
   .tile.bad .n { color: var(--bad); }
-  .tile.info { border-left: 3px solid var(--info); }
   .tile.info .n { color: var(--info); }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-    box-shadow: var(--shadow); overflow: hidden; }
-  .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
-    padding: .85rem; border-bottom: 1px solid var(--line); background: var(--panel-2); }
-  input[type=search], select { font: inherit; font-size: .87rem; padding: .4rem .55rem;
-    border: 1px solid var(--input-border); border-radius: 7px; background: var(--panel);
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden; margin-bottom: 1.35rem; }
+  .panel > h2 { font-family: var(--font-display); font-size: 1.2rem; font-weight: 600;
+    margin: 0; padding: 1.05rem 1.15rem .15rem; }
+  .graphpanel { padding: 0 1.15rem 1.15rem; }
+  .graphpanel > h2, .graphpanel > .hint { padding-left: 0; padding-right: 0; }
+  .controls { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center;
+    padding: .8rem .9rem; border-bottom: 1px solid var(--line); background: var(--panel-2); }
+  input[type=search], select { font: inherit; font-size: .85rem; padding: .42rem .55rem;
+    border: 1px solid var(--input-border); border-radius: var(--radius-sm); background: var(--panel);
     color: inherit; }
-  input[type=search] { flex: 1 1 240px; min-width: 180px; }
+  input[type=search] { flex: 1 1 240px; min-width: 160px; }
   input[type=search]:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  label.check { display: inline-flex; align-items: center; gap: .35rem; font-size: .84rem;
+  label.check { display: inline-flex; align-items: center; gap: .35rem; font-size: .82rem;
     color: var(--muted); user-select: none; }
-  button { font: inherit; font-size: .84rem; padding: .4rem .7rem; border-radius: 7px;
+  button { font: inherit; font-size: .82rem; padding: .42rem .7rem; border-radius: var(--radius-sm);
     border: 1px solid var(--input-border); background: var(--panel); color: inherit; cursor: pointer; }
   button:hover { background: var(--row-hover); }
-  .count { margin-left: auto; font-size: .8rem; color: var(--muted); white-space: nowrap; }
+  .count { margin-left: auto; font-size: .76rem; color: var(--muted); white-space: nowrap;
+    font-family: var(--font-mono); }
   /* Visually hidden, still announced: a table caption and instructions that
      would be noise on screen but orient a screen-reader user. */
   .sr-only {
@@ -86,10 +97,10 @@ const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}${BRAND_STYLE}
      table can be scrolled from the keyboard, not only by the mouse. */
   .tablewrap { overflow: auto; max-height: 72vh; }
   .tablewrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  table { width: 100%; border-collapse: collapse; font-size: .86rem; }
-  th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line);
+  table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+  th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--line);
     vertical-align: top; }
-  th { background: var(--head); font-weight: 600; white-space: nowrap;
+  th { background: var(--head); font-weight: 600; white-space: nowrap; font-size: .78rem;
     position: sticky; top: 0; z-index: 2; }
   /* A sortable header is a real button inside the cell, so it is reachable and
      operable by keyboard and announces its direction through the th's
@@ -97,10 +108,10 @@ const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}${BRAND_STYLE}
   th.sortable { padding: 0; }
   th.sortable .sort-btn { display: flex; align-items: center; width: 100%;
     font: inherit; font-weight: 600; color: inherit; background: none; border: 0;
-    padding: .5rem .7rem; text-align: left; cursor: pointer; }
+    padding: .55rem .7rem; text-align: left; cursor: pointer; }
   th.sortable .sort-btn:hover { background: var(--head-hover); }
   th.sortable .sort-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-  th .arrow { color: var(--muted); font-size: .7rem; margin-left: .25rem; }
+  th .arrow { color: var(--muted); font-size: .65rem; margin-left: .3rem; }
   tbody tr.row { cursor: pointer; }
   tbody tr.row:hover td { background: var(--row-hover); }
   /* The row's expand control is a real button, so the row keeps its table
@@ -109,7 +120,7 @@ const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}${BRAND_STYLE}
     padding: 0; border: 0; background: none; color: inherit; cursor: pointer;
     border-radius: 4px; }
   .row-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .row-toggle .caret { color: var(--muted); font-size: .7rem; }
+  .row-toggle .caret { color: var(--muted); font-size: .65rem; }
   tbody tr.row.open td { background: var(--row-open); }
   /* Pin the method column too, so a wide row stays anchored. */
   th:first-child, td:first-child { position: sticky; left: 0; z-index: 1;
@@ -126,15 +137,15 @@ const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}${BRAND_STYLE}
     background: var(--row-removed-hover); }
   tbody tr.row.removed td.path { text-decoration: line-through; opacity: .75; }
   td.path { font-family: var(--font-mono); word-break: break-all; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
   .method { font-family: var(--font-mono);
-    font-size: .76rem; font-weight: 700; letter-spacing: .02em; padding: .1rem .4rem;
+    font-size: .72rem; font-weight: 700; letter-spacing: .02em; padding: .12rem .4rem;
     border-radius: 5px; background: var(--chip); white-space: nowrap; }
   .m-GET { color: var(--info); background: var(--info-bg); }
   .m-POST { color: var(--ok); background: var(--ok-bg); }
   .m-PUT, .m-PATCH { color: var(--warn); background: var(--warn-bg); }
   .m-DELETE { color: var(--bad); background: var(--bad-bg); }
-  .badge { font-size: .74rem; padding: .1rem .45rem; border-radius: 99px;
+  .badge { font-size: .72rem; padding: .12rem .45rem; border-radius: 99px;
     background: var(--chip); color: var(--chip-ink); white-space: nowrap; }
   .badge.breaking { background: var(--bad-bg); color: var(--bad); font-weight: 600; }
   .badge.added { background: var(--ok-bg); color: var(--ok); }
@@ -146,35 +157,68 @@ const STYLE = `${THEME_TOKENS}${CODE_STYLE}${GRAPH_STYLE}${BRAND_STYLE}
   tr.details > td { background: var(--panel-2); padding: 1rem 1.1rem 1.25rem;
     position: static; }
   .blocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
-  .block h4 { margin: 0 0 .4rem; font-size: .72rem; text-transform: uppercase;
-    letter-spacing: .07em; color: var(--muted); }
+  .block h4 { margin: 0 0 .35rem; font-family: var(--font-display); font-size: .95rem;
+    font-weight: 600; color: var(--muted); }
   .block.full { grid-column: 1 / -1; }
   .block ul { margin: 0; padding-left: 1.1rem; }
   .block li { margin: .1rem 0; word-break: break-all; }
+  #findings > .block, #resources > .block { padding: 0 1.15rem .9rem; }
   pre { margin: 0; background: var(--pre-bg); color: var(--pre-ink); padding: .7rem .8rem;
-    border-radius: 7px; overflow-x: auto; font-size: .76rem; line-height: 1.4;
+    border-radius: var(--radius-sm); overflow-x: auto; font-size: .76rem; line-height: 1.4;
     max-height: 22rem; }
-  .hint { color: var(--muted); font-size: .8rem; margin: 0; }
+  .hint { color: var(--muted); font-size: .82rem; margin: 0; }
   .empty { text-align: center; color: var(--muted); padding: 2.5rem 1rem; margin: 0; }
   noscript .panel { display: block; padding: 1.25rem; }
   /* Grouping: a left-hand nav beside the table, and a full-width header row per
      group that collapses. The nav stays put while the table scrolls. */
   .main { display: flex; gap: 1rem; align-items: flex-start; }
   .tablearea { flex: 1 1 auto; min-width: 0; }
-  nav.groupnav { flex: 0 0 210px; padding: .6rem; position: sticky; top: 1rem; }
-  nav.groupnav h3 { margin: .1rem .3rem .5rem; font-size: .72rem; text-transform: uppercase;
-    letter-spacing: .07em; color: var(--muted); }
+  nav.groupnav { flex: 0 0 200px; padding: .7rem; position: sticky; top: 1rem; }
+  nav.groupnav h3 { margin: .1rem .3rem .5rem; font-family: var(--font-display);
+    font-size: .95rem; font-weight: 600; color: var(--muted); }
   .groupnav-item { display: flex; justify-content: space-between; align-items: center; gap: .5rem;
-    width: 100%; margin: 0 0 .2rem; padding: .35rem .5rem; border: 1px solid transparent;
-    border-radius: 7px; background: transparent; color: inherit; font: inherit;
+    width: 100%; margin: 0 0 .15rem; padding: .38rem .5rem; border: 1px solid transparent;
+    border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit;
     font-size: .82rem; text-align: left; cursor: pointer; }
   .groupnav-item:hover { background: var(--row-hover); }
   .groupnav-item[aria-pressed="true"] { color: var(--muted); }
-  .groupnav-item .n { color: var(--muted); font-variant-numeric: tabular-nums; }
-  tr.group > td { background: var(--panel-2); font-weight: 600; cursor: pointer;
-    padding-top: .55rem; padding-bottom: .55rem; }
+  .groupnav-item .n { color: var(--muted); font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums; }
+  tr.group > td { background: var(--panel-2); font-family: var(--font-display); font-weight: 600;
+    font-size: .95rem; cursor: pointer; padding-top: .5rem; padding-bottom: .5rem; }
   tr.group .caret { display: inline-block; width: 1rem; color: var(--muted); }
-  tr.group .n { color: var(--muted); font-weight: 400; }
+  tr.group .n { color: var(--muted); font-weight: 400; font-family: var(--font-mono);
+    font-size: .85rem; }
+  /* Below a phone width the table stops being a grid: each row becomes a card
+     and each cell carries its own column label, so an endpoint is read top to
+     bottom instead of scrolled sideways. The labels come from the same data the
+     desktop header shows, via data-label, and are drawn in CSS so they never
+     reach the DOM text. */
+  @media (max-width: 720px) {
+    body { padding: 1.25rem .9rem 3rem; }
+    header.top { gap: .6rem 1rem; }
+    h1 { font-size: 1.55rem; }
+    dl.meta { gap: .15rem .85rem; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .main { display: block; }
+    nav.groupnav { position: static; margin-bottom: .9rem; }
+    .tablewrap { overflow: visible; max-height: none; }
+    thead { display: none; }
+    table, tbody, tr, td { display: block; width: 100%; }
+    tbody tr.row { background: var(--panel); border: 1px solid var(--line);
+      border-radius: var(--radius); margin-bottom: .6rem; overflow: hidden; }
+    tbody tr.row td { border-bottom: 0; display: flex; gap: 1rem; align-items: baseline;
+      justify-content: space-between; padding: .45rem .75rem; }
+    tbody tr.row td::before { content: attr(data-label); flex: 0 0 auto; color: var(--muted);
+      font-family: var(--font-display); font-size: .92rem; }
+    tbody tr.row td:first-child { position: static; background: transparent;
+      border-bottom: 1px solid var(--line); padding-top: .6rem; padding-bottom: .6rem; }
+    tbody tr.row:hover td:first-child, tbody tr.row.open td:first-child { background: transparent; }
+    tr.group > td { border-radius: var(--radius); }
+    tr.details { display: block; }
+    tr.details > td { display: block; border: 1px solid var(--line); border-top: 0;
+      border-radius: 0 0 var(--radius) var(--radius); margin: -.6rem 0 .6rem; }
+  }
   /* Print: the dashboard should print as usefully as report.html. Drop the
      interactive chrome, unpin the table, and keep rows off page breaks. */
   @media print {
@@ -678,6 +722,7 @@ const SCRIPT = `
   // ---- rows ----------------------------------------------------------------
   function statusCell(codes) {
     var cell = el('td');
+    cell.setAttribute('data-label', 'Status');
     (codes || []).forEach(function (code, index) {
       if (index) cell.appendChild(document.createTextNode(' '));
       var tone = code >= 500 ? 'status-bad' : (code >= 400 ? 'status-warn' : (code >= 200 && code < 300 ? 'status-ok' : ''));
@@ -687,8 +732,10 @@ const SCRIPT = `
     return cell;
   }
 
-  function numberCell(value) {
-    return el('td', 'num', typeof value === 'number' ? value : '—');
+  function numberCell(value, label) {
+    var cell = el('td', 'num', typeof value === 'number' ? value : '—');
+    cell.setAttribute('data-label', label);
+    return cell;
   }
 
   function rowFor(e) {
@@ -697,6 +744,7 @@ const SCRIPT = `
     row.setAttribute('data-id', e.id);
 
     var method = el('td');
+    method.setAttribute('data-label', 'Method');
     // The whole row is still clickable, but what a keyboard or screen reader
     // lands on is this button: it names the endpoint, reports whether it is
     // expanded, and points at the detail row it toggles.
@@ -710,20 +758,25 @@ const SCRIPT = `
     method.appendChild(toggle);
     row.appendChild(method);
 
-    row.appendChild(el('td', 'path', e.urlPattern));
+    var pathCell = el('td', 'path', e.urlPattern);
+    pathCell.setAttribute('data-label', 'Path');
+    row.appendChild(pathCell);
     var categoryCell = el('td');
+    categoryCell.setAttribute('data-label', 'Category');
     categoryCell.textContent = e.removed ? '—' : e.category;
     if (e.vendor) categoryCell.appendChild(el('span', 'vendor', ' · ' + e.vendor.name));
     row.appendChild(categoryCell);
     row.appendChild(statusCell(e.statusCodes));
-    row.appendChild(numberCell(e.count));
+    row.appendChild(numberCell(e.count, 'Calls'));
     var timeCell = el('td', 'num');
+    timeCell.setAttribute('data-label', 'Time (p95)');
     timeCell.textContent = (!e.removed && e.timing) ? e.timing.p95 + ' ms' : '—';
     row.appendChild(timeCell);
-    row.appendChild(numberCell(e.removed ? null : (e.triggeredBy || []).length));
+    row.appendChild(numberCell(e.removed ? null : (e.triggeredBy || []).length, 'Pages'));
 
     var change = changeById[e.id];
     var changeCell = el('td');
+    changeCell.setAttribute('data-label', 'Change');
     if (change) {
       var badge = el('span', 'badge ' + (change.breaking ? 'breaking' : change.kind));
       badge.textContent = change.kind + (change.breaking ? ' · breaking' : '');

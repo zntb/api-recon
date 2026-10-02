@@ -49,8 +49,11 @@ export function docsCss(): string {
   return `${THEME_TOKENS}${CODE_STYLE}${BRAND_STYLE}
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-  body { margin: 0; font-family: var(--font-sans); background: var(--bg); color: var(--ink); line-height: 1.6; }
+  body { margin: 0; font-family: var(--font-display); background: var(--bg); color: var(--ink); line-height: 1.7;
+    -webkit-font-smoothing: antialiased; }
   .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); }
+  /* The page prose is a document; the sidebar and the data tables are chrome. */
+  .sidebar, footer, table { font-family: var(--font-sans); }
   .sidebar { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
     background: var(--panel); border-right: 1px solid var(--line); padding: 1.4rem 1rem; }
   .brand { display: flex; align-items: center; gap: .5rem; font-weight: 700; text-decoration: none;
@@ -61,12 +64,14 @@ export function docsCss(): string {
     color: var(--muted); text-decoration: none; font-size: .92rem; }
   .sidebar a:hover { background: var(--row-hover); color: var(--ink); }
   .sidebar a.active { background: var(--note-bg); color: var(--link); font-weight: 600; }
-  main { padding: 2.5rem 2rem; max-width: 920px; }
+  main { padding: 2.5rem 2rem; max-width: 880px; }
   article { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
     padding: 2.2rem; box-shadow: var(--shadow); }
-  h1 { font-size: 1.9rem; margin-top: 0; letter-spacing: -0.02em; }
-  h2 { font-size: 1.28rem; margin-top: 2.2rem; padding-bottom: .35rem; border-bottom: 2px solid var(--chip); }
-  h3 { font-size: 1.06rem; margin-top: 1.6rem; }
+  h1 { font-family: var(--font-display); font-size: 2rem; font-weight: 600; margin-top: 0;
+    letter-spacing: -0.015em; }
+  h2 { font-family: var(--font-display); font-size: 1.4rem; font-weight: 600; margin-top: 2.2rem;
+    padding-bottom: .4rem; border-bottom: 1px solid var(--line); }
+  h3 { font-family: var(--font-display); font-size: 1.12rem; font-weight: 600; margin-top: 1.6rem; }
   a { color: var(--link); }
   table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .9rem; }
   th, td { text-align: left; padding: .5rem .65rem; border: 1px solid var(--line); vertical-align: top; }

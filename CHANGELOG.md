@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-02
+
 ### Added
 
 - **Timeouts, retries, and a resumable crawl** — a page that never finishes
@@ -44,6 +46,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   naming the offending path and line (`steps[1].fill.value`), with an exact line
   and column for a YAML/JSON syntax error. Extra fields, a step with more than
   one key, an unknown step, and an empty object are rejected too.
+
+### Changed
+
+- **A demanding, mobile-friendly redesign** — every HTML artifact now shares one
+  typographic system instead of a single sans stack: a serif display face for
+  headings and the report's prose, a neutral sans for controls, and mono for
+  machine data (paths, methods, numbers, and code). Neutral surfaces moved to
+  cool steel blues, corner radii are varied by role, and the dashboard replaces
+  its row of identical bordered tiles with one hairline-divided instrument strip
+  of mono readouts under a serif masthead. On a phone-sized screen the dashboard
+  table becomes a stack of labelled cards instead of a sideways-scrolling grid.
+  No data, flags, or report fields change.
 
 ### Internal
 
@@ -786,7 +800,8 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
-[Unreleased]: https://github.com/zntb/api-recon/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/zntb/api-recon/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/zntb/api-recon/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/zntb/api-recon/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/zntb/api-recon/compare/v0.3.9...v0.4.0
 [0.3.9]: https://github.com/zntb/api-recon/compare/v0.3.8...v0.3.9

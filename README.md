@@ -520,10 +520,10 @@ you only care about the API surface, Chromium is the safer default.
 | --- | --- |
 | `report.json` | Machine-readable source of truth |
 | `report.md` | A one-line scorecard and a linked table of contents, then overview, technologies, endpoint tables with category badges, detailed endpoints, auth flows, third-party calls, safety notes, WebSocket traffic |
-| `report.html` | Styled standalone version of the Markdown |
+| `report.html` | Styled standalone version of the Markdown, set as a readable print-ready document |
 | `report.pdf` | Rendered from the HTML with Playwright's `page.pdf()`: a cover page, running header/footer with page numbers, and an endpoint's detail kept whole |
 | `openapi.yaml` | Best-effort OpenAPI 3.0 spec from inferred paths, methods, params, and schemas |
-| `dashboard.html` | Interactive dashboard: search, filter, sort, and expand endpoints |
+| `dashboard.html` | Interactive dashboard: search, filter, sort, and expand endpoints; the table becomes stacked cards on a phone |
 | `share.md` | One-page, share-safe summary (with `--share`): patterns, categories, and schemas only — no bodies, headers, or samples |
 | `checksums.json` | Optional integrity manifest (with `--checksum`): a digest per report, optionally HMAC-signed |
 | `telemetry.json` | Opt-in anonymized categorization signals (see [Telemetry](#telemetry-opt-in)); never written unless enabled |
@@ -533,6 +533,13 @@ the same colours, typography, spacing, and code blocks, and both follow your
 `prefers-color-scheme`. Content that cannot wrap — a long URL, a payload —
 scrolls horizontally inside its table or code block instead of widening the
 page.
+
+The type has three deliberate roles: a serif display face for headings and the
+report's prose, a neutral sans for controls, and mono for machine data — paths,
+methods, numbers, and code. Neutral surfaces are cool steel blues rather than
+true greys, so the brand hue sits on the page as one family. The result reads as
+a document in `report.html` and as an instrument in `dashboard.html`, from the
+same palette.
 
 ### Identity and colour ramp
 
@@ -750,6 +757,10 @@ open ./reports/dashboard.html
   point at the detail they open (`aria-controls`); the result count is a live
   region; each summary tile is labelled; and the table's scroll box takes focus,
   so a long table can be scrolled without a mouse.
+- **Mobile** — on a phone-sized screen the table becomes a stack of cards, one
+  per endpoint, each cell labelled with the column it belongs to, so an endpoint
+  is read top to bottom instead of scrolled sideways. The summary strip folds to
+  two columns and nothing overflows the viewport.
 - **Dark mode** — the theme follows `prefers-color-scheme`, so the page darkens
   with the rest of your desktop rather than flashing white.
 - **Sticky table** — the header row and the method column stay pinned while you

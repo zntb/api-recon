@@ -440,6 +440,37 @@ describe('dashboard', () => {
     expect(pageErrors).toEqual([]);
   }, 90_000);
 
+  it('stacks the table into labelled cards on a phone-sized screen', async () => {
+    const file = await writeDashboardReport(REPORT, join(outDir, 'mobile'));
+    page = await browser!.newPage({ viewport: { width: 390, height: 844 } });
+    pageErrors = [];
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+
+    await page.goto(pathToFileURL(file).href);
+
+    // The grid header is gone and each row is its own card.
+    expect(await page.isHidden('thead')).toBe(true);
+    expect(await page.locator('#rows tr.row').count()).toBe(4);
+    // Each data cell carries the column label the desktop header showed, and the
+    // label is drawn in CSS from data-label rather than a second DOM string.
+    expect(await page.locator('#rows tr.row td[data-label="Path"]').count()).toBe(4);
+    const drawnLabel = await page.evaluate(() => {
+      const cell = document.querySelector('#rows tr.row td[data-label="Path"]');
+      return cell ? getComputedStyle(cell, '::before').content : null;
+    });
+    expect(drawnLabel).toContain('Path');
+
+    // A stacked row stays interactive, and nothing spills past the viewport.
+    await page.click('#rows tr.row');
+    expect(await page.locator('#rows tr.details').count()).toBe(1);
+    const overflows = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth + 1,
+    );
+    expect(overflows).toBe(false);
+
+    expect(pageErrors).toEqual([]);
+  }, 90_000);
+
   it('hides the diff-only filters when there is no baseline', async () => {
     const file = await writeDashboardReport({ ...REPORT, diff: undefined }, join(outDir, 'nodiff'));
     page = await browser!.newPage();

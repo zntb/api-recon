@@ -1,19 +1,26 @@
 /**
  * The shared design tokens for every HTML artifact.
  *
- * `report.html` and `dashboard.html` used to carry their own palette, so a
- * restyle meant editing two files that drifted apart. Everything visual that the
- * two have in common — the colour ramp, typography, spacing, and the code-block
- * treatment — is defined once here and interpolated into each page's `<style>`.
+ * `report.html`, `dashboard.html`, and the docs site used to carry their own
+ * palette, so a restyle meant editing several files that drifted apart.
+ * Everything visual they have in common — the colour ramp, typography, spacing,
+ * and the code-block treatment — is defined once here and interpolated into each
+ * page's `<style>`.
  *
  * Tokens are plain CSS custom properties, so an artifact can still add its own
  * rules on top; it just should not invent a new colour to do it.
+ *
+ * The type system has three roles, because a recon report is a document and an
+ * instrument at once: a serif display face gives headings and report prose their
+ * voice, a neutral sans runs the controls, and mono carries machine data — paths,
+ * methods, numbers, and code. The serif is a *system* stack rather than a webfont
+ * so the artifacts stay one file with nothing fetched.
  */
 
 /**
  * The colour ramp, and the roles built on it.
  *
- * Every hue is a named scale, and both artifacts take their colours from it: the
+ * Every hue is a named scale, and every artifact takes its colours from it: the
  * status badges, the graph edges, the focus rings, and the logo all resolve to a
  * ramp step rather than a literal. The legend ships with the stylesheet (see
  * `RAMP_LEGEND`), so a report's own source documents the palette it uses.
@@ -52,12 +59,14 @@ const DARK_RAMP = `
 export const THEME_TOKENS = `
   :root {
     color-scheme: light;${RAMP_LEGEND}${LIGHT_RAMP}
-    /* surfaces, text, and the status roles built on the ramp */
-    --line: #e3e7ee; --muted: #5b6675; --ink: #1c2430;
-    --bg: #f6f7f9; --panel: #ffffff; --panel-2: #fbfcfe; --head: #f4f6fa;
-    --head-hover: #e9eef7; --row-hover: #f7f9fd; --row-open: #f2f5fd;
-    --row-removed: #fff7f6; --row-removed-hover: #fdeceb;
-    --chip: #eef1f6; --chip-ink: #404a5c; --input-border: #cbd3df;
+    /* surfaces, text, and the status roles built on the ramp. The neutrals are
+       cool steel blues rather than true greys, so the brand hue sits on the page
+       as one family instead of a colour dropped onto a neutral ground. */
+    --line: #dde3ec; --muted: #566276; --ink: #16202c;
+    --bg: #f3f6fa; --panel: #ffffff; --panel-2: #f8fafc; --head: #edf1f7;
+    --head-hover: #e2e9f4; --row-hover: #f4f7fb; --row-open: #eef3fb;
+    --row-removed: #fff6f5; --row-removed-hover: #fdeceb;
+    --chip: #eaeef4; --chip-ink: #3d475a; --input-border: #c6cfdd;
     --ok: var(--green-700); --ok-bg: var(--green-50);
     --warn: var(--amber-700); --warn-bg: var(--amber-50);
     --bad: var(--red-700); --bad-bg: var(--red-50);
@@ -68,26 +77,28 @@ export const THEME_TOKENS = `
        4.3:1, below AA. Links take the ramp's readable-ink step instead, and it
        follows the dark and print overrides because it points at --brand-700. */
     --link: var(--brand-700);
-    --shadow: 0 1px 2px rgba(16,24,40,.04);
+    --shadow: 0 1px 2px rgba(16,24,40,.05);
     --pre-bg: #0f172a; --pre-ink: #e2e8f0;
-    /* typography */
+    /* typography: display (a document voice), sans (controls), mono (data). */
+    --font-display: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "Times New Roman", Georgia, serif;
     --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    /* spacing & shape */
-    --radius: 12px; --radius-sm: 7px; --space: 1rem;
+    /* spacing & shape: a tight radius set, with a pill reserved for chips, so not
+       everything on the page rounds to the same corner. */
+    --radius: 10px; --radius-sm: 6px; --space: 1rem;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       color-scheme: dark;
       /* Only the ramp and the surfaces change; the roles above follow, because
          they point at these names. */${DARK_RAMP}
-      --line: #2a3342; --muted: #97a3b4; --ink: #e6ebf2;
-      --bg: #0e131b; --panel: #161d27; --panel-2: #131a23; --head: #1b2330;
-      --head-hover: #243043; --row-hover: #1b2330; --row-open: #1d2738;
+      --line: #26313f; --muted: #93a0b3; --ink: #e8edf4;
+      --bg: #0c1219; --panel: #141c26; --panel-2: #111923; --head: #1a2330;
+      --head-hover: #232f40; --row-hover: #1a2330; --row-open: #1c2738;
       --row-removed: #2a1a1c; --row-removed-hover: #361f22;
-      --chip: #232d3b; --chip-ink: #c4cfdd; --input-border: #38445a;
+      --chip: #212b39; --chip-ink: #c2cddb; --input-border: #364254;
       --shadow: 0 1px 2px rgba(0,0,0,.45);
-      --pre-bg: #0b1018; --pre-ink: #e2e8f0;
+      --pre-bg: #0a0f17; --pre-ink: #e2e8f0;
     }
   }
   @media print {
@@ -126,7 +137,7 @@ export const GRAPH_STYLE = `
 `;
 
 /**
- * The code treatment shared by both artifacts: a dark block that scrolls
+ * The code treatment shared by every artifact: a dark block that scrolls
  * horizontally rather than wrapping (source code and payloads are read as they
  * were written), and inline code that does not invent its own colours.
  *
