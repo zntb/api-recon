@@ -130,5 +130,7 @@ The tag must match the version exactly: `v0.2.0` for `"version": "0.2.0"`.
 
 - Never add code that bypasses authentication, CAPTCHAs, or bot protections.
 - Never persist credentials that a scan observed.
+- Report a vulnerability in the tool itself through the private advisory link in
+  [`SECURITY.md`](SECURITY.md) rather than opening a public issue.
 - Keep robots.txt enabled by default and rate limiting on by default.
 - Do not weaken the `--allow-local` guard without an explicit design discussion.

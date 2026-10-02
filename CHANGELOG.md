@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A security policy** — [`SECURITY.md`](SECURITY.md) states how to report a
+  problem with the tool privately (a GitHub security advisory, not an issue),
+  that only the 0.4.x line is supported, and what gets prioritized: anything
+  that lets a secret reach a report is a release blocker, as is a weakness in
+  the integrity manifest or its signature check, then the scope and
+  `--allow-local` guards, then path handling. It also says what is out of
+  scope — a site serving hostile content, scanning without permission, and
+  advisories with no reachable path — and asks for a disclosure window rather
+  than promising a bounty. `CONTRIBUTING.md` and the README's guardrails
+  section point at it.
+
 ### Internal
 
 - **The published package is now tested** — every test imported from `src/`, so

@@ -6,7 +6,7 @@
 
 **Recommendation: Ready to publish.** The one High finding has been fixed on `main` since this review was written — see Finding 1, which now carries its resolution and regression coverage. Nothing outstanding blocks a release.
 
-**Findings: 1 High (**fixed**) · 3 Medium (**3 fixed**) · 6 Low (**1 fixed**) · 2 Nit (12 total; 8 open).** Every finding that needed a code or gate change is now resolved on `main`; the remaining eight are polish, documentation, and CI-planning work that can follow.
+**Findings: 1 High (**fixed**) · 3 Medium (**3 fixed**) · 6 Low (**1 fixed**) · 2 Nit (12 total; 7 open).** Every finding that needed a code or gate change is now resolved on `main`; the remaining seven are polish, documentation, and CI-planning work that can follow.
 
 ## 2. What I Verified
 
@@ -85,7 +85,9 @@
 - **Evidence:** `grep -rn "dist/" test --include=*.ts` matches only `test/unit/packList.test.ts`, which operates on hand-written filename strings — it never touches the real build.
 - **Fix:** add one fast test that runs after `npm run build` and does `await import(pathToFileURL('dist/index.js'))`, asserting `scan`, `ScanError` classes, and the type-only entry points resolve — plus `spawn('dist/cli/index.js', ['--version'])`. Wire `publint` and `arethetypeswrong --pack .` into the existing unit job as two more steps; both take seconds and both passed just now.
 
-### **[MEDIUM] No `SECURITY.md`** (`confirmed`)
+### **[MEDIUM] No `SECURITY.md`** (`confirmed` — **FIXED**)
+
+> **Resolution:** `SECURITY.md` now sits at the repository root and names the private advisory form (`github.com/zntb/api-recon/security/advisories/new`) as the reporting channel, states that only 0.4.x is supported and fixes land on the latest release, and prioritizes reports in the order the tool's own claims suggest: redaction first (anything letting a secret reach a report is a release blocker), then the integrity manifest and signature path, then the safety guardrails and exit-code contract, then path handling. It also states what is out of scope — a site serving hostile content, unauthorized scanning, and unreachable advisories — and a 90-day disclosure window, with no bounty implied. `CONTRIBUTING.md`'s ground rules and the README's guardrails section both point at it, and `SECURITY.md` points back at the README and the changelog. It is deliberately not added to the npm `files` allowlist: the tarball and `check:pack` are unchanged at 179 files, and a policy file belongs at the repository root where GitHub surfaces it.
 
 - **Where:** repository root (also no `.github/SECURITY.md`, no `CODE_OF_CONDUCT.md`)
 - **Problem:** this package invites people to point it at sites they do not own, ingest third-party responses, and — unusually — writes redaction and integrity guarantees in its README. A reader deciding whether to trust that will look for a disclosure channel. The absence is most costly here precisely because the security claims are strong.
@@ -161,7 +163,7 @@ No breaking changes are present in 0.4.2. The design additions are additive opti
 | `attw` — JSON subpaths | 🟢 across all four |
 | `publint` | `All good!` |
 | Tarball | 179 files · 273.5 kB packed · 1.0 MB unpacked |
-| `files` allowlist | Correct; nothing leaks. `dist/` is gitignored and untracked |
+| `files` allowlist | Correct; nothing leaks. `dist/` is gitignored and untracked. `SECURITY.md` deliberately stays out of the tarball and lives at the repository root |
 | Bin | `#!/usr/bin/env node`, mode `755` |
 | Dependency placement | Five production dependencies (chalk, commander, js-yaml, marked, playwright), all genuinely imported. `openapi3-ts` removed (Finding 2). `@types/*` are correctly in devDependencies, with `@types/js-yaml` redundant (Finding 5) |
 | Install-time behavior | `playwright@1.63.0` declares no `scripts`, so **no browser download on install** — a real win, since this is a hard dependency |
@@ -199,7 +201,7 @@ No breaking changes are present in 0.4.2. The design additions are additive opti
 **Soon after:**
 
 3. ~~Add a built-artifact smoke test~~ — **done on `main`**: `scripts/check-published.ts` imports `dist/index.js`, checks the exports map and declaration emit, and spawns the bin; its helpers are unit-tested and the whole gate is a CI step.
-4. Add `SECURITY.md` with a private advisory channel (Finding 4).
+4. ~~Add `SECURITY.md` with a private advisory channel~~ — **done on `main`**: advisory link, supported versions, a redaction-and-integrity-first priority list, and out-of-scope lines, pointed at from `CONTRIBUTING.md` and the README.
 5. ~~Wire `publint` and `arethetypeswrong --pack .` into the existing unit CI job~~ — **done on `main`**: one Linux-only step running both.
 6. Drop `@types/js-yaml` (Finding 5); narrow `engines.node` to `>=22.12` or document ESM-only (Finding 7); state ESM-only in the README (Finding 10).
 

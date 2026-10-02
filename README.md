@@ -1111,6 +1111,9 @@ resolves to. A caller that only awaits still works unchanged; so does the
   over the network.
 - The tool **never** bypasses authentication, CAPTCHAs, or bot protections, and
   never fuzzes or brute-forces endpoints.
+- Found a hole in any of that? Report it privately through
+  [`SECURITY.md`](SECURITY.md) — findings about redaction or the integrity
+  manifest are treated as release blockers.
 
 ## Telemetry (opt-in)
 
