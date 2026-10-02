@@ -5,7 +5,7 @@
     "startedAt": "2026-01-01T00:00:00.000Z",
     "durationMs": 280,
     "pagesVisited": 8,
-    "apiReconVersion": "0.3.9",
+    "apiReconVersion": "0.4.1",
     "engine": "chromium"
   },
   "technologies": [
@@ -174,7 +174,7 @@
         "transfer-encoding": "chunked",
         "x-powered-by": "Express"
       },
-      "requestBodySample": "{\"username\":\"demo@example.com\",\"password\":\"[REDACTED]\"}",
+      "requestBodySample": "{\"username\":\"[REDACTED]\",\"password\":\"[REDACTED]\"}",
       "responseBodySample": "{\"ok\":true,\"token\":\"fixture-token-123\",\"user\":{\"username\":\"demo@example.com\"}}",
       "pathParams": [],
       "queryParams": [],
@@ -182,8 +182,7 @@
         "type": "object",
         "properties": {
           "username": {
-            "type": "string",
-            "description": "email"
+            "type": "string"
           },
           "password": {
             "type": "string"
@@ -255,9 +254,9 @@
         "max": 7
       },
       "requestBytes": {
-        "p50": 55,
-        "p95": 55,
-        "max": 55
+        "p50": 49,
+        "p95": 49,
+        "max": 49
       },
       "responseBytes": {
         "p50": 31,

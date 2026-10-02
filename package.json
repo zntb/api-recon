@@ -59,6 +59,7 @@
     "check:line-endings": "tsx scripts/check-line-endings.ts",
     "check:schema": "tsx scripts/validate-report.ts",
     "check:pack": "tsx scripts/check-pack.ts",
+    "check:examples": "tsx scripts/check-examples.ts",
     "changelog:extract": "tsx scripts/changelog.ts",
     "format": "prettier --write src test",
     "start": "node dist/cli/index.js",

@@ -18,6 +18,7 @@
 
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { startFixtureServer } from '../test/fixtures/server.js';
 import { analyzeCalls, analyzeWebSockets } from '../src/core/analyzer.js';
 import { groupResources } from '../src/core/resources.js';
@@ -37,11 +38,13 @@ import type {
   CapturedWebSocket,
   Endpoint,
   ReconReport,
+  ReportDiff,
   ReportFormat,
   WebSocketFrame,
 } from '../src/types.js';
 
-const OUT_DIR = 'examples/output';
+/** Where the committed samples live. */
+export const EXAMPLES_DIR = 'examples/output';
 const FORMATS: ReportFormat[] = ['json', 'md', 'html', 'openapi', 'dashboard'];
 
 // Fixed ports and a fixed clock keep the committed examples reproducible. The
@@ -202,7 +205,14 @@ function previousScan(report: ReconReport, baseUrl: string): ReconReport {
   };
 }
 
-async function main(): Promise<void> {
+/**
+ * Generate the sample reports into `outDir`. Exported so the CI freshness check
+ * can generate into a temporary directory and compare, without touching the
+ * committed files (see `scripts/check-examples.ts`).
+ */
+export async function generateExamples(
+  outDir: string = EXAMPLES_DIR,
+): Promise<{ files: string[]; diff: ReportDiff }> {
   const fixture = await startFixtureServer({
     port: EXAMPLE_PORT,
     thirdPartyPort: EXAMPLE_THIRD_PARTY_PORT,
@@ -371,10 +381,7 @@ async function main(): Promise<void> {
 
     report.findings = collectFindings(report);
 
-    const files = await writeReports(report, FORMATS, OUT_DIR);
-    console.log(`Wrote ${files.length} sample report(s):`);
-    for (const file of files) console.log(`  • ${file}`);
-    console.log('  (report.pdf is omitted — PDF rendering needs Chromium.)');
+    const files = await writeReports(report, FORMATS, outDir);
 
     // A second dashboard, this time with a baseline to compare against, so the
     // Change column and the highlighted removed endpoints are visible in the
@@ -388,16 +395,25 @@ async function main(): Promise<void> {
         );
       }
     }
-    const diffFile = join(OUT_DIR, 'dashboard-diff.html');
+    const diffFile = join(outDir, 'dashboard-diff.html');
     await writeFile(diffFile, renderDashboard({ ...report, diff }, 'API recon dashboard — with a baseline'), 'utf8');
-    console.log(`  • ${diffFile}`);
-    console.log(
-      `  (diff example: ${diff.counts.added} added, ${diff.counts.removed} removed, ` +
-        `${diff.counts.changed} changed, ${diff.counts.breaking} breaking)`,
-    );
+
+    return { files: [...files, diffFile], diff };
   } finally {
     await fixture.close();
   }
 }
 
-await main();
+// Only run when invoked directly; the freshness check imports the function to
+// generate into a temporary directory instead.
+const isMain = process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMain) {
+  const { files, diff } = await generateExamples();
+  console.log(`Wrote ${files.length} sample report(s):`);
+  for (const file of files) console.log(`  • ${file}`);
+  console.log('  (report.pdf is omitted — PDF rendering needs Chromium.)');
+  console.log(
+    `  (diff example: ${diff.counts.added} added, ${diff.counts.removed} removed, ` +
+      `${diff.counts.changed} changed, ${diff.counts.breaking} breaking)`,
+  );
+}

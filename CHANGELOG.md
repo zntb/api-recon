@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Internal
+
+- **Example freshness in CI** — because generation is deterministic,
+  `npm run check:examples` now generates the sample reports into a temporary
+  directory and compares them to the committed ones, failing when a report was
+  added, removed, or changed without being regenerated. Generating into a temp
+  directory rather than over `examples/output/` means it never clobbers
+  uncommitted local edits, and hand-written files such as
+  `examples/output/README.md` are excluded. `scripts/generate-examples.ts`
+  exports `generateExamples(outDir)` for the check to reuse (the direct-run path
+  is unchanged), and the run is part of the Linux CI gate.
+
 ## [0.4.1] - 2026-10-02
 
 Adds optional integrity over the written reports, with a manifest a recipient

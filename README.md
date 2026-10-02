@@ -1079,6 +1079,7 @@ npm test            # unit + integration (drives a real browser)
 
 npm run test:server # fixture site on http://127.0.0.1:4599
 npm run examples:generate  # regenerate examples/output
+npm run check:examples     # fail if examples/output is stale
 ```
 
 The integration suite runs the whole pipeline against a local fixture site
@@ -1090,6 +1091,15 @@ cross-origin partner endpoint, and a robots-disallowed page.
 committed reports in `examples/output/`. It binds fixed ports (4610/4611) and
 reads a fixed clock, so it is reproducible: regenerating produces a diff only
 when the report itself changed, not when it merely ran again.
+
+Because generation is deterministic, `npm run check:examples` can prove the
+committed samples are current. It generates a fresh copy into a temporary
+directory and compares the two, failing when a report was added, removed, or
+changed without being regenerated — so a report change that was never
+regenerated cannot merge. Generating into a temp directory rather than over
+`examples/output/` means the check never overwrites uncommitted local edits, and
+files written by hand (`examples/output/README.md`) are excluded. It runs as a
+Linux CI gate.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for test expectations.
 

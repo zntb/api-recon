@@ -644,6 +644,15 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   `signals` list, which is where a captured host or path could otherwise hide
   behind an allowed field name; it is exported so an embedding application can
   assert the same contract on a payload it receives.
+- **Example freshness in CI** — `npm run check:examples` generates the sample
+  reports into a temporary directory and compares them to the committed ones,
+  so a report change that was never regenerated fails the build.
+  `scripts/generate-examples.ts` now exports `generateExamples(outDir)` (the
+  direct-run path is unchanged), and `scripts/check-examples.ts` hashes both
+  directories and reports any file added, removed, or changed — hand-written
+  files such as `examples/output/README.md` are excluded. Generating into a temp
+  directory rather than over `examples/output/` means the check never clobbers
+  uncommitted local edits, and the run is part of the Linux CI gate.
 
 **Proposed updates & features**
 
@@ -657,9 +666,6 @@ so it can be scoped without re-reading the source.
 
 **Stability & performance**
 
-- **Check example freshness in CI.** Now that generation is deterministic, a CI
-  job can run `npm run examples:generate` and fail on `git diff --exit-code
-  examples/output`, so a report change that was never regenerated cannot merge.
 - **Timeouts, retries, and a checkpoint.** A page that never finishes loading can
   stall a crawl; add a per-navigation timeout with a `--timeout` flag, one retry
   for a flaky load, and a checkpoint written after each page so a crashed or

@@ -48,6 +48,13 @@ jobs:
         run: npm run check:schema
         if: runner.os == 'Linux'
 
+      # Regenerates examples/output into a temporary directory and fails when the
+      # committed samples differ, so a report change that was never regenerated
+      # cannot merge. Runs once, on Linux. See scripts/check-examples.ts.
+      - name: Check example freshness
+        run: npm run check:examples
+        if: runner.os == 'Linux'
+
       - name: Cache Playwright browsers
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
