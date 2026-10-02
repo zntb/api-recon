@@ -10,7 +10,13 @@ import { existsSync } from 'node:fs';
 import { chmod, mkdir, readFile, stat } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { BrowserContext, Page } from 'playwright';
-import { loadConfig } from '../utils/config.js';
+import { loadDocument } from '../utils/config.js';
+import {
+  checkDocument,
+  stringObject,
+  type StepSpec,
+  type ValueKind,
+} from '../utils/configSchema.js';
 import { substituteEnv } from '../utils/misc.js';
 import type { Logger } from '../utils/logger.js';
 import { SafetyError } from '../utils/safety.js';
@@ -73,11 +79,33 @@ export async function validateStorageState(filePath: string, logger?: Logger): P
   return resolved;
 }
 
+/** The step kinds a login flow may use, and the shape of each one's value. */
+const LOGIN_STEP_SPECS: StepSpec[] = [
+  { key: 'fill', kind: stringObject({ selector: 'string', value: 'string' }) },
+  { key: 'click', kind: { kind: 'string' } },
+  { key: 'submit', kind: { kind: 'string' } },
+  { key: 'waitForURL', kind: { kind: 'string' } },
+  { key: 'waitForSelector', kind: { kind: 'string' } },
+  { key: 'waitForTimeout', kind: { kind: 'number' } },
+];
+
+const LOGIN_SCHEMA: ValueKind = {
+  kind: 'object',
+  fields: [
+    { name: 'loginUrl', kind: { kind: 'string' } },
+    { name: 'steps', kind: { kind: 'array', of: { kind: 'step', specs: LOGIN_STEP_SPECS } } },
+    { name: 'saveStateTo', kind: { kind: 'string' }, optional: true },
+  ],
+};
+
+/**
+ * Load and validate a login flow, so a malformed step is a startup error that
+ * names its path and line rather than a failure part-way through a login.
+ */
 export async function loadLoginFlow(filePath: string): Promise<LoginFlowConfig> {
-  const cfg = await loadConfig<LoginFlowConfig>(filePath);
-  if (!cfg || typeof cfg.loginUrl !== 'string' || !Array.isArray(cfg.steps)) {
-    throw new SafetyError(`login config must define 'loginUrl' and a 'steps' array: ${filePath}`);
-  }
+  const doc = await loadDocument(filePath);
+  checkDocument(doc, LOGIN_SCHEMA);
+  const cfg = doc.value as LoginFlowConfig;
   return {
     loginUrl: substituteEnv(cfg.loginUrl),
     steps: cfg.steps,

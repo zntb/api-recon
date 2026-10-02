@@ -956,7 +956,10 @@ saveStateTo: ./session.json   # optional: reuse later with --auth
 ```
 
 Supported steps: `fill`, `click`, `submit`, `waitForURL`, `waitForSelector`,
-`waitForTimeout`.
+`waitForTimeout`. The flow is validated before the browser opens: an unknown
+step, a missing field, or the wrong type fails with the offending path and line
+(`steps[1].fill.value`), and a YAML syntax error names its line and column — so
+a typo costs a moment, not a run.
 
 Credential handling is deliberate. A session written because of `saveStateTo`
 is saved owner-only (`chmod 600`), since it holds live cookies; an `--auth` file
@@ -978,8 +981,12 @@ Run interaction steps on every crawled page to surface lazy-loaded endpoints:
 ```
 
 Supported steps: `click`, `fill`, `submit`, `wait`, `waitForSelector`,
-`scroll` (`{ to: top|bottom }` or a selector), `navigate`, `press`. A failing
-step logs a warning and the run continues.
+`scroll` (`{ to: top|bottom }` or a selector), `navigate`, `press`. A step that
+fails at run time (a selector that is not there) logs a warning and the crawl
+continues — but a *malformed* step is rejected before the browser opens, naming
+its path and line, so a typo is never silently skipped.
+
+The file may be a bare list of steps or `{ "steps": [ … ] }`.
 
 ## Interactive record mode
 

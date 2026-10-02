@@ -1,7 +1,14 @@
 /** Scripted interaction steps. Each step is resilient: failures log and continue. */
 
 import type { Page } from 'playwright';
-import { loadConfig } from '../utils/config.js';
+import { loadDocument } from '../utils/config.js';
+import {
+  checkDocument,
+  enumField,
+  stringObject,
+  type StepSpec,
+  type ValueKind,
+} from '../utils/configSchema.js';
 import { substituteEnv } from '../utils/misc.js';
 import type { Logger } from '../utils/logger.js';
 import { SafetyError } from '../utils/safety.js';
@@ -18,12 +25,48 @@ export type ActionStep =
 
 const STEP_TIMEOUT = 8_000;
 
+/** The step kinds an actions file may use, and the shape of each one's value. */
+const ACTION_STEP_SPECS: StepSpec[] = [
+  { key: 'click', kind: { kind: 'string' } },
+  { key: 'fill', kind: stringObject({ selector: 'string', value: 'string' }) },
+  { key: 'submit', kind: { kind: 'string' } },
+  { key: 'wait', kind: { kind: 'number' } },
+  { key: 'waitForSelector', kind: { kind: 'string' } },
+  {
+    key: 'scroll',
+    kind: {
+      kind: 'union',
+      of: [
+        { kind: 'string' },
+        { kind: 'object', fields: [enumField('to', ['top', 'bottom'])] },
+      ],
+    },
+  },
+  { key: 'navigate', kind: { kind: 'string' } },
+  { key: 'press', kind: stringObject({ selector: 'string', key: 'string' }) },
+];
+
+/** The whole document: a bare list of steps, or `{ steps: [...] }`. */
+const ACTIONS_SCHEMA: ValueKind = {
+  kind: 'union',
+  of: [
+    { kind: 'array', of: { kind: 'step', specs: ACTION_STEP_SPECS } },
+    {
+      kind: 'object',
+      fields: [{ name: 'steps', kind: { kind: 'array', of: { kind: 'step', specs: ACTION_STEP_SPECS } } }],
+    },
+  ],
+};
+
+/**
+ * Load and validate an actions file, so a malformed step is a startup error that
+ * names its path and line rather than a warning swallowed mid-crawl.
+ */
 export async function loadActions(filePath: string): Promise<ActionStep[]> {
-  const cfg = await loadConfig<unknown>(filePath);
-  const steps = Array.isArray(cfg) ? cfg : (cfg as { steps?: unknown })?.steps;
-  if (!Array.isArray(steps)) {
-    throw new SafetyError(`actions file must be a list of steps (or { steps: [...] }): ${filePath}`);
-  }
+  const doc = await loadDocument(filePath);
+  checkDocument(doc, ACTIONS_SCHEMA);
+  const value = doc.value;
+  const steps = Array.isArray(value) ? value : (value as { steps: unknown[] }).steps;
   return steps as ActionStep[];
 }
 

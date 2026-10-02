@@ -698,6 +698,17 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   `test/output/traces` as the `browser-traces` artifact on failure, so a flake is
   triaged from the trace instead of reproduced. `test/helpers/traceSetup.ts`
   points a failed test at that directory.
+- **Up-front validation of `--login` / `--actions`** — a malformed step used to
+  surface — or be silently skipped by `runActions` — deep inside a crawl, after
+  a browser had launched. `src/utils/config.ts` now loads a document with its
+  source text and reports a syntax error with its exact line and column (YAML
+  from js-yaml, JSON from the offset or offending token), and
+  `src/utils/configSchema.ts` walks the parsed value against a small schema that
+  names the offending path (`steps[1].clik`) and, where it can be located, the
+  line and column. Both loaders (`loadActions`, `loadLoginFlow`) validate before
+  returning, so a bad file is a `SafetyError` (exit `2`) rather than a warning
+  mid-run. The schema also rejects extra fields, a multi-key step, and an empty
+  object, so a typo cannot be ignored.
 
 **Proposed updates & features**
 
@@ -710,10 +721,6 @@ so it can be scoped without re-reading the source.
 
 
 **Stability & performance**
-
-- **Validate `--login` / `--actions` input up front.** A malformed step currently
-  fails — or is skipped — deep inside a run; validate the YAML against a schema
-  first and report the offending path and line.
 
 **Aesthetics**
 

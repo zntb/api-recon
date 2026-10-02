@@ -38,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   endpoint, `bodyFile` on an error response), so the full body survives without
   being held in memory; `--checksum` covers the spilled files. Spilling is off
   when there is no output directory.
+- **`--login` / `--actions` validated up front** — a malformed step used to fail,
+  or be silently skipped, deep inside a crawl. Both files are now checked before
+  the browser opens, and a problem is reported as a `SafetyError` (exit `2`)
+  naming the offending path and line (`steps[1].fill.value`), with an exact line
+  and column for a YAML/JSON syntax error. Extra fields, a step with more than
+  one key, an unknown step, and an empty object are rejected too.
 
 ### Internal
 

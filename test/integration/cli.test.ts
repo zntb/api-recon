@@ -815,4 +815,42 @@ describe('api-recon CLI', () => {
     expect(code).toBe(2);
     expect(stderr).toMatch(/must be an api-recon report/);
   }, 60_000);
+
+  // These fail before a browser is ever launched, so they need no browser and
+  // are quick — the point of validating input up front.
+  it('rejects a malformed actions file, naming the path and line', async () => {
+    const file = join(outDir, 'bad-actions.yaml');
+    await writeFile(file, "steps:\n  - click: '#ok'\n  - clik: '#typo'\n", 'utf8');
+
+    const { code, stderr } = await runCli([
+      fixture.url,
+      '--allow-local',
+      '--actions',
+      file,
+      '--formats',
+      'json',
+    ]);
+
+    expect(code).toBe(2);
+    expect(stderr).toMatch(/steps\[1\]\.clik/);
+    expect(stderr).toMatch(/bad-actions\.yaml:3:3/);
+  }, 60_000);
+
+  it('rejects a malformed login flow, naming the path and line', async () => {
+    const file = join(outDir, 'bad-login.yaml');
+    await writeFile(file, 'loginUrl: https://example.com\nsteps:\n  - filler: \'#x\'\n', 'utf8');
+
+    const { code, stderr } = await runCli([
+      fixture.url,
+      '--allow-local',
+      '--login',
+      file,
+      '--formats',
+      'json',
+    ]);
+
+    expect(code).toBe(2);
+    expect(stderr).toMatch(/steps\[0\]\.filler/);
+    expect(stderr).toMatch(/bad-login\.yaml:3:3/);
+  }, 60_000);
 });
