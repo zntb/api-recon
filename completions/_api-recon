@@ -5,6 +5,7 @@ _api_recon() {
   local -a commands flags
   commands=(
     'baseline:scan and save the report as the stored baseline for `--diff latest`, so CI need not manage a path'
+    'verify:check reports against a checksums.json integrity manifest written by `--checksum`'
     'completion:print a shell completion script for bash, zsh, fish — install it once and the flags stop being something to remember'
   )
   flags=(
@@ -41,6 +42,8 @@ _api_recon() {
     '--telemetry:write anonymized categorization signals to telemetry.json (off by default; no host, path, or body data)'
     '--telemetry-preview:print the anonymized telemetry payload to stdout instead of writing telemetry.json'
     '--max-body-mb:maximum response body / WebSocket frame size to keep, in MB'
+    '--checksum:write a checksums.json integrity manifest over the reports (sha256 or sha512; default sha256)'
+    '--sign-key:sign the checksums.json manifest with the HMAC key in this file'
     '--quiet:suppress progress output (errors only)'
     '--verbose:verbose progress output'
     '--json-progress:emit progress as JSON lines on stdout (one object per event) instead of a live table'
@@ -58,7 +61,8 @@ _api_recon() {
     --preset) _values 'value' quick deep ci; return ;;
     --print) _values 'value' md json openapi html share; return ;;
     --formats) _values 'value' json md html pdf openapi dashboard share; return ;;
-    --auth|--login|--actions|--config|--diff|--baseline|--out) _files; return ;;
+    --checksum) _values 'value' sha256 sha512; return ;;
+    --auth|--login|--actions|--config|--diff|--baseline|--sign-key|--out) _files; return ;;
   esac
 
   if (( CURRENT == 2 )); then

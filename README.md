@@ -101,6 +101,7 @@ api-recon https://example.com --browser firefox
 | `<seedUrl>` | — | Start URL (required) |
 | `baseline <seedUrl>` | — | Subcommand: scan and store the report as the baseline for `--diff latest` |
 | `completion <shell>` | — | Subcommand: print a completion script for `bash`, `zsh`, or `fish` |
+| `verify <manifest>` | — | Subcommand: check reports against a `checksums.json` integrity manifest |
 | `-d, --depth <n>` | `1` | Same-domain crawl depth (0 = seed page only) |
 | `-m, --max-pages <n>` | `25` | Hard cap on pages visited |
 | `-o, --out <dir>` | `./api-recon-output` | Output directory |
@@ -131,13 +132,15 @@ api-recon https://example.com --browser firefox
 | `--open` | off | Open `dashboard.html` in your browser when the scan finishes |
 | `--print [format]` | — | Print a report to stdout: `md` (default), `json`, `openapi`, `html`, or `share` |
 | `--share` | off | Write only a share-safe one-page `share.md` — patterns, categories, and schemas, with no bodies, headers, or samples |
+| `--checksum [algorithm]` | — | Write a `checksums.json` integrity manifest over the reports (`sha256` by default, or `sha512`) |
+| `--sign-key <file>` | — | Sign that manifest with the HMAC key in the file (implies `--checksum`) |
 | `--config <file>` | discovered | Project config file (see below) |
 | `--no-config` | — | Ignore any project config file, even one found on the way up |
 | `--debug` | off | On failure, write `debug/logs.txt`, a browser trace, and the partial report for a bug report |
 
 Exit codes: `0` success, `1` runtime failure, `2` refused by a safety guard (`--force`,
-`--allow-local`, a bad `--diff` file, a missing `latest` baseline, …), `3`
-`--fail-on-diff` found endpoint changes.
+`--allow-local`, a bad `--diff` file, a missing `latest` baseline, …) or a failed
+`verify`, `3` `--fail-on-diff` found endpoint changes.
 
 ### When a scan fails
 
@@ -187,11 +190,12 @@ api-recon completion zsh > "${fpath[1]}/_api-recon"
 api-recon completion fish > ~/.config/fish/completions/api-recon.fish
 ```
 
-The script completes the subcommands (`baseline`, `completion`), every flag,
-and the values that matter — engines, presets, print formats, report formats,
-and file paths for `--auth`, `--login`, `--actions`, `--config`, `--diff`,
-`--baseline`, and `--out`. It is generated from the same command definition the
-CLI parses with, so a flag added there is completed without a second list. The
+The script completes the subcommands (`baseline`, `completion`, `verify`), every
+flag, and the values that matter — engines, presets, print formats, report
+formats, checksum algorithms, and file paths for `--auth`, `--login`,
+`--actions`, `--config`, `--diff`, `--baseline`, `--sign-key`, and `--out`. It is
+generated from the same command definition the CLI parses with, so a flag added
+there is completed without a second list. The
 scripts are committed under [`completions/`](completions) and a test keeps them
 in sync with the flags, so changing a flag means running
 `npm run completions:generate`; the output is deterministic, so the diff is
@@ -270,8 +274,9 @@ The environment variables are the flags in `SCREAMING_SNAKE_CASE`:
 `API_RECON_STRICT_REDACTION`, `API_RECON_FORCE`, `API_RECON_ALLOW_LOCAL`, `API_RECON_TELEMETRY`,
 `API_RECON_TELEMETRY_PREVIEW`, `API_RECON_MAX_BODY_MB`, `API_RECON_QUIET`,
 `API_RECON_VERBOSE`, `API_RECON_JSON_PROGRESS`, `API_RECON_RECORD`,
-`API_RECON_SHARE`, `API_RECON_DEBUG`. Booleans take
-`1`/`0` (also `true`/`false`, `yes`/`no`, `on`/`off`).
+`API_RECON_SHARE`, `API_RECON_DEBUG`, `API_RECON_CHECKSUM`, `API_RECON_SIGN_KEY`.
+Booleans take `1`/`0` (also `true`/`false`, `yes`/`no`, `on`/`off`), and
+`API_RECON_CHECKSUM` also accepts `sha256` or `sha512`.
 
 Two values cannot be committed in a shared file: `force: true` and
 `redact: false`. Each loosens a safety default for everyone who clones the
@@ -452,6 +457,7 @@ you only care about the API surface, Chromium is the safer default.
 | `openapi.yaml` | Best-effort OpenAPI 3.0 spec from inferred paths, methods, params, and schemas |
 | `dashboard.html` | Interactive dashboard: search, filter, sort, and expand endpoints |
 | `share.md` | One-page, share-safe summary (with `--share`): patterns, categories, and schemas only — no bodies, headers, or samples |
+| `checksums.json` | Optional integrity manifest (with `--checksum`): a digest per report, optionally HMAC-signed |
 | `telemetry.json` | Opt-in anonymized categorization signals (see [Telemetry](#telemetry-opt-in)); never written unless enabled |
 
 `report.html` and `dashboard.html` share one theme (`src/reporters/theme.ts`):
@@ -724,6 +730,43 @@ api-recon https://example.com --print share > ticket.md
 api-recon https://example.com --formats share --out ./reports
 ```
 
+### Report integrity
+
+A report attached to a ticket or uploaded as a CI artifact can be edited on the
+way. `--checksum` writes a `checksums.json` beside the reports that records a
+digest of each one, so a recipient can recompute it and confirm the bytes are
+the ones the scan wrote:
+
+```bash
+api-recon https://example.com --checksum --out ./reports
+api-recon verify ./reports/checksums.json
+```
+
+A plain checksum proves the files were not changed, but not who wrote the
+manifest — anyone can edit a report and the manifest that covers it. Add
+`--sign-key <file>` to sign the manifest with an HMAC held in a file, so a
+recipient with the same key can also confirm the manifest came from the scan:
+
+```bash
+api-recon https://example.com --checksum sha512 --sign-key ./report.key --out ./reports
+api-recon verify ./reports/checksums.json --sign-key ./report.key
+```
+
+`verify` exits `0` when every file matches (and the signature checks, if the
+manifest is signed) and `2` otherwise, so a pipeline can fail on it. It launches
+no browser and does no network work:
+
+```console
+$ api-recon verify ./reports/checksums.json
+✓ Integrity OK — 6 file(s) match the sha256 manifest.
+```
+
+The manifest names the digest algorithm, the time it was written, the tool name
+and version, and a digest per file — the artifact-to-run link the npm provenance
+attestation gives the published tarball. It never covers itself, and the digests
+are computed over the files on disk, so they describe exactly what a recipient
+receives. Off by default.
+
 ## Comparing scans
 
 Capture a baseline once, then compare later scans against it. The `baseline`
@@ -906,7 +949,11 @@ await result.writeReports('./out');
 `scan()` returns `{ report, endpoints, technologies, safety, writeReports(dir), files }`.
 Passing `out` writes the reports during the scan; `writeReports()` writes them
 later. All CLI flags have camelCase equivalents (`maxPages`, `respectRobots`,
-`includeThirdParty`, `allowLocal`, `maxBodyBytes`, `browser`, …).
+`includeThirdParty`, `allowLocal`, `maxBodyBytes`, `browser`, …), including
+`checksum` and `signKey` for the integrity manifest. The digest and manifest
+functions are exported too — `buildIntegrityManifest`, `verifyIntegrityManifest`,
+and `verifyManifestFromDisk` — for an application that wants to check a report
+without the CLI.
 
 Types are exported for every report structure:
 

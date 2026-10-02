@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Integrity for shared reports** — `--checksum [sha256|sha512]` writes a
+  `checksums.json` beside the reports recording a digest of every file, so a
+  recipient can recompute it and confirm the artifact was not edited. Add
+  `--sign-key <file>` to sign the manifest with an HMAC, so a holder of the key
+  can also confirm the manifest itself came from the scan rather than being
+  rewritten alongside a doctored report. The new `api-recon verify <manifest>`
+  subcommand checks a directory against its manifest (with `--sign-key` when it
+  is signed) and exits `2` on a mismatch, so CI can gate on it. The manifest
+  records the tool name and version, playing the part the npm provenance
+  attestation plays for the published tarball: linking an artifact to the run
+  that produced it. Off by default; the hashes are computed over the files on
+  disk, and the manifest never covers itself.
 - **Redaction by value, not only by key** — redaction now also masks a secret by
   its shape, so a JWT, a high-entropy base64/hex blob, an email, a phone number,
   or an SSN-shaped national id is caught even under a key that does not name it.

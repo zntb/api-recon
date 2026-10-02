@@ -10,6 +10,7 @@ import { promisify } from 'node:util';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { startFixtureServer, type FixtureServerHandle } from '../fixtures/server.js';
 import { browserAvailable } from '../helpers/browser.js';
+import { buildIntegrityManifest } from '../../src/utils/integrity.js';
 
 const exec = promisify(execFile);
 const CLI_ENTRY = join(process.cwd(), 'src', 'cli', 'index.ts');
@@ -41,6 +42,7 @@ const NEEDS_BROWSER = [
   'print',
   '--open',
   '--share',
+  'checksums.json',
 ];
 
 beforeEach((ctx) => {
@@ -112,6 +114,8 @@ describe('api-recon CLI', () => {
       '--print',
       '--share',
       '--strict-redaction',
+      '--checksum',
+      '--sign-key',
     ]) {
       expect(stdout, `--help should mention ${flag}`).toContain(flag);
     }
@@ -124,7 +128,7 @@ describe('api-recon CLI', () => {
       expect(stdout, `--help should mention the ${format} format`).toContain(format);
     }
     // The subcommands document themselves too.
-    for (const command of ['baseline', 'completion']) {
+    for (const command of ['baseline', 'completion', 'verify']) {
       expect(stdout, `--help should list the ${command} command`).toContain(command);
     }
   }, 60_000);
@@ -213,6 +217,66 @@ describe('api-recon CLI', () => {
     // A real Playwright archive, not an empty placeholder file.
     expect((await readFile(join(debugDir, 'trace.zip'))).length).toBeGreaterThan(0);
   }, 180_000);
+
+  it('verifies an integrity manifest, and fails when a report was edited', async () => {
+    const dir = join(outDir, 'cli-integrity-verify');
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, 'report.json'), '{"endpoints":[]}', 'utf8');
+    await writeFile(join(dir, 'share.md'), '# API surface\n', 'utf8');
+    const manifestPath = join(dir, 'checksums.json');
+    await writeFile(
+      manifestPath,
+      JSON.stringify(
+        buildIntegrityManifest({
+          files: { 'report.json': '{"endpoints":[]}', 'share.md': '# API surface\n' },
+        }),
+        null,
+        2,
+      ),
+      'utf8',
+    );
+
+    // A clean directory verifies.
+    const ok = await runCli(['verify', manifestPath]);
+    expect(ok.code, `${ok.stdout}${ok.stderr}`).toBe(0);
+    expect(`${ok.stdout}${ok.stderr}`).toContain('Integrity OK');
+
+    // An edit to a covered file is a failure, so CI can gate on it.
+    await writeFile(join(dir, 'report.json'), '{"endpoints":[{"injected":true}]}', 'utf8');
+    const bad = await runCli(['verify', manifestPath]);
+    expect(bad.code).toBe(2);
+    expect(`${bad.stdout}${bad.stderr}`).toMatch(/checksum mismatch/);
+  }, 60_000);
+
+  it('writes a checksums.json for --checksum and verifies it', async () => {
+    const dir = join(outDir, 'cli-checksum');
+    const scanned = await runCli([
+      fixture.url,
+      '--allow-local',
+      '--depth',
+      '0',
+      '--rate',
+      '0',
+      '--checksum',
+      '--formats',
+      'json,md',
+      '--out',
+      dir,
+      '--quiet',
+    ]);
+    expect(scanned.code, `${scanned.stdout}${scanned.stderr}`).toBe(0);
+
+    const manifest = JSON.parse(await readFile(join(dir, 'checksums.json'), 'utf8')) as {
+      algorithm: string;
+      files: Record<string, string>;
+    };
+    expect(manifest.algorithm).toBe('sha256');
+    expect(Object.keys(manifest.files).sort()).toEqual(['report.json', 'report.md']);
+
+    const verified = await runCli(['verify', join(dir, 'checksums.json')]);
+    expect(verified.code, `${verified.stdout}${verified.stderr}`).toBe(0);
+    expect(`${verified.stdout}${verified.stderr}`).toContain('Integrity OK');
+  }, 150_000);
 
   it('produces report files for a real scan', async () => {
     const dir = join(outDir, 'cli-scan');

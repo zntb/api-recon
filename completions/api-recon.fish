@@ -3,6 +3,7 @@
 complete -c api-recon -f
 
 complete -c api-recon -n '__fish_use_subcommand' -a baseline -d 'scan and save the report as the stored baseline for `--diff latest`, so CI need not manage a path'
+complete -c api-recon -n '__fish_use_subcommand' -a verify -d 'check reports against a checksums.json integrity manifest written by `--checksum`'
 complete -c api-recon -n '__fish_use_subcommand' -a completion -d 'print a shell completion script for bash, zsh, fish — install it once and the flags stop being something to remember'
 complete -c api-recon -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish' -d 'shell to generate for'
 
@@ -39,6 +40,8 @@ complete -c api-recon -l allow-local -d 'allow scanning localhost and private ne
 complete -c api-recon -l telemetry -d 'write anonymized categorization signals to telemetry.json (off by default; no host, path, or body data)'
 complete -c api-recon -l telemetry-preview -d 'print the anonymized telemetry payload to stdout instead of writing telemetry.json'
 complete -c api-recon -l max-body-mb -r -d 'maximum response body / WebSocket frame size to keep, in MB'
+complete -c api-recon -l checksum -r -xa 'sha256 sha512' -d 'write a checksums.json integrity manifest over the reports (sha256 or sha512; default sha256)'
+complete -c api-recon -l sign-key -r -F -d 'sign the checksums.json manifest with the HMAC key in this file'
 complete -c api-recon -l quiet -s q -d 'suppress progress output (errors only)'
 complete -c api-recon -l verbose -s v -d 'verbose progress output'
 complete -c api-recon -l json-progress -d 'emit progress as JSON lines on stdout (one object per event) instead of a live table'

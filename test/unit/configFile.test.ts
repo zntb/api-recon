@@ -426,6 +426,67 @@ describe('--print and --open as settings', () => {
   });
 });
 
+describe('integrity settings', () => {
+  const cli = { checksum: undefined, signKey: undefined, quiet: false, respectRobots: true, redact: true };
+
+  it('accepts true or a named algorithm from a config file', async () => {
+    const bare = await resolveOptions({
+      cli,
+      isExplicit: () => false,
+      env: {},
+      cwd: await mkDirWithConfig('checksum-bare', { checksum: true }),
+    });
+    expect(bare.options['checksum']).toBe(true);
+    expect(bare.provenance['checksum']).toBe('config');
+
+    const named = await resolveOptions({
+      cli,
+      isExplicit: () => false,
+      env: {},
+      cwd: await mkDirWithConfig('checksum-named', { checksum: 'SHA512' }),
+    });
+    expect(named.options['checksum']).toBe('sha512');
+  });
+
+  it('rejects an algorithm it cannot compute', async () => {
+    const dir = await mkDirWithConfig('checksum-bad', { checksum: 'md5' });
+    await expect(
+      resolveOptions({ cli, isExplicit: () => false, env: {}, cwd: dir }),
+    ).rejects.toThrow(/checksum in .*expected true, false, or one of sha256, sha512/s);
+  });
+
+  it('resolves the signing key path against the config file', async () => {
+    const dir = await mkDirWithConfig('sign-key', { signKey: 'keys/report.key' });
+
+    const { options } = await resolveOptions({ cli, isExplicit: () => false, env: {}, cwd: dir });
+    expect(options['signKey']).toBe(join(dir, 'keys', 'report.key'));
+  });
+
+  it('reads a checksum setting out of the environment', async () => {
+    const fromEnv = await resolveOptions({
+      cli,
+      isExplicit: () => false,
+      env: { API_RECON_CHECKSUM: 'sha512' },
+      cwd: root,
+    });
+    expect(fromEnv.options['checksum']).toBe('sha512');
+
+    const on = await resolveOptions({
+      cli,
+      isExplicit: () => false,
+      env: { API_RECON_CHECKSUM: '1' },
+      cwd: root,
+    });
+    expect(on.options['checksum']).toBe(true);
+  });
+});
+
+/** Write a config into its own directory and return that directory. */
+async function mkDirWithConfig(name: string, values: unknown): Promise<string> {
+  await writeConfig(name, '.api-reconrc', values);
+  return join(root, name);
+}
+
 describe('presets in the precedence chain', () => {
   const cli = {
     depth: 1,

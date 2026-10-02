@@ -30,6 +30,8 @@ import type { BrowserEngine } from '../types.js';
 import { showBannerOnce } from '../utils/banner.js';
 import { Logger } from '../utils/logger.js';
 import { LiveProgress, progressModeFor } from '../utils/progress.js';
+import { INTEGRITY_ALGORITHMS, type IntegrityAlgorithm } from '../utils/integrity.js';
+import { runVerify } from './verify.js';
 import { resolveOptions } from './config.js';
 import { SafetyError } from '../utils/safety.js';
 import { hintForError } from '../utils/errors.js';
@@ -147,6 +149,14 @@ function registerScanOptions(command: Command): Command {
       false,
     )
     .option('--max-body-mb <n>', 'maximum response body / WebSocket frame size to keep, in MB', numberArg, 1)
+    .option(
+      '--checksum [algorithm]',
+      `write a checksums.json integrity manifest over the reports (${INTEGRITY_ALGORITHMS.join(' or ')}; default sha256)`,
+    )
+    .option(
+      '--sign-key <file>',
+      'sign the checksums.json manifest with the HMAC key in this file',
+    )
     .option('-q, --quiet', 'suppress progress output (errors only)', false)
     .option('-v, --verbose', 'verbose progress output', false)
     .option(
@@ -188,6 +198,17 @@ registerScanOptions(
 ).action(function (this: Command, seedUrl: string, raw: CliOptions) {
   return runScan(this, seedUrl, raw, true);
 });
+
+program
+  .command('verify <manifest>')
+  .description(
+    'check reports against a checksums.json integrity manifest written by `--checksum`',
+  )
+  .option('--sign-key <file>', 'path to the HMAC key file, when the manifest is signed')
+  .action(async (manifest: string, raw: { signKey?: string }) => {
+    const logger = new Logger({});
+    process.exitCode = await runVerify(manifest, raw.signKey, logger);
+  });
 
 program
   .command('completion <shell>')
@@ -239,6 +260,10 @@ interface CliOptions {
   telemetry: boolean;
   telemetryPreview: boolean;
   maxBodyMb: number;
+  /** `true` (or absent) for the default digest, or a named algorithm. */
+  checksum?: boolean | IntegrityAlgorithm;
+  /** Path to a file holding the HMAC key for the integrity manifest. */
+  signKey?: string;
   quiet: boolean;
   verbose: boolean;
   jsonProgress: boolean;
@@ -415,6 +440,8 @@ async function runScan(
       telemetry,
       telemetryPreview: opts.telemetryPreview,
       maxBodyBytes: Math.round(opts.maxBodyMb * 1024 * 1024),
+      ...(opts.checksum !== undefined ? { checksum: opts.checksum } : {}),
+      ...(opts.signKey ? { signKey: opts.signKey } : {}),
       debug: opts.debug,
       ...(opts.debug ? { debugDir: join(opts.out, 'debug') } : {}),
       logger,

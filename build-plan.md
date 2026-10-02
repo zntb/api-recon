@@ -613,6 +613,18 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   `saveStateTo` asks for it, so passing `--auth` reads a session but never
   rewrites it. `isGroupOrWorldReadable` is the pure predicate behind the check,
   exported for tests.
+- **Integrity for shared reports** — a scan can now write an optional
+  `checksums.json` beside its reports (`--checksum [sha256|sha512]`) recording a
+  digest of every file, so a recipient can recompute it and confirm the
+  artifact was not edited. `--sign-key <file>` signs the manifest with an HMAC,
+  so a holder of the key can also confirm the manifest itself was not rewritten
+  alongside a doctored report, and `api-recon verify <manifest>` checks a
+  directory against its manifest (with `--sign-key` when signed), exiting `2` on
+  a mismatch for CI. The manifest records the tool name and version — the
+  artifact-to-run link the npm provenance attestation provides for the published
+  tarball — and lives in `src/utils/integrity.ts` with the pure digest, HMAC,
+  build, and verify functions exported for library use. Off by default, and the
+  manifest never covers itself.
 
 **Proposed updates & features**
 
@@ -652,9 +664,6 @@ so it can be scoped without re-reading the source.
 
 **Security & privacy**
 
-- **Integrity for shared reports.** Offer an optional checksum (or HMAC) over the
-  report so a recipient can confirm it was not edited, aligned with the npm
-  provenance attestation the release already publishes.
 - **Supply-chain hygiene.** Pin GitHub Actions by commit SHA, enable Dependabot,
   and add an `npm audit` gate to CI. The published `files` list is already tight
   (`dist`, `README`, `LICENSE`, `CHANGELOG`); keep it that way with an

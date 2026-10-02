@@ -28,6 +28,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { resolveEngine } from '../core/browser.js';
+import { INTEGRITY_ALGORITHMS, isIntegrityAlgorithm } from '../utils/integrity.js';
 import { SafetyError } from '../utils/safety.js';
 import { isLatestBaseline } from './baseline.js';
 import { presetValues } from './presets.js';
@@ -52,7 +53,16 @@ export interface ProjectConfigFile {
   values: Record<string, unknown>;
 }
 
-type OptionKind = 'int' | 'number' | 'bool' | 'string' | 'list' | 'engine' | 'path' | 'format';
+type OptionKind =
+  | 'int'
+  | 'number'
+  | 'bool'
+  | 'string'
+  | 'list'
+  | 'engine'
+  | 'path'
+  | 'format'
+  | 'algorithm';
 
 interface OptionSpec {
   key: string;
@@ -109,6 +119,8 @@ const OPTION_SPECS: OptionSpec[] = [
   { key: 'telemetryPreview', kind: 'bool', env: 'API_RECON_TELEMETRY_PREVIEW' },
   { key: 'share', kind: 'bool', env: 'API_RECON_SHARE' },
   { key: 'maxBodyMb', kind: 'number', env: 'API_RECON_MAX_BODY_MB' },
+  { key: 'checksum', kind: 'algorithm', env: 'API_RECON_CHECKSUM' },
+  { key: 'signKey', kind: 'path', env: 'API_RECON_SIGN_KEY' },
   {
     key: 'preset',
     kind: 'string',
@@ -382,6 +394,14 @@ function validate(spec: OptionSpec, value: unknown, where: string): unknown {
       }
       return name as PrintFormat;
     }
+    case 'algorithm': {
+      if (typeof value === 'boolean') return value;
+      const name = typeof value === 'string' ? value.trim().toLowerCase() : '';
+      if (isIntegrityAlgorithm(name)) return name;
+      throw new SafetyError(
+        `${where}: expected true, false, or one of ${INTEGRITY_ALGORITHMS.join(', ')} — got ${show(value)}.`,
+      );
+    }
     case 'path':
     case 'string': {
       if (typeof value !== 'string' || value.trim() === '') {
@@ -411,6 +431,15 @@ function parseEnv(spec: OptionSpec, raw: string, name: string): unknown {
     case 'list':
     case 'format':
       return raw;
+    case 'algorithm': {
+      const normalized = raw.trim().toLowerCase();
+      if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+      if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+      if (isIntegrityAlgorithm(normalized)) return normalized;
+      throw new SafetyError(
+        `${name}: expected one of 1, 0, true, false, ${INTEGRITY_ALGORITHMS.join(', ')} — got "${raw}".`,
+      );
+    }
     case 'engine':
     case 'path':
     case 'string':

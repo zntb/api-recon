@@ -530,6 +530,7 @@ export interface TelemetryPayload {
 }
 
 import type { Logger } from './utils/logger.js';
+import type { IntegrityAlgorithm } from './utils/integrity.js';
 
 /** Options accepted by `scan()` (library) and the CLI. */
 /**
@@ -622,6 +623,19 @@ export interface ScanOptions {
   debug?: boolean;
   /** Directory the debug bundle is written to. */
   debugDir?: string;
+  /**
+   * Write a `checksums.json` integrity manifest beside the reports, so a
+   * recipient can confirm the files were not edited. `true` uses `sha256`;
+   * name `sha256` or `sha512` explicitly for another digest. Off by default.
+   */
+  checksum?: boolean | IntegrityAlgorithm;
+  /**
+   * Path to a file holding an HMAC key. When set, the integrity manifest is
+   * signed as well as checksummed, so a recipient with the same key can confirm
+   * the manifest — not only the files — was produced by a holder of the key.
+   * Implies `checksum` (with `sha256` unless one was named).
+   */
+  signKey?: string;
 }
 
 /** Result of a completed scan. */

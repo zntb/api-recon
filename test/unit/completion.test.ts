@@ -56,7 +56,10 @@ describe('completionScript', () => {
     expect(script).toContain('_api_recon_completions()');
     expect(script).toContain('complete -o default -F _api_recon_completions api-recon');
     expect(script).toContain('--browser) COMPREPLY=( $(compgen -W "chromium firefox webkit"');
-    expect(script).toContain('--auth|--login|--actions|--config|--diff|--baseline) COMPREPLY=( $(compgen -f');
+    expect(script).toContain(
+      '--auth|--login|--actions|--config|--diff|--baseline|--sign-key) COMPREPLY=( $(compgen -f',
+    );
+    expect(script).toContain('--checksum) COMPREPLY=( $(compgen -W "sha256 sha512"');
     expect(script).toContain('--out) COMPREPLY=( $(compgen -d');
     expect(script).toContain('baseline completion');
   });

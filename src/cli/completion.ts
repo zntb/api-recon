@@ -38,10 +38,19 @@ const CHOICE_VALUES: Record<string, readonly string[]> = {
   '--preset': ['quick', 'deep', 'ci'],
   '--print': ['md', 'json', 'openapi', 'html', 'share'],
   '--formats': FORMAT_VALUES,
+  '--checksum': ['sha256', 'sha512'],
 };
 
 /** Flags that name a file, or a directory. */
-const FILE_FLAGS = new Set(['--auth', '--login', '--actions', '--config', '--diff', '--baseline']);
+const FILE_FLAGS = new Set([
+  '--auth',
+  '--login',
+  '--actions',
+  '--config',
+  '--diff',
+  '--baseline',
+  '--sign-key',
+]);
 const DIR_FLAGS = new Set(['--out']);
 
 interface FlagSpec {

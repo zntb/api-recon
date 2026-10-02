@@ -32,6 +32,11 @@ import { runRecordSession } from './core/record.js';
 import { analyzeCalls, analyzeWebSockets } from './core/analyzer.js';
 import { ScanScope } from './core/scope.js';
 import { verifyRedaction } from './core/verifyRedaction.js';
+import {
+  readSignKeyFile,
+  resolveIntegrityAlgorithm,
+  writeIntegrityManifest,
+} from './utils/integrity.js';
 import { SecretLedger } from './utils/redactionLedger.js';
 import { groupResources } from './core/resources.js';
 import { diffReports, loadBaseline } from './core/diff.js';
@@ -89,6 +94,11 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   // Validated up front so a typo fails before any network or browser work.
   const engine = resolveEngine(options.browser);
   const logger = options.logger ?? new Logger({ quiet: options.quiet, verbose: options.verbose });
+  // The integrity manifest is resolved here as well: a typo in the algorithm or
+  // a missing key file should fail in milliseconds, not after a crawl. Signing
+  // implies checksumming, with sha256 unless one was named.
+  const integrityAlgorithm = resolveIntegrityAlgorithm(options.checksum) ?? (options.signKey ? 'sha256' : null);
+  const signKey = options.signKey ? await readSignKeyFile(options.signKey) : undefined;
 
   assertScanAllowed(seedUrl, { allowLocal });
   // Every host the crawl may follow, and every path it must skip. An included
@@ -373,6 +383,14 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   const writeReportsTo = async (outDir: string): Promise<string[]> => {
     const written = await writeReports(report, formats, outDir, logger);
     if (telemetry && telemetryPlan.write) written.push(await writeTelemetryFile(telemetry, outDir));
+    if (integrityAlgorithm) {
+      written.push(
+        await writeIntegrityManifest(written, outDir, {
+          algorithm: integrityAlgorithm,
+          ...(signKey ? { key: signKey } : {}),
+        }),
+      );
+    }
     return written;
   };
 
@@ -456,6 +474,18 @@ export type {
   WebSocketFrame,
 } from './types.js';
 export { diffReports, loadBaseline, formatDiffSummary } from './core/diff.js';
+export {
+  buildIntegrityManifest,
+  verifyIntegrityManifest,
+  verifyManifestFromDisk,
+  INTEGRITY_ALGORITHMS,
+  INTEGRITY_FILENAME,
+} from './utils/integrity.js';
+export type {
+  IntegrityAlgorithm,
+  IntegrityManifest,
+  IntegrityVerification,
+} from './utils/integrity.js';
 export { collectFindings } from './core/findings.js';
 export { groupResources } from './core/resources.js';
 export { buildRequestGraph } from './reporters/graph.js';
