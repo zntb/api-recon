@@ -663,6 +663,17 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   cancelled run continues instead of starting over. The checkpoint is versioned
   and deleted when a run completes, so only a run that stopped early leaves one;
   `navigateWithRetry` and the checkpoint parser are unit-tested directly.
+- **Guaranteed teardown** — a `SIGINT`/`SIGTERM` no longer leaves a Chromium
+  process behind. `ScanOptions` grew an `AbortSignal`; when it aborts, the scan
+  closes the browser context, stops the crawl at the next page boundary, and
+  flushes the capture so far to `<out>/report.json` before it rejects with the
+  new `CancelledError`. The checkpoint is deliberately left in place, so the
+  interrupted run continues with `--resume`. The CLI installs the handlers
+  around the scan and exits with the conventional `128` + signal (`130` for
+  `SIGINT`, `143` for `SIGTERM`); a second signal skips the graceful path and
+  exits at once, so a wedged teardown is never something Ctrl+C cannot escape.
+  The library path is covered by `test/integration/scan.test.ts`, and the CLI's
+  signal handling by a POSIX-only test in `test/integration/cli.test.ts`.
 
 **Proposed updates & features**
 
@@ -676,9 +687,6 @@ so it can be scoped without re-reading the source.
 
 **Stability & performance**
 
-- **Guaranteed teardown.** Handle `SIGINT`/`SIGTERM` so the browser context is
-  always closed and a partial `report.json` is still flushed; today a Ctrl+C
-  during a long crawl can leave a Chromium process behind.
 - **Bound memory on every axis.** The capture budget is global, but frames,
   endpoints, pages, and error bodies can each grow without limit. Cap each
   explicitly, and stream oversized payloads to a side file rather than holding

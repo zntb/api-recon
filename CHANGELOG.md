@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   seed URL must match, the checkpoint is versioned and holds only redacted
   capture data, and it is deleted once a run completes — so a leftover file
   means exactly one thing: a run that stopped early.
+- **Guaranteed teardown** — a `SIGINT`/`SIGTERM` no longer leaves a Chromium
+  process behind. `ScanOptions` accepts an `AbortSignal`; when it aborts, the
+  scan closes the browser context, stops the crawl at the next page boundary,
+  and flushes the capture so far to `<out>/report.json` before rejecting with
+  the new `CancelledError`. The checkpoint is left in place, so the interrupted
+  run continues with `--resume`. The CLI wires this to `SIGINT` and `SIGTERM`
+  and exits with the conventional `128` + signal (`130`/`143`); a second signal
+  exits at once, so a wedged teardown is still escapable.
 
 ### Internal
 

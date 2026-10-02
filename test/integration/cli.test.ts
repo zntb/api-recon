@@ -1,6 +1,6 @@
 /** CLI end-to-end tests: spawn the real CLI against the local fixture site. */
 
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -741,6 +741,55 @@ describe('api-recon CLI', () => {
     // The next step prints on the human stream (stdout without --print).
     expect(`${stdout}${stderr}`).toMatch(/→/);
   }, 60_000);
+
+  // Signals are delivered as real SIGINT on POSIX; on Windows `kill` cannot
+  // send SIGINT to a child, so this test only runs where it means something.
+  it.runIf(process.platform !== 'win32')(
+    'stops a running scan on SIGINT and still flushes report.json',
+    async () => {
+      const dir = join(outDir, 'cli-sigint');
+      const child = spawn(
+        process.execPath,
+        [
+          ...NODE_TSX_ARGS,
+          fixture.url,
+          '--allow-local',
+          '--rate',
+          '600',
+          '--depth',
+          '3',
+          '--max-pages',
+          '100',
+          '--out',
+          dir,
+          '--formats',
+          'json',
+        ],
+        { env: { ...process.env }, stdio: ['ignore', 'pipe', 'pipe'] },
+      );
+      let stdout = '';
+      child.stdout.on('data', (chunk) => {
+        stdout += String(chunk);
+      });
+      child.stderr.on('data', () => {});
+
+      // Let the crawl get underway, then interrupt it mid-flight.
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      child.kill('SIGINT');
+
+      const code = await new Promise<number | null>((resolve) =>
+        child.once('exit', (value) => resolve(value)),
+      );
+
+      expect(code).toBe(130);
+      expect(stdout).toMatch(/partial report/i);
+      const report = JSON.parse(await readFile(join(dir, 'report.json'), 'utf8')) as {
+        meta: { pagesVisited: number };
+      };
+      expect(report.meta.pagesVisited).toBeGreaterThanOrEqual(1);
+    },
+    120_000,
+  );
 
   it('refuses --fail-on-diff with no baseline', async () => {
     const { code, stderr } = await runCli([fixture.url, '--allow-local', '--fail-on-diff']);

@@ -7,7 +7,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import { Command, InvalidArgumentError } from 'commander';
-import { BROWSER_ENGINES, formatDiffSummary, normalizeFormats, scan } from '../index.js';
+import {
+  BROWSER_ENGINES,
+  CancelledError,
+  formatDiffSummary,
+  normalizeFormats,
+  scan,
+} from '../index.js';
 import { resolveEngine } from '../core/browser.js';
 import { CONFIG_FILENAMES, PRINT_FORMATS } from './config.js';
 import { COMPLETION_SHELLS, completionScript, isCompletionShell } from './completion.js';
@@ -41,13 +47,15 @@ import { TOOL_VERSION } from '../version.js';
 
 function intArg(value: string): number {
   const n = Number.parseInt(value, 10);
-  if (Number.isNaN(n) || n < 0) throw new InvalidArgumentError(`Expected a non-negative integer, got "${value}"`);
+  if (Number.isNaN(n) || n < 0)
+    throw new InvalidArgumentError(`Expected a non-negative integer, got "${value}"`);
   return n;
 }
 
 function numberArg(value: string): number {
   const n = Number(value);
-  if (Number.isNaN(n) || n < 0) throw new InvalidArgumentError(`Expected a non-negative number, got "${value}"`);
+  if (Number.isNaN(n) || n < 0)
+    throw new InvalidArgumentError(`Expected a non-negative number, got "${value}"`);
   return n;
 }
 
@@ -102,9 +110,19 @@ function registerScanOptions(command: Command): Command {
       engineArg,
       'chromium',
     )
-    .option('-a, --auth <file>', 'path to a Playwright storageState.json for an authenticated session')
-    .option('-l, --login <file>', 'path to a login-flow config (YAML/JSON) with ${ENV_VAR} substitution')
-    .option('--record', 'interactive recording mode: drive the browser yourself, type "done" to finish', false)
+    .option(
+      '-a, --auth <file>',
+      'path to a Playwright storageState.json for an authenticated session',
+    )
+    .option(
+      '-l, --login <file>',
+      'path to a login-flow config (YAML/JSON) with ${ENV_VAR} substitution',
+    )
+    .option(
+      '--record',
+      'interactive recording mode: drive the browser yourself, type "done" to finish',
+      false,
+    )
     .option('--actions <file>', 'path to scripted interaction steps (YAML/JSON)')
     .option('-r, --rate <ms>', 'minimum delay between requests to the same origin', intArg, 500)
     .option(
@@ -128,7 +146,11 @@ function registerScanOptions(command: Command): Command {
       '--baseline <file>',
       'override where the stored baseline lives (used by the `baseline` subcommand and `--diff latest`)',
     )
-    .option('--fail-on-diff', 'with --diff, exit 3 when any endpoint changed (for CI gating)', false)
+    .option(
+      '--fail-on-diff',
+      'with --diff, exit 3 when any endpoint changed (for CI gating)',
+      false,
+    )
     .option('--include-third-party', 'capture cross-origin XHR/fetch calls as well', false)
     .option(
       '--include-host <hosts>',
@@ -147,7 +169,11 @@ function registerScanOptions(command: Command): Command {
       'refuse to write the reports if a redacted value still appears in them',
       false,
     )
-    .option('--force', 'bypass robots.txt restrictions (only for systems you are allowed to test)', false)
+    .option(
+      '--force',
+      'bypass robots.txt restrictions (only for systems you are allowed to test)',
+      false,
+    )
     .option('--allow-local', 'allow scanning localhost and private network ranges', false)
     .option(
       '--telemetry',
@@ -159,15 +185,17 @@ function registerScanOptions(command: Command): Command {
       'print the anonymized telemetry payload to stdout instead of writing telemetry.json',
       false,
     )
-    .option('--max-body-mb <n>', 'maximum response body / WebSocket frame size to keep, in MB', numberArg, 1)
+    .option(
+      '--max-body-mb <n>',
+      'maximum response body / WebSocket frame size to keep, in MB',
+      numberArg,
+      1,
+    )
     .option(
       '--checksum [algorithm]',
       `write a checksums.json integrity manifest over the reports (${INTEGRITY_ALGORITHMS.join(' or ')}; default sha256)`,
     )
-    .option(
-      '--sign-key <file>',
-      'sign the checksums.json manifest with the HMAC key in this file',
-    )
+    .option('--sign-key <file>', 'sign the checksums.json manifest with the HMAC key in this file')
     .option('-q, --quiet', 'suppress progress output (errors only)', false)
     .option('-v, --verbose', 'verbose progress output', false)
     .option(
@@ -187,7 +215,7 @@ const program = new Command();
 program
   .name('api-recon')
   .description(
-    'Discover a website\'s APIs by driving a headless browser, simulating user actions, and exporting a categorized report (JSON, Markdown, HTML, PDF, OpenAPI, interactive dashboard).',
+    "Discover a website's APIs by driving a headless browser, simulating user actions, and exporting a categorized report (JSON, Markdown, HTML, PDF, OpenAPI, interactive dashboard).",
   )
   .version(TOOL_VERSION)
   // The default command and the `baseline` subcommand both declare the scan
@@ -212,9 +240,7 @@ registerScanOptions(
 
 program
   .command('verify <manifest>')
-  .description(
-    'check reports against a checksums.json integrity manifest written by `--checksum`',
-  )
+  .description('check reports against a checksums.json integrity manifest written by `--checksum`')
   .option('--sign-key <file>', 'path to the HMAC key file, when the manifest is signed')
   .action(async (manifest: string, raw: { signKey?: string }) => {
     const logger = new Logger({});
@@ -230,12 +256,8 @@ program
   .action((shell: string) => {
     if (!isCompletionShell(shell)) {
       const logger = new Logger({});
-      logger.error(
-        `Unknown shell "${shell}". Supported shells: ${COMPLETION_SHELLS.join(', ')}.`,
-      );
-      logger.always(
-        `  ${chalk.cyan('→')} Try \`api-recon completion bash\` (or zsh, fish).`,
-      );
+      logger.error(`Unknown shell "${shell}". Supported shells: ${COMPLETION_SHELLS.join(', ')}.`);
+      logger.always(`  ${chalk.cyan('→')} Try \`api-recon completion bash\` (or zsh, fish).`);
       process.exitCode = 2;
       return;
     }
@@ -368,7 +390,9 @@ async function runScan(
     logger.error(
       '--no-respect-robots requires --force, which acknowledges that you own or may test the target.',
     );
-    logger.always(`  ${chalk.cyan('→')} Add --force if this target is one you are authorized to test.`);
+    logger.always(
+      `  ${chalk.cyan('→')} Add --force if this target is one you are authorized to test.`,
+    );
     process.exitCode = 2;
     return;
   }
@@ -402,6 +426,14 @@ async function runScan(
     logger.debug(`baseline: ${target}`);
   }
 
+  // Ctrl+C (SIGINT) and SIGTERM stop the scan gracefully: the browser is closed
+  // and whatever was captured is flushed to report.json before the process
+  // exits, so a long crawl never leaves a Chromium process behind. This state
+  // is shared with the catch below, which reports the signal's exit code.
+  const controller = new AbortController();
+  let receivedSignal: NodeJS.Signals | null = null;
+  let stopProgress: (() => void) | null = null;
+
   try {
     let formats = normalizeFormats(opts.formats.split(','));
     if (opts.share) {
@@ -428,42 +460,69 @@ async function runScan(
       mode: progressModeFor({ json: opts.jsonProgress, quiet: opts.quiet, stream: progressStream }),
     });
     if (progress.mode === 'none') {
-      logger.info(`Scanning ${chalk.bold(seedUrl)} (depth ${opts.depth}, max ${opts.maxPages} pages)`);
+      logger.info(
+        `Scanning ${chalk.bold(seedUrl)} (depth ${opts.depth}, max ${opts.maxPages} pages)`,
+      );
     }
+    // Lets the signal handler clear the live table before it prints anything to
+    // the same stream, so the two never smear into each other.
+    stopProgress = () => progress.stop();
 
-    const result = await scan({
-      url: seedUrl,
-      depth: opts.depth,
-      maxPages: opts.maxPages,
-      out: opts.out,
-      formats,
-      ...(opts.auth ? { auth: opts.auth } : {}),
-      ...(opts.login ? { login: opts.login } : {}),
-      record: opts.record,
-      ...(opts.actions ? { actions: opts.actions } : {}),
-      rate: opts.rate,
-      timeoutMs: opts.timeout,
-      resume: opts.resume,
-      browser: opts.browser,
-      ...(opts.diff ? { diff: opts.diff } : {}),
-      respectRobots: opts.respectRobots,
-      force: opts.force,
-      includeThirdParty: opts.includeThirdParty,
-      includeHost: splitList(opts.includeHost),
-      excludePath: splitList(opts.excludePath),
-      redact: opts.redact,
-      strictRedaction: opts.strictRedaction,
-      allowLocal: opts.allowLocal,
-      telemetry,
-      telemetryPreview: opts.telemetryPreview,
-      maxBodyBytes: Math.round(opts.maxBodyMb * 1024 * 1024),
-      ...(opts.checksum !== undefined ? { checksum: opts.checksum } : {}),
-      ...(opts.signKey ? { signKey: opts.signKey } : {}),
-      debug: opts.debug,
-      ...(opts.debug ? { debugDir: join(opts.out, 'debug') } : {}),
-      logger,
-      onProgress: (state) => progress.render(state),
-    });
+    // A first SIGINT/SIGTERM asks the scan to stop and waits for it to flush;
+    // a second gives up on the graceful path and exits at once, so a wedged
+    // teardown is never something Ctrl+C cannot escape.
+    const onSignal = (signal: NodeJS.Signals): void => {
+      if (controller.signal.aborted) {
+        logger.warn(`Received ${signal} again — exiting now.`);
+        process.exit(128 + (signal === 'SIGTERM' ? 15 : 2));
+      }
+      receivedSignal = signal;
+      stopProgress?.();
+      logger.warn(`Received ${signal} — shutting down and flushing a partial report.`);
+      controller.abort();
+    };
+    process.on('SIGINT', onSignal);
+    process.on('SIGTERM', onSignal);
+    let result: Awaited<ReturnType<typeof scan>>;
+    try {
+      result = await scan({
+        url: seedUrl,
+        depth: opts.depth,
+        maxPages: opts.maxPages,
+        out: opts.out,
+        formats,
+        ...(opts.auth ? { auth: opts.auth } : {}),
+        ...(opts.login ? { login: opts.login } : {}),
+        record: opts.record,
+        ...(opts.actions ? { actions: opts.actions } : {}),
+        rate: opts.rate,
+        timeoutMs: opts.timeout,
+        resume: opts.resume,
+        browser: opts.browser,
+        ...(opts.diff ? { diff: opts.diff } : {}),
+        respectRobots: opts.respectRobots,
+        force: opts.force,
+        includeThirdParty: opts.includeThirdParty,
+        includeHost: splitList(opts.includeHost),
+        excludePath: splitList(opts.excludePath),
+        redact: opts.redact,
+        strictRedaction: opts.strictRedaction,
+        allowLocal: opts.allowLocal,
+        telemetry,
+        telemetryPreview: opts.telemetryPreview,
+        maxBodyBytes: Math.round(opts.maxBodyMb * 1024 * 1024),
+        ...(opts.checksum !== undefined ? { checksum: opts.checksum } : {}),
+        ...(opts.signKey ? { signKey: opts.signKey } : {}),
+        debug: opts.debug,
+        ...(opts.debug ? { debugDir: join(opts.out, 'debug') } : {}),
+        logger,
+        onProgress: (state) => progress.render(state),
+        signal: controller.signal,
+      });
+    } finally {
+      process.off('SIGINT', onSignal);
+      process.off('SIGTERM', onSignal);
+    }
     // Hands the terminal back: the table is replaced by the summary rather
     // than left above it.
     progress.stop();
@@ -533,6 +592,16 @@ async function runScan(
       }
     }
   } catch (err) {
+    // A deliberate stop is not a failure: report it, keep whatever was flushed,
+    // and exit with the conventional 128+signal code (130 for SIGINT,
+    // 143 for SIGTERM).
+    if (err instanceof CancelledError) {
+      stopProgress?.();
+      logger.warn(err instanceof Error ? err.message : String(err));
+      logger.always(`  ${chalk.cyan('→')} ${hintForError(err)}`);
+      process.exitCode = receivedSignal === 'SIGTERM' ? 143 : 130;
+      return;
+    }
     const safety = err instanceof SafetyError;
     logger.error(err instanceof Error ? err.message : String(err));
     logger.always(`  ${chalk.cyan('→')} ${hintForError(err)}`);
@@ -589,11 +658,7 @@ async function renderForPrint(format: string, report: ReconReport): Promise<stri
     case 'share':
       return renderShareSummary(report);
     case 'html':
-      return renderHtml(
-        renderMarkdown(report),
-        `API recon — ${report.meta.seedUrl}`,
-        report,
-      );
+      return renderHtml(renderMarkdown(report), `API recon — ${report.meta.seedUrl}`, report);
     default:
       return renderMarkdown(report);
   }

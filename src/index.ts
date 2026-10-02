@@ -44,6 +44,7 @@ import { collectFindings } from './core/findings.js';
 import { buildTelemetry, resolveTelemetryPlan, writeTelemetryFile } from './core/telemetry.js';
 import { detectTechnologies, type TechEvidence } from './core/techStack.js';
 import { writeReports } from './reporters/index.js';
+import { writeJsonReport } from './reporters/json.js';
 import {
   checkpointPath,
   readScanCheckpoint,
@@ -56,7 +57,7 @@ import { isPrivateHost, normalizeUrl } from './utils/url.js';
 import { RateLimiter } from './utils/rateLimit.js';
 import { Logger } from './utils/logger.js';
 import { SafetyError, assertScanAllowed } from './utils/safety.js';
-import { ApiReconError, RuntimeError } from './utils/errors.js';
+import { ApiReconError, CancelledError, RuntimeError } from './utils/errors.js';
 import { attachDebugInfo } from './utils/debug.js';
 
 /**
@@ -77,7 +78,10 @@ export function scan(options: ScanOptions): ScanHandle {
   );
 }
 
-async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): Promise<ScanResult> {
+async function runScan(
+  options: ScanOptions,
+  emit: (event: ScanEvent) => void,
+): Promise<ScanResult> {
   if (!options?.url) {
     throw new SafetyError('A seed URL is required, e.g. scan({ url: "https://example.com" }).');
   }
@@ -104,7 +108,8 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   // The integrity manifest is resolved here as well: a typo in the algorithm or
   // a missing key file should fail in milliseconds, not after a crawl. Signing
   // implies checksumming, with sha256 unless one was named.
-  const integrityAlgorithm = resolveIntegrityAlgorithm(options.checksum) ?? (options.signKey ? 'sha256' : null);
+  const integrityAlgorithm =
+    resolveIntegrityAlgorithm(options.checksum) ?? (options.signKey ? 'sha256' : null);
   const signKey = options.signKey ? await readSignKeyFile(options.signKey) : undefined;
   const timeoutMs = options.timeoutMs ?? 30_000;
   const resume = options.resume ?? false;
@@ -122,6 +127,12 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
       `The checkpoint at ${checkpointFile} is for ${resumed.seedUrl}, not ${seedUrl}.`,
       { hint: 'Pass the same seed URL, or start a fresh scan without --resume.' },
     );
+  }
+  // A signal that is already aborted stops the run before a browser is ever
+  // launched, rather than opening one only to close it.
+  const signal = options.signal;
+  if (signal?.aborted) {
+    throw new CancelledError('The scan was cancelled before it started.');
   }
 
   assertScanAllowed(seedUrl, { allowLocal });
@@ -194,6 +205,19 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   // A resumed scan continues one report, so the traffic captured before the
   // checkpoint is seeded back into the interceptor.
   if (resumed) interceptor.restore({ calls: resumed.calls, webSockets: resumed.webSockets });
+
+  // A SIGINT/SIGTERM must not leave a Chromium process behind. Closing the
+  // session the moment the signal arrives unblocks any in-flight navigation so
+  // teardown starts at once; the `finally` below closes it again as a no-op, so
+  // the browser is closed whether the run was cancelled or finished normally.
+  let interrupted = false;
+  const onAbort = (): void => {
+    if (interrupted) return;
+    interrupted = true;
+    logger.warn('Interrupted — closing the browser and flushing a partial report.');
+    void session.close();
+  };
+  if (signal) signal.addEventListener('abort', onAbort, { once: true });
 
   const evidence: TechEvidence[] = resumed ? resumed.evidence : [];
   let pages: CapturedPage[] = resumed ? resumed.pages : [];
@@ -298,6 +322,7 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
         scope,
         logger,
         navTimeoutMs: timeoutMs,
+        ...(signal ? { signal } : {}),
         ...(resumed
           ? {
               initial: {
@@ -349,6 +374,8 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
   } catch (err) {
     failure = err;
   } finally {
+    // The listener has served its purpose and must not outlive the run.
+    if (signal) signal.removeEventListener('abort', onAbort);
     // A trace is only kept for a failure; on a run that succeeds it is
     // discarded, so --debug costs nothing when nothing goes wrong.
     if (debug) {
@@ -361,6 +388,32 @@ async function runScan(options: ScanOptions, emit: (event: ScanEvent) => void): 
       }
     }
     await session.close();
+  }
+
+  if (interrupted) {
+    // Cancelled on request: flush what the crawl had as report.json, so an
+    // interrupted run is still worth something, and leave the checkpoint in
+    // place so `--resume` can pick the crawl up where it stopped. This is a
+    // deliberate stop, so it rejects with CancelledError rather than a failure.
+    const report = buildReport();
+    if (options.out) {
+      try {
+        const file = await writeJsonReport(report, options.out);
+        logger.warn(
+          `Partial report written to ${file} (${report.meta.pagesVisited} page(s), ` +
+            `${report.endpoints.length} endpoint pattern(s)).`,
+        );
+      } catch (err) {
+        logger.warn(
+          `could not flush the partial report: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+    throw new CancelledError('The scan was cancelled.', {
+      hint: options.out
+        ? `Re-run with --resume to continue from ${checkpointFile ?? options.out}.`
+        : 'Pass --out <dir> to keep a partial report and a checkpoint you can resume.',
+    });
   }
 
   if (failure) {
@@ -494,6 +547,7 @@ export function normalizeFormats(formats: readonly string[] | undefined): Report
 }
 
 export { SafetyError } from './utils/safety.js';
+export { CancelledError } from './utils/errors.js';
 export { Logger } from './utils/logger.js';
 export type {
   BrowserEngine,
@@ -550,11 +604,7 @@ export {
   TELEMETRY_SIGNAL_KEYS,
   telemetryBoundaryViolations,
 } from './core/telemetry.js';
-export {
-  SCAN_CHECKPOINT_FILENAME,
-  checkpointPath,
-  readScanCheckpoint,
-} from './core/checkpoint.js';
+export { SCAN_CHECKPOINT_FILENAME, checkpointPath, readScanCheckpoint } from './core/checkpoint.js';
 export { collectFindings } from './core/findings.js';
 export { groupResources } from './core/resources.js';
 export { buildRequestGraph } from './reporters/graph.js';

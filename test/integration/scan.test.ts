@@ -10,7 +10,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { load } from 'js-yaml';
 import { startFixtureServer, type FixtureServerHandle } from '../fixtures/server.js';
 import { browserAvailable } from '../helpers/browser.js';
-import { scan, Logger } from '../../src/index.js';
+import { scan, CancelledError, Logger } from '../../src/index.js';
 import type { Endpoint, ReconReport } from '../../src/index.js';
 
 let fixture: FixtureServerHandle;
@@ -552,5 +552,45 @@ describe('events API', () => {
       logger: silent(),
     });
     expect(result.report.endpoints.some((e) => e.id === 'GET /api/products')).toBe(true);
+  }, 120_000);
+});
+
+describe('cancellation', () => {
+  it('closes the browser and flushes a partial report.json when aborted', async () => {
+    const dir = join(outDir, 'cancelled');
+    const controller = new AbortController();
+    let abortedAfterCalls = 0;
+
+    await expect(
+      scan({
+        url: fixture.url,
+        depth: 2,
+        maxPages: 25,
+        allowLocal: true,
+        rate: 0,
+        formats: ['json', 'md'],
+        out: dir,
+        logger: silent(),
+        signal: controller.signal,
+        // Abort once traffic has been captured, i.e. mid-crawl: the run should
+        // stop, tear down, and still leave a usable report behind.
+        onProgress: (state) => {
+          if (state.phase === 'crawling' && state.calls.length >= 1) {
+            abortedAfterCalls = state.calls.length;
+            controller.abort();
+          }
+        },
+      }),
+    ).rejects.toThrow(CancelledError);
+
+    expect(abortedAfterCalls).toBeGreaterThanOrEqual(1);
+
+    // The partial capture was flushed as report.json ...
+    const report = await readJsonReport(dir);
+    expect(report.meta.pagesVisited).toBeGreaterThanOrEqual(1);
+    // ... while the other requested formats were not paid for on the way out.
+    await expect(stat(join(dir, 'report.md'))).rejects.toThrow();
+    // The checkpoint survives, so `--resume` can continue where it stopped.
+    expect((await stat(join(dir, 'checkpoint.json'))).isFile()).toBe(true);
   }, 120_000);
 });

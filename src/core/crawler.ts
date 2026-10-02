@@ -56,6 +56,12 @@ export interface CrawlOptions {
   /** Per-navigation timeout, in milliseconds. */
   navTimeoutMs?: number;
   settleMs?: number;
+  /**
+   * Stops the crawl between pages when it aborts. The scan sets this from the
+   * caller's `AbortSignal`, so a `SIGINT` ends the run at the next boundary
+   * rather than mid-navigation.
+   */
+  signal?: AbortSignal;
 }
 
 export interface CrawlOutcome {
@@ -81,18 +87,24 @@ export async function navigateWithRetry(
   url: string,
   timeoutMs: number,
   onRetry?: (error: unknown, attempt: number) => void,
+  signal?: AbortSignal,
 ): Promise<NavigateOutcome> {
   let lastError: unknown = null;
+  let attempts = 0;
   for (let attempt = 1; attempt <= 2; attempt++) {
+    // An aborted run must not spend another navigation on a retry; hand the
+    // caller the last error (or none) and let it stop.
+    if (signal?.aborted) break;
+    attempts = attempt;
     try {
       const response = await page.goto(url, { waitUntil: 'load', timeout: timeoutMs });
       return { response, error: null, attempts: attempt };
     } catch (error) {
       lastError = error;
-      if (attempt === 1) onRetry?.(error, attempt);
+      if (attempt === 1 && !signal?.aborted) onRetry?.(error, attempt);
     }
   }
-  return { response: null, error: lastError, attempts: 2 };
+  return { response: null, error: lastError, attempts };
 }
 
 /** The first line of an error, so a warning stays one line. */
@@ -136,12 +148,22 @@ export async function crawl(page: Page, options: CrawlOptions): Promise<CrawlOut
     const normalized = normalizeUrl(url);
     if (seenPages.has(normalized)) return;
     seenPages.add(normalized);
-    const entry: CapturedPage = { url, normalizedUrl: normalized, depth, title, visitedAt: Date.now() };
+    const entry: CapturedPage = {
+      url,
+      normalizedUrl: normalized,
+      depth,
+      title,
+      visitedAt: Date.now(),
+    };
     pages.push(entry);
     options.onPageVisited?.(entry);
   };
 
   while (queue.length > 0 && visited.size < options.maxPages) {
+    // A cancellation lands on a page boundary: finish nothing new, just stop,
+    // so the scan can tear the browser down and flush what it has.
+    if (options.signal?.aborted) break;
+
     const item = queue.shift()!;
     const normalized = normalizeUrl(item.url);
     if (visited.has(normalized)) continue;
@@ -168,11 +190,21 @@ export async function crawl(page: Page, options: CrawlOptions): Promise<CrawlOut
     let html = '';
     let mainHeaders: Record<string, string> = {};
 
-    const nav = await navigateWithRetry(page, item.url, navTimeout, (err, attempt) => {
-      options.logger.warn(
-        `retrying ${item.url} after a failed load (attempt ${attempt + 1} of 2): ${firstLine(err)}`,
-      );
-    });
+    const nav = await navigateWithRetry(
+      page,
+      item.url,
+      navTimeout,
+      (err, attempt) => {
+        options.logger.warn(
+          `retrying ${item.url} after a failed load (attempt ${attempt + 1} of 2): ${firstLine(err)}`,
+        );
+      },
+      options.signal,
+    );
+
+    // The navigation may have failed only because a cancellation closed the
+    // browser underneath it; that is a stop, not a page to record as broken.
+    if (options.signal?.aborted) break;
 
     if (nav.error !== null) {
       options.logger.warn(`could not load ${item.url}: ${firstLine(nav.error)}`);

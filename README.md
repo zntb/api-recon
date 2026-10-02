@@ -381,6 +381,18 @@ than misread, and it holds only redacted capture data — the same fields the
 reports keep. Resuming keeps the original start time, so the finished report
 spans the whole capture rather than only the part after the resume.
 
+### Stopping a scan
+
+Ctrl+C is a clean stop, not an abandoned process. On `SIGINT` or `SIGTERM` the
+scan closes the browser, stops the crawl at the next page boundary, and flushes
+the capture so far to `<out>/report.json` before it exits — so a long crawl
+never leaves a Chromium process behind, and the interrupted run is still worth
+reading. The checkpoint is deliberately kept, so the run continues with
+`--resume`. The exit code is the conventional `128` + signal: `130` for
+`SIGINT`, `143` for `SIGTERM`. Pressing Ctrl+C a second time skips the graceful
+path and exits at once, so a wedged teardown is never something you cannot
+escape.
+
 ## What it captures
 
 For every XHR/fetch request it records the method, normalized URL, status,
@@ -987,6 +999,11 @@ later. All CLI flags have camelCase equivalents (`maxPages`, `respectRobots`,
 functions are exported too — `buildIntegrityManifest`, `verifyIntegrityManifest`,
 and `verifyManifestFromDisk` — for an application that wants to check a report
 without the CLI.
+
+Pass a `signal` (an `AbortSignal`) to stop a scan on your own terms: when it
+aborts, the browser is closed, the partial capture is written to
+`<out>/report.json`, and the promise rejects with the exported `CancelledError`
+(leaving the checkpoint in place for a later `resume`).
 
 Types are exported for every report structure:
 

@@ -445,11 +445,7 @@ export interface ReportDiff {
 
 /** The rule that produced a finding. */
 export type FindingKind =
-  | 'unauthenticated'
-  | 'pii'
-  | 'missing-security-header'
-  | 'verbose-error'
-  | 'inconsistent-shape';
+  'unauthenticated' | 'pii' | 'missing-security-header' | 'verbose-error' | 'inconsistent-shape';
 
 /** How much attention a finding deserves, from `high` to `info`. */
 export type FindingSeverity = 'high' | 'medium' | 'low' | 'info';
@@ -634,6 +630,14 @@ export interface ScanOptions {
    * URL must match the checkpoint's. Off by default.
    */
   resume?: boolean;
+  /**
+   * Stop the scan when this signal aborts: the browser is closed, whatever was
+   * captured is flushed to `<out>/report.json`, and the run rejects with a
+   * `CancelledError`. The checkpoint is left in place, so `--resume` can
+   * continue it. The CLI wires this to `SIGINT`/`SIGTERM`; a host application
+   * can abort a long scan on its own terms.
+   */
+  signal?: AbortSignal;
   /**
    * Write a `checksums.json` integrity manifest beside the reports, so a
    * recipient can confirm the files were not edited. `true` uses `sha256`;

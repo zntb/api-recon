@@ -35,12 +35,23 @@ export class SafetyError extends ApiReconError {}
 export class RuntimeError extends ApiReconError {}
 
 /**
+ * A scan stopped early on request — a `SIGINT`/`SIGTERM` or an `AbortSignal` —
+ * rather than on its own. It is a deliberate stop, not a failure: whatever was
+ * captured is flushed first, so the try/catch around a scan can tell this apart
+ * from a real error and choose a different exit code.
+ */
+export class CancelledError extends ApiReconError {}
+
+/**
  * The hint to print after an error: the error's own when it has one, and
  * otherwise a default matched to its class, so every failure ends in a next
  * step.
  */
 export function hintForError(err: unknown): string {
   if (err instanceof ApiReconError && err.hint) return err.hint;
+  if (err instanceof CancelledError) {
+    return 'The run stopped where it was asked to; a partial report.json was kept.';
+  }
   if (err instanceof SafetyError) {
     return 'Check the option or value named above, and run with --verbose for more detail.';
   }
