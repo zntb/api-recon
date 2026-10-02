@@ -24,7 +24,7 @@
 
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, normalize, relative, resolve } from 'node:path';
 import { TOOL_NAME, TOOL_VERSION } from '../version.js';
 import { SafetyError } from './errors.js';
 
@@ -263,6 +263,19 @@ export function parseIntegrityManifest(value: unknown): IntegrityManifest {
   for (const [name, digest] of Object.entries(rawFiles as Record<string, unknown>)) {
     if (typeof digest !== 'string' || digest === '') {
       throw new SafetyError(`The integrity manifest entry for "${name}" is not a digest string.`);
+    }
+    // A manifest is untrusted input: a recipient runs this on a `checksums.json`
+    // that arrived with the artifact, from whoever sent it. Every name written
+    // by `buildIntegrityManifest` is relative to the output directory, so a
+    // name that is absolute — or that climbs out with `..` — is never
+    // legitimate, and accepting one would let a manifest steer a read of any
+    // file the process can reach. Checked here, at the single point every
+    // caller parses through, rather than at each place a name is resolved.
+    if (isAbsolute(name) || normalize(name).split(/[\\/]/).includes('..')) {
+      throw new SafetyError(
+        `The integrity manifest names "${name}", which is outside the report directory.`,
+        { hint: 'A manifest can only name files that sit beside it.' },
+      );
     }
     files[name] = digest;
   }

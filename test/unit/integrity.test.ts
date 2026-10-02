@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -165,6 +165,38 @@ describe('parseIntegrityManifest', () => {
       /not a digest string/,
     );
   });
+
+  it('refuses a name that points outside the report directory', () => {
+    // A manifest arrives with the artifact, from whoever sent it, so a name
+    // that climbs out of the directory must never be resolved — otherwise a
+    // crafted manifest steers a read of any file the process can reach.
+    for (const name of [
+      '../escape.txt',
+      '../../../../etc/passwd',
+      'payloads/../../escape.txt',
+      '..\\escape.txt',
+      '/etc/passwd',
+      'C:\\Windows\\win.ini',
+      '..',
+    ]) {
+      expect(
+        () => parseIntegrityManifest({ algorithm: 'sha256', files: { [name]: SHA256_ABC } }),
+        `${name} should be refused`,
+      ).toThrow(/outside the report directory/);
+    }
+  });
+
+  it('still accepts a name that stays inside, including one that normalizes back in', () => {
+    // `a/../b` resolves beside the manifest, so refusing it would break a
+    // manifest a legitimate producer could write.
+    for (const name of ['report.json', 'payloads/response-body-1.json', 'a/../b.json']) {
+      const manifest = parseIntegrityManifest({
+        algorithm: 'sha256',
+        files: { [name]: SHA256_ABC },
+      });
+      expect(Object.keys(manifest.files)).toEqual([name]);
+    }
+  });
 });
 
 describe('file helpers', () => {
@@ -243,5 +275,33 @@ describe('file helpers', () => {
     const broken = join(dir, 'broken.json');
     await writeFile(broken, '{ not json', 'utf8');
     await expect(verifyManifestFromDisk(broken)).rejects.toThrow(/not valid JSON/);
+  });
+
+  it('refuses a manifest that names a file outside the report directory', async () => {
+    // The attack this guards: a crafted checksums.json sitting in the report
+    // directory, naming a file above it with that file's real digest, which
+    // used to verify as intact.
+    const reports = join(dir, 'reports');
+    await mkdir(reports, { recursive: true });
+    const outside = join(dir, 'escape.txt');
+    await writeFile(outside, 'not part of the artifact\n', 'utf8');
+    const digest = digestOf(await readFile(outside), 'sha256');
+
+    const manifestPath = join(reports, INTEGRITY_FILENAME);
+    await writeFile(
+      manifestPath,
+      JSON.stringify({
+        version: 1,
+        algorithm: 'sha256',
+        generatedAt: '2026-01-01T00:00:00.000Z',
+        tool: { name: 'api-recon', version: '0.4.2' },
+        files: { '../escape.txt': digest },
+      }),
+      'utf8',
+    );
+
+    await expect(verifyManifestFromDisk(manifestPath)).rejects.toThrow(
+      /outside the report directory/,
+    );
   });
 });

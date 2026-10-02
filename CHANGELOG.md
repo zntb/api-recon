@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **`api-recon verify` no longer reads outside the report directory** — the
+  verifier resolved every file name in a `checksums.json` against the
+  manifest's own directory with no containment check, so a manifest naming
+  `../secret` steered a read of any file the process could reach and could be
+  made to verify as intact. A manifest is the one artifact a recipient
+  receives from a sender they may not trust, so names are now validated where
+  the manifest is parsed: an absolute name, or one that climbs out with `..`,
+  is refused as a `SafetyError` before anything is opened. Names that stay
+  inside are unaffected, including a nested `payloads/…` entry and one that
+  normalizes back in (`a/../b.json`), and existing manifests verify unchanged.
+
 ## [0.4.2] - 2026-10-02
 
 ### Added
