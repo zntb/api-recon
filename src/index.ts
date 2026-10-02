@@ -354,6 +354,13 @@ async function runScan(
         // Written after every page, so a crash or Ctrl+C leaves a usable
         // starting point rather than throwing the run away.
         onCheckpoint: async (state) => {
+          // The crawler owns the pages until it returns, and an interrupted
+          // crawl may never return — it can throw on the aborted navigation
+          // instead. Recording them here means the partial report built after
+          // a Ctrl+C still describes the pages the crawl did visit, rather than
+          // claiming it visited none.
+          pages = state.pages;
+          blockedByRobots = state.blockedByRobots;
           if (!checkpointFile) return;
           await writeScanCheckpoint(checkpointFile, {
             version: SCAN_CHECKPOINT_VERSION,
