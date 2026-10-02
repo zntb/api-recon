@@ -225,7 +225,15 @@ async function runScan(
     logger.warn('Interrupted — closing the browser and flushing a partial report.');
     void session.close();
   };
-  if (signal) signal.addEventListener('abort', onAbort, { once: true });
+  if (signal) {
+    signal.addEventListener('abort', onAbort, { once: true });
+    // The signal may have aborted while the browser was starting, before this
+    // listener existed. An AbortSignal does not replay the event for a listener
+    // attached afterwards, so check the flag too and treat a late signal as the
+    // interruption it is rather than crawling on and finishing as if nothing
+    // happened.
+    if (signal.aborted) onAbort();
+  }
 
   const evidence: TechEvidence[] = resumed ? resumed.evidence : [];
   let pages: CapturedPage[] = resumed ? resumed.pages : [];

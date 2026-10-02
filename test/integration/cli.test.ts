@@ -776,8 +776,24 @@ describe('api-recon CLI', () => {
       });
       child.stderr.on('data', () => {});
 
-      // Let the crawl get underway, then interrupt it mid-flight.
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Wait until the crawl has actually recorded a page before interrupting.
+      // The checkpoint is written after every page, so its arrival is a
+      // deterministic "a page finished" signal; a fixed sleep races the browser
+      // launch and can fire the SIGINT before any page exists, which makes the
+      // partial report empty (or absent) on a slow CI machine.
+      const checkpoint = join(dir, 'checkpoint.json');
+      const deadline = Date.now() + 90_000;
+      for (;;) {
+        try {
+          await readFile(checkpoint, 'utf8');
+          break;
+        } catch {
+          if (Date.now() > deadline) {
+            throw new Error('the scan never wrote a checkpoint to interrupt');
+          }
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
       child.kill('SIGINT');
 
       const code = await new Promise<number | null>((resolve) =>
