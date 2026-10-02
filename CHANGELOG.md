@@ -5,7 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.3] - 2026-10-02
+
+Fixes the report lost on Ctrl+C, adds a security policy and the built-package
+gates, and splits the README into a front door plus a reference under `docs/`
+that now ships with the package. No flag, option, default, exit code, or report
+field changes.
 
 ### Changed
 
@@ -893,7 +898,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
-[Unreleased]: https://github.com/zntb/api-recon/compare/v0.4.2...HEAD
+[0.4.3]: https://github.com/zntb/api-recon/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/zntb/api-recon/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/zntb/api-recon/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/zntb/api-recon/compare/v0.3.9...v0.4.0
