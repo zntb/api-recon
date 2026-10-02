@@ -6,7 +6,7 @@
 
 **Recommendation: Ready to publish.** The one High finding has been fixed on `main` since this review was written — see Finding 1, which now carries its resolution and regression coverage. Nothing outstanding blocks a release.
 
-**Findings: 1 High (**fixed**) · 3 Medium (**3 fixed**) · 6 Low (**1 fixed**) · 2 Nit (12 total; 7 open).** Every finding that needed a code or gate change is now resolved on `main`; the remaining seven are polish, documentation, and CI-planning work that can follow.
+**Findings: 1 High (**fixed**) · 3 Medium (**3 fixed**) · 6 Low (**2 fixed**) · 2 Nit (12 total; 6 open).** Every finding that needed a code or gate change is now resolved on `main`; the remaining six are polish and CI-planning work that can follow. The two documentation findings are now moot in a second sense: the README no longer holds the material at all, since it was cut down to a front door and the reference split across `docs/` — so the "state ESM-only in the README" fix landed in the library page that owns it.
 
 ## 2. What I Verified
 
@@ -19,7 +19,7 @@
 | Packaging lint | `npm run check:publint` | `All good!` |
 | Types resolution | `npm run check:types` | Passes with `cjs-resolves-to-esm` ignored (Finding 7); `node10`/`node16 ESM`/`bundler` all 🟢 |
 | Built package | `npm run check:published` | `dist/index.js` loads with the documented exports; the bin reports `v0.4.2`; all 171 emitted files have declarations |
-| Tarball contents | `npm pack --dry-run` | 179 files, 273.5 kB packed, 1.0 MB unpacked; non-`dist` files are exactly `CHANGELOG.md`, `LICENSE`, `README.md`, `completions/*`, `package.json`, `schema/report.schema.json` |
+| Tarball contents | `npm pack --dry-run` | 179 files at review time; 195 after the docs restructure, which added `docs/` to the allowlist. Non-`dist` entries are `CHANGELOG.md`, `LICENSE`, `README.md`, `completions/*`, `docs/*`, `package.json`, `schema/report.schema.json` |
 | Bin entry | `head -1 dist/cli/index.js`, `ls -l` | `#!/usr/bin/env node`, mode `-rwxr-xr-x` |
 | Type hygiene | `grep` over `src` | 0 `any`, 0 `@ts-ignore`/`@ts-expect-error`, 0 `eslint-disable`, 40 non-null assertions |
 | `dist` tracked in git? | `git ls-files dist` | 0 files; `.gitignore` lists `dist/` |
@@ -126,9 +126,11 @@
 - **Problem:** `grep -rn "publint\|arethetypeswrong"` across workflows, scripts, and `package.json` returns nothing. The repo has a strong gate culture (audit, schema, examples, pack list) and these two are conspicuously absent from it — they pass today, and nothing keeps them passing.
 - **Fix:** two steps in the existing unit job. Highest value-per-second of anything in this review.
 
-### **[LOW] ESM-only is never stated for library consumers** (`confirmed`)
+### **[LOW] ESM-only is never stated for library consumers** (`confirmed` — **FIXED**)
 
-- **Where:** `README.md` (library section, ~lines 1019 and 1062)
+> **Resolution:** `docs/reference/library.md` states that the package is ESM-only, is published with type declarations, and that TypeScript consumers should use `moduleResolution: "node16"`, `"nodenext"`, or `"bundler"` — with the reason spelled out (there is no CommonJS `require` entry), next to the install snippet rather than buried in it. The same page also documents the exported error classes (`SafetyError`, `RuntimeError`, `CancelledError`, `ApiReconError`) and their `hint`, which were exported but undocumented.
+
+- **Where:** the library section of the README (now `docs/reference/library.md`)
 - **Problem:** the library examples use `import { scan } from 'api-recon'` but the README never says the package is ESM-only or that TypeScript consumers need `moduleResolution: node16`/`nodenext`/`bundler`. Someone on `moduleResolution: node10` will get a types error and no explanation.
 - **Fix:** three lines in the install section.
 

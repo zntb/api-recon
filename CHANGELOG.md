@@ -7,8 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The README is a front door; the reference is a set of pages** — the README
+  had grown to 1254 lines holding the flag table, the report schema, the
+  dashboard tour, the telemetry boundary, and the release process, which made it
+  a reference nobody could skim. It is now a short index that says what the tool
+  does, how to install it, and where each question is answered, and the material
+  itself lives in `docs/` split by question: the CLI reference, the library API,
+  what a scan captures, reports, the dashboard, comparing scans, authentication
+  and interaction, sharing a report, the safety guardrails, and telemetry. The
+  existing cookbook and FAQ sit alongside them. No flag, option, default, or
+  report field changes — the text moved, and the cross-references were rewritten
+  to point at the page that now owns each topic.
+
 ### Fixed
 
+- **A dead documentation link** — the CLI reference pointed at `../cookbook`, a
+  directory that resolves in the repository but dangles in the rendered site,
+  since no page is generated for a directory. It now names the four recipes.
+  Two new tests in `test/unit/docs.test.ts` keep both classes of link mistake
+  out: one that links only pages the site actually generates, and one that
+  requires anything leaving `docs/` to be an absolute URL rather than a relative
+  path that would dangle after rendering.
 - **Ctrl+C no longer loses the partial report** — Playwright installs its own
   `SIGINT` handler by default, and it does `process.exit(130)` as soon as it has
   closed the browser: a hard exit that waits for nothing else in the process.
@@ -36,6 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
+- **The documentation ships with the package** — `docs/` joins the npm `files`
+  allowlist, so an installed copy carries the same reference the repository does
+  instead of only the README index. `check:pack` asserts it is there
+  (`docs/index.md` and `docs/reference/cli.md` are required entries), and CI
+  proves the built package still loads. The tarball grows from 179 to 195 files.
+- **Development and supply-chain docs moved to `CONTRIBUTING.md`** — where the
+  setup, test expectations, and release process already lived, so one file
+  answers "how do I work on this" instead of two.
 - **The published package is now tested** — every test imported from `src/`, so
   a broken `exports` map, a lost bin shebang, a missing `.d.ts`, or a `files`
   allowlist that dropped a directory would pass the whole suite and ship. A new

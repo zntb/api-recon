@@ -11,6 +11,7 @@ function goodList(): string[] {
     ...REQUIRED_ENTRIES,
     'dist/cli/index.js.map',
     'completions/api-recon.bash',
+    'docs/reference/cli.md',
     'dist/reporters/json.js',
   ];
 }

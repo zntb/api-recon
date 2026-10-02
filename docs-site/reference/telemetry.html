@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>Telemetry (opt-in) · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../reference/cli.html">CLI reference</a></li><li><a href="../reference/library.html">Library API</a></li><li><a href="../reference/capture.html">What a scan captures</a></li><li><a href="../reference/reports.html">Reports</a></li><li><a href="../reference/dashboard.html">Dashboard</a></li><li><a href="../reference/diffing.html">Comparing scans</a></li><li><a href="../reference/authentication.html">Authentication</a></li><li><a href="../reference/sharing.html">Sharing a report</a></li><li><a href="../reference/safety.html">Safety guardrails</a></li><li><a href="../reference/telemetry.html" class="active">Telemetry</a></li><li><a href="../cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html">GraphQL</a></li><li><a href="../cookbook/websocket.html">WebSockets</a></li><li><a href="../cookbook/ci-gate.html">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>Telemetry (opt-in)</h1>
+<p><code>api-recon</code> has no phone-home. The only diagnostics it can produce are written
+to a <strong>local</strong> <code>telemetry.json</code> in the output directory, and only when you ask
+for them — <code>--telemetry</code>, <code>API_RECON_TELEMETRY=1</code>, or <code>telemetry: true</code> from the
+library. Nothing is ever sent over the network.</p>
+<p>To read the payload before you commit to it, <code>--telemetry-preview</code> (or
+<code>telemetryPreview: true</code> for the library) builds the same data but prints it to
+stdout instead, and never creates <code>telemetry.json</code>. That makes it easy to
+confirm for yourself that the payload describes nothing about your target.</p>
+<p>A scan usually targets a private system, so the payload deliberately holds only
+the <em>categorization decisions</em>: for each endpoint, the category, the heuristic
+that produced it, the HTTP method, and whether the response was JSON. No host,
+path, query value, header, or body is included — the payload is safe to share
+precisely because it cannot describe the target:</p>
+<pre><code class="language-jsonc">{
+  &quot;version&quot;: 1,
+  &quot;apiReconVersion&quot;: &quot;0.2.9&quot;,
+  &quot;generatedAt&quot;: &quot;2026-09-29T…&quot;,
+  &quot;endpointCount&quot;: 2,
+  &quot;contains&quot;: &quot;categorization decisions only: category, heuristic, HTTP method, and whether the response was JSON. No host, path, query values, headers, or bodies.&quot;,
+  &quot;signals&quot;: [
+    { &quot;category&quot;: &quot;data-fetching&quot;, &quot;heuristic&quot;: &quot;json-response&quot;, &quot;method&quot;: &quot;GET&quot;, &quot;json&quot;: true },
+    { &quot;category&quot;: &quot;mutations&quot;, &quot;heuristic&quot;: &quot;mutation-method&quot;, &quot;method&quot;: &quot;POST&quot;, &quot;json&quot;: true }
+  ]
+}
+</code></pre>
+<p>The <code>heuristic</code> names the rule that matched (<code>auth-path</code>, <code>analytics-host</code>,
+<code>analytics-path</code>, <code>third-party</code>, <code>graphql</code>, <code>mutation-method</code>, <code>json-response</code>,
+<code>fallback</code>). Read the file before you send it — it exists to tune the
+heuristics, and a pile of <code>fallback</code> signals shows which paths still need a rule.</p>
+<p>The payload&#39;s field set is itself a contract. <code>src/core/telemetry.ts</code> names the
+exact keys (<code>TELEMETRY_PAYLOAD_KEYS</code>, <code>TELEMETRY_SIGNAL_KEYS</code>), and
+<code>telemetryBoundaryViolations</code> checks a payload against them at both levels —
+refusing a nested object or array where a scalar belongs, which is where a
+captured host or path could otherwise hide behind an allowed field name. A new
+field fails <code>test/unit/telemetry.test.ts</code> until it is deliberately added to the
+boundary, so the local, key-free shape cannot widen by accident.</p>
+</article>
+<footer>api-recon documentation — the <a href="https://github.com/zntb/api-recon#readme">README</a> is the front door and indexes every page.</footer>
+</main>
+</div>
+</body>
+</html>

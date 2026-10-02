@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>Safety guardrails · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../reference/cli.html">CLI reference</a></li><li><a href="../reference/library.html">Library API</a></li><li><a href="../reference/capture.html">What a scan captures</a></li><li><a href="../reference/reports.html">Reports</a></li><li><a href="../reference/dashboard.html">Dashboard</a></li><li><a href="../reference/diffing.html">Comparing scans</a></li><li><a href="../reference/authentication.html">Authentication</a></li><li><a href="../reference/sharing.html">Sharing a report</a></li><li><a href="../reference/safety.html" class="active">Safety guardrails</a></li><li><a href="../reference/telemetry.html">Telemetry</a></li><li><a href="../cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html">GraphQL</a></li><li><a href="../cookbook/websocket.html">WebSockets</a></li><li><a href="../cookbook/ci-gate.html">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>Safety guardrails</h1>
+<p>The defaults below are on because a crawler pointed at a site you do not own is
+a tool that can do real damage. Each one is a refusal, not a warning.</p>
+<ul>
+<li><strong>robots.txt</strong> is fetched and enforced by default; the seed path itself must
+be allowed. <code>--force</code> bypasses the rules and prints a warning.</li>
+<li><strong>Rate limiting</strong> waits at least <code>--rate</code> ms between requests to the same
+origin, and respects <code>Crawl-delay</code> when it is stricter.</li>
+<li><strong>Redaction is on by default</strong> and runs at capture time, so secrets never
+reach any report. Known-sensitive names are masked — the headers
+<code>Authorization</code>, <code>Proxy-Authorization</code>, <code>Cookie</code>, <code>Set-Cookie</code>, <code>X-Api-Key</code>,
+<code>X-Auth-Token</code>, <code>X-Csrf-Token</code>, <code>X-Xsrf-Token</code>, and body/WebSocket keys such as
+<code>password</code>, <code>token</code>, <code>secret</code>, <code>apiKey</code>, <code>creditCard</code>, <code>cvv</code> — and a value is
+masked on its own shape even under a name that does not name it: a JWT, a
+high-entropy base64/hex blob, an email, a phone number, or an SSN. A query
+parameter whose <em>name</em> marks it sensitive (<code>token</code>, <code>key</code>, <code>code</code>, <code>email</code>,
+and the password/secret family) keeps its name and the fact that it was
+present, but its <code>sampleValues</code> are masked rather than reported. Redaction is
+also <strong>verified rather than assumed</strong>: after the report is assembled it is
+searched for the original values redaction removed, and any survivor is a loud
+warning — or, with <code>--strict-redaction</code>, a refusal to write the reports.</li>
+<li><strong>The crawl stays in scope.</strong> Links and SPA routes are followed only on the
+seed&#39;s host (plus any <code>--include-host</code>), <code>--exclude-path</code> skips paths you name,
+and a redirect that leaves that scope is refused — the destination is neither
+recorded nor inspected — so a hostile or sprawling site cannot bounce the scan
+somewhere you never agreed to. Add the destination&#39;s <code>host:port</code> to
+<code>--include-host</code> to follow it deliberately.</li>
+<li><strong>Local/private targets are refused</strong> unless <code>--allow-local</code> is passed.</li>
+<li><strong>Size caps</strong>: 1 MB per response body (<code>--max-body-mb</code>) and a global capture
+budget, plus <code>--max-pages</code> and <code>--depth</code> bounds. See
+<a href="../reference/cli.html#keeping-memory-bounded">Keeping memory bounded</a> for the
+per-axis caps and payload spilling.</li>
+<li><strong>Telemetry is opt-in and local</strong> — see <a href="../reference/telemetry.html">Telemetry</a>.</li>
+<li>The tool <strong>never</strong> bypasses authentication, CAPTCHAs, or bot protections, and
+never fuzzes or brute-forces endpoints.</li>
+</ul>
+<p>Two values refuse to be committed in a shared project config file for the same
+reason: <code>force: true</code> and <code>redact: false</code> would loosen a default for everyone
+who clones the repository, so both are errors there and still work from a flag.</p>
+<h2>Reporting a hole</h2>
+<p>Found a hole in any of that? Report it privately through
+<a href="https://github.com/zntb/api-recon/blob/main/SECURITY.md"><code>SECURITY.md</code></a> rather
+than opening a public issue. Findings about redaction or the integrity manifest
+are treated as release blockers.</p>
+<h2>Limitations</h2>
+<ul>
+<li>Chromium, Firefox, and WebKit are supported through <code>--browser</code>, but the
+engine you pick must be installed (<code>npx playwright install &lt;engine&gt;</code>).</li>
+<li><code>page.pdf()</code> only exists in Chromium, so PDF reports always need Chromium
+installed — even when the scan itself ran in Firefox or WebKit. If it is
+missing, the other formats are still written and a warning is logged.</li>
+<li>GraphQL requests are detected and their operation names read, but query
+variables and returned fields are not analyzed.</li>
+<li>WebSocket frames are captured but not parsed: a binary frame is stored
+base64-encoded, and a frame cap (200 per connection) bounds a chatty stream.
+<code>--diff</code> compares a socket&#39;s message <em>shape</em>, not frame-by-frame content.</li>
+<li>Heuristic categorization and schema inference are best-effort starting
+points — review reports before publishing them.</li>
+<li>A scan samples the traffic the crawl happened to trigger. &quot;Not seen this
+time&quot; is not proof an endpoint is gone; <code>--diff</code> says so in as many words.</li>
+</ul>
+</article>
+<footer>api-recon documentation — the <a href="https://github.com/zntb/api-recon#readme">README</a> is the front door and indexes every page.</footer>
+</main>
+</div>
+</body>
+</html>

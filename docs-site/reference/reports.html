@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>Reports · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../reference/cli.html">CLI reference</a></li><li><a href="../reference/library.html">Library API</a></li><li><a href="../reference/capture.html">What a scan captures</a></li><li><a href="../reference/reports.html" class="active">Reports</a></li><li><a href="../reference/dashboard.html">Dashboard</a></li><li><a href="../reference/diffing.html">Comparing scans</a></li><li><a href="../reference/authentication.html">Authentication</a></li><li><a href="../reference/sharing.html">Sharing a report</a></li><li><a href="../reference/safety.html">Safety guardrails</a></li><li><a href="../reference/telemetry.html">Telemetry</a></li><li><a href="../cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html">GraphQL</a></li><li><a href="../cookbook/websocket.html">WebSockets</a></li><li><a href="../cookbook/ci-gate.html">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>Reports</h1>
+<p>What each format holds, and what the fields in <code>report.json</code> mean.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>report.json</code></td>
+<td>Machine-readable source of truth</td>
+</tr>
+<tr>
+<td><code>report.md</code></td>
+<td>A one-line scorecard and a linked table of contents, then overview, technologies, endpoint tables with category badges, detailed endpoints, auth flows, third-party calls, safety notes, WebSocket traffic</td>
+</tr>
+<tr>
+<td><code>report.html</code></td>
+<td>Styled standalone version of the Markdown, set as a readable print-ready document</td>
+</tr>
+<tr>
+<td><code>report.pdf</code></td>
+<td>Rendered from the HTML with Playwright&#39;s <code>page.pdf()</code>: a cover page, running header/footer with page numbers, and an endpoint&#39;s detail kept whole</td>
+</tr>
+<tr>
+<td><code>openapi.yaml</code></td>
+<td>Best-effort OpenAPI 3.0 spec from inferred paths, methods, params, and schemas</td>
+</tr>
+<tr>
+<td><code>dashboard.html</code></td>
+<td>Interactive dashboard: search, filter, sort, and expand endpoints; the table becomes stacked cards on a phone</td>
+</tr>
+<tr>
+<td><code>share.md</code></td>
+<td>One-page, share-safe summary (with <code>--share</code>): patterns, categories, and schemas only — no bodies, headers, or samples</td>
+</tr>
+<tr>
+<td><code>checksums.json</code></td>
+<td>Optional integrity manifest (with <code>--checksum</code>): a digest per report, optionally HMAC-signed</td>
+</tr>
+<tr>
+<td><code>telemetry.json</code></td>
+<td>Opt-in anonymized categorization signals (see <a href="../reference/telemetry.html">Telemetry</a>); never written unless enabled</td>
+</tr>
+</tbody></table>
+<p><code>report.html</code> and <code>dashboard.html</code> share one theme (<code>src/reporters/theme.ts</code>):
+the same colours, typography, spacing, and code blocks, and both follow your
+<code>prefers-color-scheme</code>. Content that cannot wrap — a long URL, a payload —
+scrolls horizontally inside its table or code block instead of widening the
+page.</p>
+<p>The type has three deliberate roles: a serif display face for headings and the
+report&#39;s prose, a neutral sans for controls, and mono for machine data — paths,
+methods, numbers, and code. Neutral surfaces are cool steel blues rather than
+true greys, so the brand hue sits on the page as one family. The result reads as
+a document in <code>report.html</code> and as an instrument in <code>dashboard.html</code>, from the
+same palette.</p>
+<p>Look at <a href="https://github.com/zntb/api-recon/tree/main/examples/output"><code>examples/output/</code></a>
+for a real report generated from the bundled fixture site.</p>
+<h2>Identity and colour ramp</h2>
+<p><code>report.html</code>, <code>dashboard.html</code>, and the PDF cover all carry the same mark, and
+the two HTML pages link an SVG favicon. Both are embedded — the mark as inline
+SVG, the favicon as a <code>data:</code> URI — so a report stays one file you can attach,
+open from <code>file://</code>, or store as a CI artifact, with no asset to ship beside it.
+The mark is drawn from the theme&#39;s ramp tokens, so it follows dark mode and the
+print palette without a second definition.</p>
+<p>Everything with a colour takes it from a documented ramp in
+<code>src/reporters/theme.ts</code>. Each hue is a scale, and a step means the same <em>role</em>
+in every mode — dark mode redefines the ramp, and print pins it to the light
+values (a report printed from a dark desktop must not put dark ink on a black
+tile) — so a component names a step instead of a hex value:</p>
+<table>
+<thead>
+<tr>
+<th>Ramp</th>
+<th>Hue</th>
+<th>Steps in use</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>--brand-*</code></td>
+<td>indigo</td>
+<td>50, 200, 500, 600, 700</td>
+<td>logo tile, links, focus rings, graph edges, notes</td>
+</tr>
+<tr>
+<td><code>--green-*</code></td>
+<td>green</td>
+<td>50, 700</td>
+<td><code>ok</code> — success and healthy states</td>
+</tr>
+<tr>
+<td><code>--amber-*</code></td>
+<td>amber</td>
+<td>50, 700</td>
+<td><code>warn</code> — caution</td>
+</tr>
+<tr>
+<td><code>--red-*</code></td>
+<td>red</td>
+<td>50, 700</td>
+<td><code>bad</code> — breaking changes and errors</td>
+</tr>
+<tr>
+<td><code>--blue-*</code></td>
+<td>blue</td>
+<td>50, 700</td>
+<td><code>info</code> — neutral information</td>
+</tr>
+</tbody></table>
+<p><code>-50</code> is a tinted surface (badge, note, and row backgrounds), <code>-200</code> a soft fill
+(borders, accents), <code>-500</code> the hue at full strength, <code>-600</code> one step down for a
+pressed or hovered control, and <code>-700</code> readable ink for text and icons. Surfaces
+and text (<code>--panel</code>, <code>--ink</code>, <code>--line</code>, …) are roles rather than ramp steps,
+because print flattens them to greys instead of scaling them.</p>
+<p>Link text uses a <code>--link</code> role rather than <code>--accent</code>: <code>--accent</code> is the brand
+hue at full strength for focus rings and fills, but at 4.3:1 on a light surface
+it falls below WCAG AA as text. <code>--link</code> points at <code>--brand-700</code>, the
+readable-ink step, which clears AA in light mode (8.0:1) and stays legible in
+dark and print. <code>test/unit/contrast.test.ts</code> holds every text token at 4.5:1.</p>
+<h2>Page → request graph</h2>
+<p><code>report.md</code> closes with a <strong>page → request graph</strong>, rendered as Mermaid for a
+Markdown viewer and as inline SVG in <code>report.html</code> and <code>dashboard.html</code> (no
+Mermaid runtime, so both stay self-contained and work offline). It joins each
+page to the requests it triggered, using the <code>triggeredBy</code> recorded on every
+call — a relationship the tables alone make the reader reconstruct. Only the
+busiest 20 pages and 40 requests are drawn, and the report says what was left
+out.</p>
+<h2>PDF furniture</h2>
+<p><code>report.pdf</code> is <code>report.html</code> plus the page furniture a document needs: a cover
+naming the seed host, capture time, tool and report-schema version; a running
+header and footer carrying the seed host and <code>Page N of M</code>; and break rules that
+keep each <code>###</code> detail section — one endpoint, resource, or finding group — on a
+single page.</p>
+<h2>report.json</h2>
+<pre><code class="language-jsonc">{
+  &quot;schemaVersion&quot;: 1,
+  &quot;meta&quot;: { &quot;seedUrl&quot;: &quot;…&quot;, &quot;startedAt&quot;: &quot;…&quot;, &quot;durationMs&quot;: 1234, &quot;pagesVisited&quot;: 6, &quot;apiReconVersion&quot;: &quot;0.2.2&quot;, &quot;engine&quot;: &quot;chromium&quot; },
+  &quot;technologies&quot;: [{ &quot;name&quot;: &quot;Express&quot;, &quot;category&quot;: &quot;framework&quot;, &quot;evidence&quot;: &quot;x-powered-by: Express&quot; }],
+  &quot;endpoints&quot;: [
+    {
+      &quot;id&quot;: &quot;GET /api/orders/{id}&quot;,
+      &quot;method&quot;: &quot;GET&quot;,
+      &quot;urlPattern&quot;: &quot;/api/orders/{id}&quot;,
+      &quot;origins&quot;: [&quot;https://example.com&quot;],
+      &quot;category&quot;: &quot;data-fetching&quot;,
+      &quot;count&quot;: 3,
+      &quot;statusCodes&quot;: [200],
+      &quot;pathParams&quot;: [&quot;id&quot;],
+      &quot;queryParams&quot;: [{ &quot;name&quot;: &quot;page&quot;, &quot;sampleValues&quot;: [&quot;2&quot;] }],
+      &quot;requestHeaders&quot;: { &quot;accept&quot;: &quot;application/json&quot; },
+      &quot;responseHeaders&quot;: { &quot;content-type&quot;: &quot;application/json&quot; },
+      &quot;requestBodySample&quot;: null,
+      &quot;responseBodySample&quot;: &quot;{\&quot;orders\&quot;:[…]}&quot;,
+      &quot;requestBodySchema&quot;: null,
+      &quot;requestBodySchemaReason&quot;: &quot;no-body&quot;,
+      &quot;responseSchema&quot;: { &quot;type&quot;: &quot;object&quot;, &quot;properties&quot;: { &quot;orders&quot;: { &quot;type&quot;: &quot;array&quot;, &quot;items&quot;: { &quot;type&quot;: &quot;object&quot;, &quot;properties&quot;: { &quot;id&quot;: { &quot;type&quot;: &quot;integer&quot; } } } } } },
+      &quot;timing&quot;: { &quot;p50&quot;: 42, &quot;p95&quot;: 180, &quot;max&quot;: 310 },
+      &quot;responseBytes&quot;: { &quot;p50&quot;: 1200, &quot;p95&quot;: 8400, &quot;max&quot;: 12000 },
+      &quot;cache&quot;: { &quot;control&quot;: &quot;public, max-age=60&quot;, &quot;etag&quot;: &quot;W/\&quot;abc\&quot;&quot; },
+      &quot;mimeTypes&quot;: [&quot;application/json&quot;],
+      &quot;triggeredBy&quot;: [&quot;https://example.com/dashboard&quot;]
+    }
+  ],
+  &quot;pages&quot;: [{ &quot;url&quot;: &quot;…&quot;, &quot;normalizedUrl&quot;: &quot;…&quot;, &quot;depth&quot;: 0, &quot;title&quot;: &quot;…&quot;, &quot;visitedAt&quot;: 0 }],
+  &quot;webSockets&quot;: [
+    {
+      &quot;url&quot;: &quot;wss://example.com/live&quot;,
+      &quot;origins&quot;: [&quot;wss://example.com&quot;],
+      &quot;triggeredBy&quot;: &quot;https://example.com/dashboard&quot;,
+      &quot;openedAt&quot;: 1699999999900,
+      &quot;closedAt&quot;: 1699999999999,
+      &quot;frameCount&quot;: 3,
+      &quot;sentCount&quot;: 1,
+      &quot;receivedCount&quot;: 2,
+      &quot;framesTruncated&quot;: false,
+      &quot;frames&quot;: [{ &quot;direction&quot;: &quot;sent&quot;, &quot;type&quot;: &quot;text&quot;, &quot;payloadSample&quot;: &quot;{\&quot;subscribe\&quot;:true}&quot;, &quot;size&quot;: 17, &quot;truncated&quot;: false, &quot;at&quot;: 1699999999920 }],
+      &quot;sentSchema&quot;: { &quot;type&quot;: &quot;object&quot;, &quot;properties&quot;: { &quot;subscribe&quot;: { &quot;type&quot;: &quot;boolean&quot; } } },
+      &quot;receivedSchema&quot;: null
+    }
+  ],
+  &quot;safety&quot;: { &quot;robotsRespected&quot;: true, &quot;robotsSkippedPaths&quot;: [], &quot;rateLimitMs&quot;: 500, &quot;maxBodyBytes&quot;: 1048576, &quot;allowLocal&quot;: false, &quot;redact&quot;: true },
+  &quot;findings&quot;: [
+    { &quot;kind&quot;: &quot;missing-security-header&quot;, &quot;severity&quot;: &quot;low&quot;, &quot;title&quot;: &quot;Security headers not observed on any response&quot;, &quot;endpoints&quot;: [], &quot;details&quot;: [&quot;strict-transport-security was not present on any captured response&quot;] }
+  ]
+}
+</code></pre>
+<h3>Versions</h3>
+<p><code>schemaVersion</code> names the shape of the document; <code>meta.apiReconVersion</code> names
+the tool build that wrote it, so a report can be read by a consumer that knows
+nothing about the tool&#39;s release numbering. The shape is published as
+<a href="https://github.com/zntb/api-recon/blob/main/schema/report.schema.json"><code>schema/report.schema.json</code></a>
+and CI validates the committed example against it. <code>--diff</code> refuses a baseline
+whose <code>schemaVersion</code> it cannot read rather than guessing at an unfamiliar
+shape.</p>
+<h3>Schemas, and why one is missing</h3>
+<p><code>requestBodySchema</code> and <code>responseSchema</code> (and a socket&#39;s <code>sentSchema</code> /
+<code>receivedSchema</code>) are inferred across <em>every</em> sample, not just one body: a field
+seen in any sample is present, a field is listed in <code>required</code> only when every
+sample carried it, <code>integer</code> and <code>number</code> widen to <code>number</code>, and a field whose
+samples genuinely disagree on the type becomes a <code>oneOf</code> union. A format hint
+such as <code>description: &quot;uuid&quot;</code> is kept only when every sample agreed on it.</p>
+<p>A <code>null</code> schema says only that there is no shape; why is in the reason beside
+it. When a schema is absent — or was inferred from an incomplete body — the
+endpoint carries <code>requestBodySchemaReason</code> / <code>responseBodySchemaReason</code>, error
+contracts carry <code>schemaReason</code>, and socket directions carry <code>sentSchemaReason</code>
+/ <code>receivedSchemaReason</code>. The value is one of <code>no-body</code> (nothing captured),
+<code>not-json</code> (a body that is not a JSON object/array), <code>truncated</code> (cut off at
+the size cap), or <code>binary</code> (a non-text payload), so a gap is not mistaken for a
+contract. <code>--diff</code> skips the field-level comparison when either scan only
+partly observed a shape, rather than reporting a removed field.</p>
+<h3>Error contracts</h3>
+<p>An endpoint that was seen failing also carries <code>errorResponses</code>, one entry per
+4xx/5xx status with that status&#39;s own <code>bodySample</code> and <code>schema</code>, so the failure
+contract is documented rather than repeated from the success shape.</p>
+<h3>Resources</h3>
+<p>The flat <code>endpoints</code> list is also clustered into <code>resources</code>: each is a
+collection root (<code>/api/orders</code>) with the paths observed beneath it
+(<code>/api/orders/{id}</code>, <code>/api/orders/{id}/items</code>), the <code>methods</code> seen on each path,
+and the conventional <code>missingMethods</code> no call exhibited — so <code>/api/orders</code>
+showing no <code>POST</code> and <code>/api/orders/{id}</code> no <code>DELETE</code> is visible at a glance.
+<code>missingMethods</code> is only filled in for a resource that exposes an item path, so
+a one-off <code>POST /api/login</code> is not reported as missing a <code>GET</code> it never had.</p>
+<h3>Performance</h3>
+<p>Every endpoint also carries <code>timing</code> — the p50, p95, and <code>max</code> of its
+<code>durationMs</code> — and, when a body was captured, <code>requestBytes</code> / <code>responseBytes</code>
+with the same shape, so the report doubles as a performance overview. Nearest-
+rank percentiles are used, so every figure is an observation rather than an
+interpolation. <code>cache</code> keeps the cache-relevant response headers (<code>cache-control</code>,
+<code>etag</code>, <code>last-modified</code>, <code>age</code>, <code>vary</code>, and a CDN status) when any were present.
+The Markdown report gains a <strong>Performance</strong> section listing the slowest endpoints
+and largest responses, and <code>--diff</code> flags a response whose p95 grew by at least
+50% <em>and</em> 5 KB — a performance regression, reported in plain language rather
+than as an API break.</p>
+<h3>Vendors</h3>
+<p>An endpoint categorized <code>analytics</code> or <code>third-party</code> whose host belongs to a
+known vendor also carries <code>vendor</code>: the vendor&#39;s <code>name</code> and <code>category</code> (matched
+from a catalog shared with the technology fingerprints, so a <code>Segment</code> script
+and a call to <code>api.segment.io</code> name the same vendor), plus the <code>payloadKeys</code>
+observed being sent — the request body&#39;s top-level field names and the query
+parameter names, sorted. The report says <code>Stripe</code> or <code>Segment</code> rather than a
+hostname; a host that is not a known vendor stays unattributed, and an empty
+<code>payloadKeys</code> means the payload was not observed rather than that none was sent.</p>
+<h3>Findings</h3>
+<p>Finally, the report closes with <code>findings</code>: review cues derived from the capture,
+so a scan ends with what to act on rather than only data. Each has a <code>kind</code>
+(<code>unauthenticated</code>, <code>pii</code>, <code>missing-security-header</code>, <code>verbose-error</code>, or
+<code>inconsistent-shape</code>), a <code>severity</code>, and the endpoint ids and evidence behind
+it. They flag sensitive-looking endpoints that answered without a credential,
+PII-shaped field names in the samples, security headers no response sent,
+error bodies that leaked internals, and shapes that had to fall back to a
+<code>oneOf</code> union within a single run. These are heuristics over whatever traffic
+the scan triggered, not a security audit — the Markdown report says so in its
+<strong>Findings &amp; Next Steps</strong> section, and the dashboard shows the same list.</p>
+</article>
+<footer>api-recon documentation — the <a href="https://github.com/zntb/api-recon#readme">README</a> is the front door and indexes every page.</footer>
+</main>
+</div>
+</body>
+</html>

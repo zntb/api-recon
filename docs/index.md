@@ -5,9 +5,9 @@ it crawls (or you drive it interactively), records every XHR/fetch call and
 WebSocket frame, infers schemas, categorizes the endpoints, and writes a report
 in JSON, Markdown, HTML, PDF, and OpenAPI 3.0.
 
-The [README](https://github.com/zntb/api-recon#readme) is the reference for every
-flag and option. This site is the part you read when you have a specific app in
-front of you and want the shortest path to a good report.
+The [README](https://github.com/zntb/api-recon#readme) is the front door and the
+index. This site is the part you read when you have a specific app in front of
+you and want the shortest path to a good report.
 
 ## Start here
 
@@ -24,6 +24,23 @@ api-recon https://app.example.com --preset ci
 
 `api-recon --help` lists every flag, and `api-recon completion bash` (or `zsh`,
 `fish`) teaches your shell to complete them.
+
+## Reference
+
+One page per question, so you read the answer rather than the whole tool:
+
+| Page | What it answers |
+| --- | --- |
+| [CLI reference](reference/cli.md) | Every flag, subcommand, and exit code; presets, the config file, resuming |
+| [Library API](reference/library.md) | `scan()` from Node, exported types, the events API |
+| [What a scan captures](reference/capture.md) | Recorded fields, categories, GraphQL, WebSocket frames |
+| [Reports](reference/reports.md) | Each output format, and every field in `report.json` |
+| [Dashboard](reference/dashboard.md) | Searching, grouping, the diff view, keyboard support |
+| [Comparing scans](reference/diffing.md) | Baselines, `--diff`, breaking changes, CI gating |
+| [Authentication and interaction](reference/authentication.md) | Sessions, scripted login and actions, record mode |
+| [Sharing a report](reference/sharing.md) | `--share`, and the integrity manifest |
+| [Safety guardrails](reference/safety.md) | Every default that refuses, and the limitations |
+| [Telemetry (opt-in)](reference/telemetry.md) | The local payload and its boundary |
 
 ## Cookbook
 

@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>CLI reference · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../reference/cli.html" class="active">CLI reference</a></li><li><a href="../reference/library.html">Library API</a></li><li><a href="../reference/capture.html">What a scan captures</a></li><li><a href="../reference/reports.html">Reports</a></li><li><a href="../reference/dashboard.html">Dashboard</a></li><li><a href="../reference/diffing.html">Comparing scans</a></li><li><a href="../reference/authentication.html">Authentication</a></li><li><a href="../reference/sharing.html">Sharing a report</a></li><li><a href="../reference/safety.html">Safety guardrails</a></li><li><a href="../reference/telemetry.html">Telemetry</a></li><li><a href="../cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html">GraphQL</a></li><li><a href="../cookbook/websocket.html">WebSockets</a></li><li><a href="../cookbook/ci-gate.html">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>CLI reference</h1>
+<p>Every flag, subcommand, and exit code, plus the flags people otherwise piece
+together by hand. For the task-shaped material — a recipe per kind of app, and
+what to do when a scan misbehaves — see the <a href="../cookbook/authenticated-spa.html">authenticated SPA</a>,
+<a href="../cookbook/graphql.html">GraphQL</a>, <a href="../cookbook/websocket.html">WebSocket</a>, and
+<a href="../cookbook/ci-gate.html">CI gate</a> recipes, and the <a href="../faq.html">FAQ</a>.</p>
+<h2>Flags</h2>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>&lt;seedUrl&gt;</code></td>
+<td>—</td>
+<td>Start URL (required)</td>
+</tr>
+<tr>
+<td><code>baseline &lt;seedUrl&gt;</code></td>
+<td>—</td>
+<td>Subcommand: scan and store the report as the baseline for <code>--diff latest</code></td>
+</tr>
+<tr>
+<td><code>completion &lt;shell&gt;</code></td>
+<td>—</td>
+<td>Subcommand: print a completion script for <code>bash</code>, <code>zsh</code>, or <code>fish</code></td>
+</tr>
+<tr>
+<td><code>verify &lt;manifest&gt;</code></td>
+<td>—</td>
+<td>Subcommand: check reports against a <code>checksums.json</code> integrity manifest</td>
+</tr>
+<tr>
+<td><code>-d, --depth &lt;n&gt;</code></td>
+<td><code>1</code></td>
+<td>Same-domain crawl depth (0 = seed page only)</td>
+</tr>
+<tr>
+<td><code>-m, --max-pages &lt;n&gt;</code></td>
+<td><code>25</code></td>
+<td>Hard cap on pages visited (and on pages recorded in <code>--record</code> mode)</td>
+</tr>
+<tr>
+<td><code>--max-calls &lt;n&gt;</code></td>
+<td><code>10000</code></td>
+<td>Cap on captured API calls retained, which bounds the endpoint list; later calls are counted but not stored</td>
+</tr>
+<tr>
+<td><code>--max-sockets &lt;n&gt;</code></td>
+<td><code>100</code></td>
+<td>Cap on WebSocket connections retained; later connections are counted but not stored</td>
+</tr>
+<tr>
+<td><code>--max-frames &lt;n&gt;</code></td>
+<td><code>200</code></td>
+<td>Frames stored per WebSocket connection; later frames are counted but not stored</td>
+</tr>
+<tr>
+<td><code>-o, --out &lt;dir&gt;</code></td>
+<td><code>./api-recon-output</code></td>
+<td>Output directory</td>
+</tr>
+<tr>
+<td><code>-f, --formats &lt;list&gt;</code></td>
+<td><code>json,md,html,pdf,openapi,dashboard</code></td>
+<td>Report formats to write</td>
+</tr>
+<tr>
+<td><code>-b, --browser &lt;engine&gt;</code></td>
+<td><code>chromium</code></td>
+<td>Playwright engine to drive (<code>chromium</code>, <code>firefox</code>, <code>webkit</code>), recorded in the report</td>
+</tr>
+<tr>
+<td><code>-a, --auth &lt;file&gt;</code></td>
+<td>—</td>
+<td>Playwright <code>storageState.json</code> session</td>
+</tr>
+<tr>
+<td><code>-l, --login &lt;file&gt;</code></td>
+<td>—</td>
+<td>Login-flow config (YAML/JSON)</td>
+</tr>
+<tr>
+<td><code>--record</code></td>
+<td>off</td>
+<td>Interactive recording mode (headed browser)</td>
+</tr>
+<tr>
+<td><code>--actions &lt;file&gt;</code></td>
+<td>—</td>
+<td>Scripted interaction steps (YAML/JSON)</td>
+</tr>
+<tr>
+<td><code>--diff &lt;file&gt;</code></td>
+<td>—</td>
+<td>Compare this scan against a previous <code>report.json</code>, or the stored baseline with <code>--diff latest</code></td>
+</tr>
+<tr>
+<td><code>--baseline &lt;file&gt;</code></td>
+<td><code>.api-recon/baseline.json</code></td>
+<td>Override where the stored baseline lives (for the <code>baseline</code> subcommand and <code>--diff latest</code>)</td>
+</tr>
+<tr>
+<td><code>--fail-on-diff</code></td>
+<td>off</td>
+<td>With <code>--diff</code>, exit <code>3</code> when any endpoint changed (CI gating)</td>
+</tr>
+<tr>
+<td><code>-r, --rate &lt;ms&gt;</code></td>
+<td><code>500</code></td>
+<td>Minimum delay between requests to the same origin</td>
+</tr>
+<tr>
+<td><code>--timeout &lt;ms&gt;</code></td>
+<td><code>30000</code></td>
+<td>Per-navigation timeout; a page that does not load is retried once</td>
+</tr>
+<tr>
+<td><code>--resume</code></td>
+<td>off</td>
+<td>Continue from <code>&lt;out&gt;/checkpoint.json</code> left by a crashed or cancelled run</td>
+</tr>
+<tr>
+<td><code>--respect-robots</code> / <code>--no-respect-robots</code></td>
+<td>on</td>
+<td>robots.txt compliance (<code>--no-…</code> requires <code>--force</code>)</td>
+</tr>
+<tr>
+<td><code>--include-third-party</code></td>
+<td>off</td>
+<td>Also capture cross-origin XHR/fetch calls and WebSockets</td>
+</tr>
+<tr>
+<td><code>--include-host &lt;hosts&gt;</code></td>
+<td>—</td>
+<td>Comma-separated extra hosts the crawl may follow, for a multi-host app (a <code>host:port</code> for a non-default port)</td>
+</tr>
+<tr>
+<td><code>--exclude-path &lt;paths&gt;</code></td>
+<td>—</td>
+<td>Comma-separated URL paths to skip, as a prefix (<code>/admin</code>) or a glob (<code>*.pdf</code>)</td>
+</tr>
+<tr>
+<td><code>--redact</code> / <code>--no-redact</code></td>
+<td>on</td>
+<td>Redact sensitive headers and secret- or PII-shaped values in bodies and WebSocket frames</td>
+</tr>
+<tr>
+<td><code>--strict-redaction</code></td>
+<td>off</td>
+<td>After the scan, refuse to write the reports if a redacted value still appears in them (by default that is a loud warning)</td>
+</tr>
+<tr>
+<td><code>--force</code></td>
+<td>off</td>
+<td>Bypass robots.txt restrictions (only for systems you may test)</td>
+</tr>
+<tr>
+<td><code>--allow-local</code></td>
+<td>off</td>
+<td>Allow scanning localhost/private network ranges</td>
+</tr>
+<tr>
+<td><code>--max-body-mb &lt;n&gt;</code></td>
+<td><code>1</code></td>
+<td>Maximum response body / WebSocket frame size kept in memory, in MB; an oversized JSON body is spilled in full to <code>&lt;out&gt;/payloads/</code> (see <a href="#keeping-memory-bounded">Keeping memory bounded</a>)</td>
+</tr>
+<tr>
+<td><code>--telemetry</code></td>
+<td>off</td>
+<td>Write anonymized categorization signals to <code>telemetry.json</code> (no host, path, or body data)</td>
+</tr>
+<tr>
+<td><code>--telemetry-preview</code></td>
+<td>off</td>
+<td>Print that payload to stdout without writing <code>telemetry.json</code></td>
+</tr>
+<tr>
+<td><code>-q, --quiet</code> / <code>-v, --verbose</code></td>
+<td>—</td>
+<td>Reduce / increase progress output</td>
+</tr>
+<tr>
+<td><code>--json-progress</code></td>
+<td>off</td>
+<td>Emit progress as JSON lines on stdout instead of a live table</td>
+</tr>
+<tr>
+<td><code>--preset &lt;name&gt;</code></td>
+<td>—</td>
+<td>Bundle the flags for a common case: <code>quick</code>, <code>deep</code>, <code>ci</code> (see <a href="#presets">Presets</a>)</td>
+</tr>
+<tr>
+<td><code>--open</code></td>
+<td>off</td>
+<td>Open <code>dashboard.html</code> in your browser when the scan finishes</td>
+</tr>
+<tr>
+<td><code>--print [format]</code></td>
+<td>—</td>
+<td>Print a report to stdout: <code>md</code> (default), <code>json</code>, <code>openapi</code>, <code>html</code>, or <code>share</code></td>
+</tr>
+<tr>
+<td><code>--share</code></td>
+<td>off</td>
+<td>Write only a share-safe one-page <code>share.md</code> — patterns, categories, and schemas, with no bodies, headers, or samples</td>
+</tr>
+<tr>
+<td><code>--checksum [algorithm]</code></td>
+<td>—</td>
+<td>Write a <code>checksums.json</code> integrity manifest over the reports (<code>sha256</code> by default, or <code>sha512</code>)</td>
+</tr>
+<tr>
+<td><code>--sign-key &lt;file&gt;</code></td>
+<td>—</td>
+<td>Sign that manifest with the HMAC key in the file (implies <code>--checksum</code>)</td>
+</tr>
+<tr>
+<td><code>--config &lt;file&gt;</code></td>
+<td>discovered</td>
+<td>Project config file (see <a href="#project-config">Project config</a>)</td>
+</tr>
+<tr>
+<td><code>--no-config</code></td>
+<td>—</td>
+<td>Ignore any project config file, even one found on the way up</td>
+</tr>
+<tr>
+<td><code>--debug</code></td>
+<td>off</td>
+<td>On failure, write <code>debug/logs.txt</code>, a browser trace, and the partial report for a bug report</td>
+</tr>
+</tbody></table>
+<p>Exit codes: <code>0</code> success, <code>1</code> runtime failure, <code>2</code> refused by a safety guard
+(<code>--force</code>, <code>--allow-local</code>, a bad <code>--diff</code> file, a missing <code>latest</code> baseline,
+…) or a failed <code>verify</code>, <code>3</code> <code>--fail-on-diff</code> found endpoint changes.</p>
+<h2>When a scan fails</h2>
+<p>Every deliberate failure is a typed error and ends in a next step. A guard that
+refused to start is a <code>SafetyError</code> (exit <code>2</code>) — scanning <code>localhost</code> without
+<code>--allow-local</code>, a <code>robots.txt</code> refusal, a config file that would loosen safety —
+while a scan that started and then broke is a <code>RuntimeError</code> (exit <code>1</code>). Under
+the message, the CLI prints a one-line hint: what to add, where to look, or which
+file the value came from.</p>
+<p>For a bug report, <code>--debug</code> leaves a bundle behind when a run fails:</p>
+<pre><code class="language-console">$ api-recon https://app.example.com --login flow.yaml --debug
+✗ login step 2 (click #submit) failed: …
+  → Check the login flow against the page, then run again.
+
+Debug bundle written to ./api-recon-output/debug:
+  ./api-recon-output/debug/logs.txt
+  ./api-recon-output/debug/trace.zip
+  ./api-recon-output/debug/partial-report.json
+</code></pre>
+<ul>
+<li><code>logs.txt</code> — every line the run printed, already secret-scrubbed.</li>
+<li><code>trace.zip</code> — a Playwright trace (screenshots, DOM snapshots, and sources)
+you can open with <code>npx playwright show-trace</code>.</li>
+<li><code>partial-report.json</code> — the report built from whatever the crawl captured
+before the failure, in the same shape as a normal <code>report.json</code>.</li>
+</ul>
+<p>Writing the bundle is best-effort: if it cannot be written, that is a warning
+and the original error still stands. In the library, the same behavior is
+<code>scan({ debug: true, debugDir: &#39;./debug&#39; })</code>.</p>
+<h2>Shell completion</h2>
+<p><code>api-recon completion &lt;shell&gt;</code> prints a completion script for bash, zsh, or
+fish, so the flag set stops being something to remember:</p>
+<pre><code class="language-console"># bash — for the current shell
+source &lt;(api-recon completion bash)
+
+# zsh — write it where zsh looks for functions
+api-recon completion zsh &gt; &quot;${fpath[1]}/_api-recon&quot;
+
+# fish
+api-recon completion fish &gt; ~/.config/fish/completions/api-recon.fish
+</code></pre>
+<p>The script completes the subcommands (<code>baseline</code>, <code>completion</code>, <code>verify</code>), every
+flag, and the values that matter — engines, presets, print formats, report
+formats, checksum algorithms, and file paths for <code>--auth</code>, <code>--login</code>,
+<code>--actions</code>, <code>--config</code>, <code>--diff</code>, <code>--baseline</code>, <code>--sign-key</code>, and <code>--out</code>. It is
+generated from the same command definition the CLI parses with, so a flag added
+there is completed without a second list. The
+scripts are committed under <a href="https://github.com/zntb/api-recon/tree/main/completions"><code>completions/</code></a>
+and a test keeps them in sync with the flags, so changing a flag means running
+<code>npm run completions:generate</code>; the output is deterministic, so the diff is
+readable.</p>
+<h2>Presets</h2>
+<p>Three bundles for the flags people otherwise piece together by hand, so the
+common cases are one word:</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>What it sets</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>quick</code></td>
+<td><code>depth 0</code>, <code>maxPages 1</code>, <code>formats json,md,dashboard</code></td>
+<td>A first look at one page — no crawl, and no slow PDF render</td>
+</tr>
+<tr>
+<td><code>deep</code></td>
+<td><code>depth 3</code>, <code>maxPages 100</code>, <code>includeThirdParty</code></td>
+<td>Crawl further, and capture the cross-origin calls too</td>
+</tr>
+<tr>
+<td><code>ci</code></td>
+<td><code>depth 2</code>, <code>maxPages 50</code>, <code>formats json,md</code>, <code>quiet</code></td>
+<td>Bounded, quiet, machine-readable for a pipeline</td>
+</tr>
+</tbody></table>
+<pre><code class="language-console"># What does this page talk to?
+api-recon https://example.com --preset quick
+
+# CI: bounded, quiet, and only the formats a pipeline reads
+api-recon https://example.com --preset ci
+</code></pre>
+<p>A preset is only a bundle — every value is an ordinary setting with an ordinary
+default, nothing is hidden, and <code>--verbose</code> names the ones it applied. It sits
+<strong>between the environment and the config file</strong>: a flag or an <code>API_RECON_*</code>
+variable beats it (they name one setting each, which is more specific than a
+bundle), and it beats the config file (otherwise <code>--preset quick</code> could not be
+quick in a repository whose config says <code>depth: 3</code>). Everything a preset does not
+mention still comes from the config or the default. For the same reason,
+<code>preset</code> is one of the settings a config file may not carry — commit the flags
+you want, and keep the shorthand for the run in front of you.</p>
+<h2>Project config</h2>
+<p>A team that runs the same scan every time can commit the flags it always uses
+instead of repeating them in every shell (or in a wiki). The file is plain JSON:</p>
+<pre><code class="language-jsonc">// .api-reconrc — committed at the repository root
+{
+  &quot;depth&quot;: 2,
+  &quot;maxPages&quot;: 50,
+  &quot;rate&quot;: 250,
+  &quot;formats&quot;: [&quot;json&quot;, &quot;md&quot;, &quot;dashboard&quot;],
+  &quot;login&quot;: &quot;flows/login.yaml&quot;,   // resolved relative to this file
+  &quot;actions&quot;: &quot;flows/actions.json&quot;,
+  &quot;out&quot;: &quot;reports&quot;,
+  &quot;allowLocal&quot;: true
+}
+</code></pre>
+<p>It is discovered by walking up from the working directory, taking the nearest of
+<code>api-recon.config.json</code>, <code>.api-reconrc.json</code>, or <code>.api-reconrc</code>. <code>--config &lt;file&gt;</code>
+or <code>API_RECON_CONFIG</code> names one explicitly, and <code>--no-config</code> ignores whatever
+would have been found. Settings use the same names as the long flags, in
+camelCase or kebab-case, and an unknown key is an error rather than a typo that
+silently does nothing.</p>
+<p><strong>Precedence is CLI &gt; environment &gt; preset &gt; config &gt; defaults.</strong> A flag always
+wins, an <code>API_RECON_*</code> variable beats the file, a <code>--preset</code> bundle beats the
+file, and the file beats the built-in default:</p>
+<pre><code class="language-console">$ API_RECON_DEPTH=3 api-recon https://example.com --max-pages 10
+# depth 3 (environment), maxPages 10 (flag), everything else (config)
+</code></pre>
+<p>The environment variables are the flags in <code>SCREAMING_SNAKE_CASE</code>:
+<code>API_RECON_DEPTH</code>, <code>API_RECON_MAX_PAGES</code>, <code>API_RECON_OUT</code>, <code>API_RECON_FORMATS</code>,
+<code>API_RECON_BROWSER</code>, <code>API_RECON_AUTH</code>, <code>API_RECON_LOGIN</code>, <code>API_RECON_ACTIONS</code>,
+<code>API_RECON_RATE</code>, <code>API_RECON_DIFF</code>, <code>API_RECON_BASELINE</code>, <code>API_RECON_FAIL_ON_DIFF</code>,
+<code>API_RECON_RESPECT_ROBOTS</code>, <code>API_RECON_INCLUDE_THIRD_PARTY</code>,
+<code>API_RECON_INCLUDE_HOST</code>, <code>API_RECON_EXCLUDE_PATH</code>, <code>API_RECON_REDACT</code>,
+<code>API_RECON_STRICT_REDACTION</code>, <code>API_RECON_FORCE</code>, <code>API_RECON_ALLOW_LOCAL</code>, <code>API_RECON_TELEMETRY</code>,
+<code>API_RECON_TELEMETRY_PREVIEW</code>, <code>API_RECON_MAX_BODY_MB</code>, <code>API_RECON_MAX_CALLS</code>,
+<code>API_RECON_MAX_SOCKETS</code>, <code>API_RECON_MAX_FRAMES</code>, <code>API_RECON_QUIET</code>,
+<code>API_RECON_VERBOSE</code>, <code>API_RECON_JSON_PROGRESS</code>, <code>API_RECON_RECORD</code>,
+<code>API_RECON_SHARE</code>, <code>API_RECON_DEBUG</code>, <code>API_RECON_CHECKSUM</code>, <code>API_RECON_SIGN_KEY</code>,
+<code>API_RECON_TIMEOUT</code>, <code>API_RECON_RESUME</code>. Booleans take <code>1</code>/<code>0</code> (also
+<code>true</code>/<code>false</code>, <code>yes</code>/<code>no</code>, <code>on</code>/<code>off</code>), and <code>API_RECON_CHECKSUM</code> also accepts
+<code>sha256</code> or <code>sha512</code>.</p>
+<p>Two values cannot be committed in a shared file: <code>force: true</code> and
+<code>redact: false</code>. Each loosens a safety default for everyone who clones the
+repository, so both are refused with an explanation and still work from a flag
+or the environment, where the choice is explicit for that run. Run with
+<code>--verbose</code> to see which file was used and which settings came from it.</p>
+<p><code>scan()</code> itself reads no config file — the library takes explicit options, so an
+embedding application keeps control.</p>
+<h2>The result you wanted</h2>
+<p>A scan usually ends in something you then go and find. Two flags finish the job
+instead:</p>
+<pre><code class="language-console"># Look at it: the dashboard opens when the scan finishes
+api-recon https://example.com --open
+
+# Use it: the Markdown report goes to stdout, commentary to stderr
+api-recon https://example.com --print &gt; report.md
+api-recon https://example.com --print json | jq &#39;.endpoints[].id&#39;
+</code></pre>
+<p><code>--open</code> launches <code>dashboard.html</code> in whatever the desktop uses (<code>open</code> on macOS,
+<code>start</code> through the shell on Windows, <code>xdg-open</code> elsewhere), adding the dashboard
+to the formats if you had not asked for it. On a headless box, in a container, or
+in WSL without one of those launchers it prints the path instead — a written
+report is a success even if nobody opened it — and <code>API_RECON_NO_OPEN=1</code> (or
+<code>API_RECON_OPENER=&lt;program&gt;</code>) decides what happens on your machines.</p>
+<p><code>--print</code> renders through the same reporters that write the files, so the text a
+pipe receives is the text the file would have contained: <code>md</code> (the default), the
+<code>report.json</code> document, the OpenAPI YAML, or <code>report.html</code>. It is additive to
+<code>--out</code>, and while it is on, <strong>every human line moves to stderr</strong> — the progress
+table, the summary, the file list — so redirecting stdout captures only the
+report. The PDF and the dashboard are refused with a message, because they belong
+in a file rather than a pipe.</p>
+<h2>Progress</h2>
+<p>On a terminal, the scan replaces its start line with a running table — phase,
+seed host, elapsed time, pages visited, requests and endpoints seen so far, plus
+the last few pages and endpoints — redrawn in place, so a long crawl never looks
+like a hang and never scrolls your terminal. It is cleared before the summary, so
+the result is what stays on screen.</p>
+<p>Piped or in CI there is no table, because redrawn ANSI frames in a log file are
+noise; <code>--quiet</code> does the same on a terminal. A machine that wants the stream
+passes <code>--json-progress</code> for one JSON object per line, ending with a <code>done</code>
+event:</p>
+<pre><code class="language-console">$ api-recon https://example.com --json-progress --formats json | grep &#39;^{&quot;event&quot;&#39;
+{&quot;event&quot;:&quot;progress&quot;,&quot;phase&quot;:&quot;crawling&quot;,&quot;elapsedMs&quot;:0,&quot;pagesVisited&quot;:0,&quot;maxPages&quot;:25,&quot;calls&quot;:0,&quot;endpoints&quot;:0,&quot;currentPage&quot;:null}
+{&quot;event&quot;:&quot;progress&quot;,&quot;phase&quot;:&quot;crawling&quot;,&quot;elapsedMs&quot;:1240,&quot;pagesVisited&quot;:1,&quot;maxPages&quot;:25,&quot;calls&quot;:3,&quot;endpoints&quot;:2,&quot;currentPage&quot;:&quot;/products&quot;}
+{&quot;event&quot;:&quot;done&quot;,&quot;phase&quot;:&quot;analyzing&quot;,&quot;elapsedMs&quot;:4210,&quot;pagesVisited&quot;:6,&quot;maxPages&quot;:25,&quot;calls&quot;:31,&quot;endpoints&quot;:14,&quot;currentPage&quot;:&quot;/dashboard&quot;}
+</code></pre>
+<p>In the library, the same stream is <code>onProgress</code>:</p>
+<pre><code class="language-ts">await scan({
+  url: &#39;https://example.com&#39;,
+  onProgress: (s) =&gt; console.error(`${s.phase}: ${s.pages.length} pages, ${s.calls.length} calls`),
+});
+</code></pre>
+<p>For an event-oriented API — phases, pages, and endpoints as they are discovered —
+see <a href="../reference/library.html#events">Events</a> under the library API.</p>
+<h2>Timeouts and resuming</h2>
+<p>A page that never finishes loading must not stall the whole crawl, so every
+navigation is bounded by <code>--timeout &lt;ms&gt;</code> (default 30s) and retried once before
+it is recorded without its content. A flaky page costs a retry, not the page.</p>
+<p>After each page the scan writes everything it takes to continue — the crawl
+frontier, the pages, and the traffic captured so far — to
+<code>&lt;out&gt;/checkpoint.json</code>. If a run crashes or you cancel it with Ctrl+C, point
+the same command at the same output directory with <code>--resume</code>:</p>
+<pre><code class="language-bash"># A long crawl that stopped partway through…
+api-recon https://app.example.com --depth 5 --max-pages 500 --out ./reports
+
+# …continues from ./reports/checkpoint.json instead of starting over
+api-recon https://app.example.com --depth 5 --max-pages 500 --out ./reports --resume
+</code></pre>
+<p>The seed URL must match the checkpoint&#39;s, and the checkpoint is deleted once a
+run completes, so a leftover file means exactly one thing: a run that stopped
+early. It is versioned, so a checkpoint from an older shape is refused rather
+than misread, and it holds only redacted capture data — the same fields the
+reports keep. Resuming keeps the original start time, so the finished report
+spans the whole capture rather than only the part after the resume.</p>
+<h2>Stopping a scan</h2>
+<p>Ctrl+C is a clean stop, not an abandoned process. On <code>SIGINT</code> or <code>SIGTERM</code> the
+scan closes the browser, stops the crawl at the next page boundary, and flushes
+the capture so far to <code>&lt;out&gt;/report.json</code> before it exits — so a long crawl
+never leaves a Chromium process behind, and the interrupted run is still worth
+reading. The checkpoint is deliberately kept, so the run continues with
+<code>--resume</code>. The exit code is the conventional <code>128</code> + signal: <code>130</code> for
+<code>SIGINT</code>, <code>143</code> for <code>SIGTERM</code>. Pressing Ctrl+C a second time skips the graceful
+path and exits at once, so a wedged teardown is never something you cannot
+escape.</p>
+<h2>Keeping memory bounded</h2>
+<p>A long crawl of a busy app can bury a small machine in captured traffic, so
+every axis has its own cap rather than sharing one global budget:
+<code>--max-calls</code> bounds the captured calls (and so the endpoint list),
+<code>--max-sockets</code> bounds WebSocket connections, <code>--max-frames</code> bounds frames per
+connection, <code>--max-pages</code> bounds pages (in record mode too), and <code>--max-body-mb</code>
+bounds any single body held in memory. Past a cap the data is still counted but
+no longer stored, and the scan warns, so a capped run says so instead of looking
+complete.</p>
+<p>An oversized JSON body is not thrown away. When an output directory is set, the
+full body is written — redacted, exactly like the in-memory sample — under
+<code>&lt;out&gt;/payloads/</code>, and the report references it (<code>requestBodyFile</code> /
+<code>responseBodyFile</code> on an endpoint, <code>bodyFile</code> on an error response). The name is
+relative to the output directory, so the reports and their side files move
+together, and <code>--checksum</code> covers them. A scan with no <code>--out</code> has nowhere to
+spill, so it truncates in memory as before.</p>
+</article>
+<footer>api-recon documentation — the <a href="https://github.com/zntb/api-recon#readme">README</a> is the front door and indexes every page.</footer>
+</main>
+</div>
+</body>
+</html>

@@ -32,6 +32,7 @@
     "dist",
     "schema",
     "completions",
+    "docs",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"

@@ -9,7 +9,7 @@
 </head>
 <body>
 <div class="layout">
-<nav class="sidebar"><a class="brand" href="index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="index.html" class="active">Overview</a></li><li><a href="cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="cookbook/graphql.html">GraphQL</a></li><li><a href="cookbook/websocket.html">WebSockets</a></li><li><a href="cookbook/ci-gate.html">CI gate</a></li><li><a href="faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<nav class="sidebar"><a class="brand" href="index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="index.html" class="active">Overview</a></li><li><a href="reference/cli.html">CLI reference</a></li><li><a href="reference/library.html">Library API</a></li><li><a href="reference/capture.html">What a scan captures</a></li><li><a href="reference/reports.html">Reports</a></li><li><a href="reference/dashboard.html">Dashboard</a></li><li><a href="reference/diffing.html">Comparing scans</a></li><li><a href="reference/authentication.html">Authentication</a></li><li><a href="reference/sharing.html">Sharing a report</a></li><li><a href="reference/safety.html">Safety guardrails</a></li><li><a href="reference/telemetry.html">Telemetry</a></li><li><a href="cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="cookbook/graphql.html">GraphQL</a></li><li><a href="cookbook/websocket.html">WebSockets</a></li><li><a href="cookbook/ci-gate.html">CI gate</a></li><li><a href="faq.html">Troubleshooting FAQ</a></li></ul></nav>
 <main>
 <article>
 <h1>api-recon documentation</h1>
@@ -17,9 +17,9 @@
 it crawls (or you drive it interactively), records every XHR/fetch call and
 WebSocket frame, infers schemas, categorizes the endpoints, and writes a report
 in JSON, Markdown, HTML, PDF, and OpenAPI 3.0.</p>
-<p>The <a href="https://github.com/zntb/api-recon#readme">README</a> is the reference for every
-flag and option. This site is the part you read when you have a specific app in
-front of you and want the shortest path to a good report.</p>
+<p>The <a href="https://github.com/zntb/api-recon#readme">README</a> is the front door and the
+index. This site is the part you read when you have a specific app in front of
+you and want the shortest path to a good report.</p>
 <h2>Start here</h2>
 <pre><code class="language-bash">npm install -g api-recon
 npx playwright install chromium
@@ -32,6 +32,56 @@ api-recon https://app.example.com --preset ci
 </code></pre>
 <p><code>api-recon --help</code> lists every flag, and <code>api-recon completion bash</code> (or <code>zsh</code>,
 <code>fish</code>) teaches your shell to complete them.</p>
+<h2>Reference</h2>
+<p>One page per question, so you read the answer rather than the whole tool:</p>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th>What it answers</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="reference/cli.html">CLI reference</a></td>
+<td>Every flag, subcommand, and exit code; presets, the config file, resuming</td>
+</tr>
+<tr>
+<td><a href="reference/library.html">Library API</a></td>
+<td><code>scan()</code> from Node, exported types, the events API</td>
+</tr>
+<tr>
+<td><a href="reference/capture.html">What a scan captures</a></td>
+<td>Recorded fields, categories, GraphQL, WebSocket frames</td>
+</tr>
+<tr>
+<td><a href="reference/reports.html">Reports</a></td>
+<td>Each output format, and every field in <code>report.json</code></td>
+</tr>
+<tr>
+<td><a href="reference/dashboard.html">Dashboard</a></td>
+<td>Searching, grouping, the diff view, keyboard support</td>
+</tr>
+<tr>
+<td><a href="reference/diffing.html">Comparing scans</a></td>
+<td>Baselines, <code>--diff</code>, breaking changes, CI gating</td>
+</tr>
+<tr>
+<td><a href="reference/authentication.html">Authentication and interaction</a></td>
+<td>Sessions, scripted login and actions, record mode</td>
+</tr>
+<tr>
+<td><a href="reference/sharing.html">Sharing a report</a></td>
+<td><code>--share</code>, and the integrity manifest</td>
+</tr>
+<tr>
+<td><a href="reference/safety.html">Safety guardrails</a></td>
+<td>Every default that refuses, and the limitations</td>
+</tr>
+<tr>
+<td><a href="reference/telemetry.html">Telemetry (opt-in)</a></td>
+<td>The local payload and its boundary</td>
+</tr>
+</tbody></table>
 <h2>Cookbook</h2>
 <table>
 <thead>
@@ -84,7 +134,7 @@ time&quot; is not proof an endpoint is gone; the diff says so in as many words.<
 version. Review it before sharing all the same.</li>
 </ul>
 </article>
-<footer>api-recon documentation — see the <a href="https://github.com/zntb/api-recon#readme">README</a> for the full CLI and library reference.</footer>
+<footer>api-recon documentation — the <a href="https://github.com/zntb/api-recon#readme">README</a> is the front door and indexes every page.</footer>
 </main>
 </div>
 </body>

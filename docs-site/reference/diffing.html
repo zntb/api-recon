@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>Comparing scans · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../reference/cli.html">CLI reference</a></li><li><a href="../reference/library.html">Library API</a></li><li><a href="../reference/capture.html">What a scan captures</a></li><li><a href="../reference/reports.html">Reports</a></li><li><a href="../reference/dashboard.html">Dashboard</a></li><li><a href="../reference/diffing.html" class="active">Comparing scans</a></li><li><a href="../reference/authentication.html">Authentication</a></li><li><a href="../reference/sharing.html">Sharing a report</a></li><li><a href="../reference/safety.html">Safety guardrails</a></li><li><a href="../reference/telemetry.html">Telemetry</a></li><li><a href="../cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html">GraphQL</a></li><li><a href="../cookbook/websocket.html">WebSockets</a></li><li><a href="../cookbook/ci-gate.html">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>Comparing scans</h1>
+<p>Capture a baseline once, then compare later scans against it. The <code>baseline</code>
+subcommand stores the report in one known place, and <code>--diff latest</code> reads it
+back, so neither command names a file path:</p>
+<pre><code class="language-bash"># Capture the baseline — stored at .api-recon/baseline.json
+api-recon baseline https://app.example.com
+
+# Later, scan again and compare against the stored baseline
+api-recon https://app.example.com --diff latest --out ./latest
+</code></pre>
+<p><code>.api-recon/baseline.json</code> is discovered by walking up from the working
+directory, like the project config file, so a baseline committed at the
+repository root is found from any subdirectory and re-running <code>baseline</code> updates
+it in place. Commit it to gate CI on the API surface changing. The sentinel also
+works from <code>API_RECON_DIFF=latest</code> and from a config file&#39;s <code>&quot;diff&quot;: &quot;latest&quot;</code>.</p>
+<p>To keep a baseline somewhere else — a per-branch file, or several in parallel CI
+jobs — pass <code>--baseline &lt;file&gt;</code> on both sides. It overrides only the stored
+location; a relative path in a config file still resolves against that file:</p>
+<pre><code class="language-bash">api-recon baseline https://app.example.com --baseline baselines/main.json
+api-recon https://app.example.com --diff latest --baseline baselines/main.json
+</code></pre>
+<p>If you would rather manage the file yourself, pass the path directly to
+<code>--diff</code>:</p>
+<pre><code class="language-bash"># Capture a baseline anywhere
+api-recon https://app.example.com --out ./baseline --formats json
+
+# Later, scan again and compare against it
+api-recon https://app.example.com --diff ./baseline/report.json --out ./latest
+</code></pre>
+<p>Every format carries the comparison: <code>report.json</code> gains a <code>diff</code> object, and
+<code>report.md</code>/<code>.html</code>/<code>.pdf</code> gain a <strong>Changes Since Baseline</strong> section.</p>
+<p>Each endpoint is reported as <strong>added</strong>, <strong>removed</strong>, or <strong>changed</strong>, with
+per-field detail for schemas, e.g. <code>response field removed: products[].id</code>.
+Changes that could break an existing client are marked <strong>breaking</strong>: a removed
+endpoint, a response that no longer returns 2xx, or a removed or retyped
+response field. Additions never are.</p>
+<p>GraphQL endpoints are compared by operation too: a new operation or a change in
+whether the schema is introspectable is additive, while an operation that is no
+longer observed is flagged breaking — <code>GraphQL operations not observed this time: DeleteProduct (mutation)</code>.</p>
+<p>Error bodies are compared per status too: a field removed from a <code>422</code> body is
+breaking, the same as any other removed field, while an endpoint that simply
+started (or stopped) returning an error status is left to the status-code
+comparison.</p>
+<p>WebSocket connections are matched by URL and reported the same way, under a
+<code>WS </code>-prefixed id. They also carry a message-shape comparison: the top-level
+fields of the sent and received JSON frames are diffed, so a field dropping out
+of a received message is flagged breaking —
+<code>WebSocket received message field removed: value</code>.</p>
+<p>Run both scans in the same engine where you can. When the baseline&#39;s
+<code>meta.engine</code> differs from the current scan&#39;s, the CLI summary, the Markdown
+&quot;Changes Since Baseline&quot; section, and the dashboard all flag it — a site can
+serve different responses per engine, and a difference may not be an API change
+at all.</p>
+<p>Classification is heuristic and deliberately under-reports. A scan samples
+whatever traffic the crawl happened to trigger, so an endpoint listed as removed
+may simply not have been exercised this time — the evidence sits beside each
+change so you can judge it.</p>
+<p>For CI, <code>--fail-on-diff</code> turns the finding into an exit code — with a committed
+baseline and <code>latest</code>, the job names no path to manage:</p>
+<pre><code class="language-bash">api-recon https://app.example.com --diff latest --fail-on-diff
+</code></pre>
+<p>From the library, either pass the option and read <code>result.diff</code>, or compare two
+loaded reports directly without scanning:</p>
+<pre><code class="language-js">import { scan, diffReports, loadBaseline } from &#39;api-recon&#39;;
+
+const result = await scan({ url: &#39;https://app.example.com&#39;, diff: &#39;./baseline/report.json&#39; });
+console.log(result.diff?.counts);          // { added, removed, changed, breaking }
+
+const diff = diffReports(await loadBaseline(&#39;./old.json&#39;), await loadBaseline(&#39;./new.json&#39;));
+console.log(diff.counts.breaking, diff.changes);
+</code></pre>
+<p>The <a href="../cookbook/ci-gate.html">CI gate cookbook recipe</a> has a working GitHub
+Actions job built on this.</p>
+</article>
+<footer>api-recon documentation — the <a href="https://github.com/zntb/api-recon#readme">README</a> is the front door and indexes every page.</footer>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>Dashboard · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../reference/cli.html">CLI reference</a></li><li><a href="../reference/library.html">Library API</a></li><li><a href="../reference/capture.html">What a scan captures</a></li><li><a href="../reference/reports.html">Reports</a></li><li><a href="../reference/dashboard.html" class="active">Dashboard</a></li><li><a href="../reference/diffing.html">Comparing scans</a></li><li><a href="../reference/authentication.html">Authentication</a></li><li><a href="../reference/sharing.html">Sharing a report</a></li><li><a href="../reference/safety.html">Safety guardrails</a></li><li><a href="../reference/telemetry.html">Telemetry</a></li><li><a href="../cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html">GraphQL</a></li><li><a href="../cookbook/websocket.html">WebSockets</a></li><li><a href="../cookbook/ci-gate.html">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>Dashboard</h1>
+<p><code>dashboard.html</code> is the report you actually work in. Open it in any browser —
+no server, no build step:</p>
+<pre><code class="language-bash">api-recon https://example.com --formats dashboard --out ./reports
+open ./reports/dashboard.html
+</code></pre>
+<ul>
+<li><strong>Search</strong> across paths, methods, categories, status codes, hosts, params,
+MIME types, and the pages that triggered each call.</li>
+<li><strong>Group</strong> by category, resource, or change kind. Each group gets a
+collapsible header with its count, and a left-hand nav lists the groups with
+per-group counts while you are grouped — so a hundred endpoints read as a
+handful of sections instead of one long table. Search and filters still apply,
+and a group only shows the rows that pass them.</li>
+<li><strong>Filter</strong> by category, HTTP method, and status code.</li>
+<li><strong>Sort</strong> by any column; the default order is discovery order.</li>
+<li><strong>Expand</strong> a row for its headers, query and path params, and the inferred
+request/response schemas — rendered from the sampled bodies. WebSocket rows
+expand to their frames and inferred sent/received message schemas instead.</li>
+<li><strong>Diff</strong> — with <code>--diff</code>, a Change column and &quot;Changed only&quot; / &quot;Breaking only&quot;
+filters appear. Without a baseline they are omitted entirely rather than
+shown empty.</li>
+<li><strong>Removed endpoints stay visible</strong> — an endpoint that existed in the baseline
+and not in this scan has no row in the current report, so the dashboard
+reconstructs one from the diff. It appears struck through on a red row, sorts
+and searches like any other, and there is a <code>Removed (baseline)</code> filter to
+isolate the endpoints that disappeared. Only such rows carry no request or
+response detail, and they say so instead of showing empty sections.</li>
+<li><strong>Findings at a glance</strong> — when the report carries findings, the summary tiles
+show their counts coloured by severity and a panel lists every cue, so the
+things to act on are the first thing you see.</li>
+<li><strong>Keyboard and screen reader</strong> — <code>/</code> focuses search, the arrow keys move
+between rows, and Enter/Space expands the focused one. Every sortable header
+is a button, so the sort order can be set from the keyboard, and each header
+announces its direction (<code>aria-sort</code>). Rows name the endpoint they expand and
+point at the detail they open (<code>aria-controls</code>); the result count is a live
+region; each summary tile is labelled; and the table&#39;s scroll box takes focus,
+so a long table can be scrolled without a mouse.</li>
+<li><strong>Mobile</strong> — on a phone-sized screen the table becomes a stack of cards, one
+per endpoint, each cell labelled with the column it belongs to, so an endpoint
+is read top to bottom instead of scrolled sideways. The summary strip folds to
+two columns and nothing overflows the viewport.</li>
+<li><strong>Dark mode</strong> — the theme follows <code>prefers-color-scheme</code>, so the page darkens
+with the rest of your desktop rather than flashing white.</li>
+<li><strong>Sticky table</strong> — the header row and the method column stay pinned while you
+scroll a long report.</li>
+<li><strong>Prints like <code>report.html</code></strong> — a print stylesheet drops the interactive
+controls and unpins the table, so the dashboard prints as a readable report.</li>
+</ul>
+<p>It is a single self-contained file: all CSS, the report JSON, and the rendering
+script are inlined, so nothing is fetched at open time and it works from
+<code>file://</code>, from a CI artifact, or on a machine with no network. Scanned values
+are written to the DOM as text, never as HTML, so a target site cannot inject
+markup into its own report — and the embedded payload is the same redacted
+report as <code>report.json</code>.</p>
+<p>Use <code>report.md</code> / <code>report.html</code> / <code>report.pdf</code> when you need something to send
+someone; use <code>dashboard.html</code> when you need to find something. Both a plain and
+a diffed dashboard are committed under
+<a href="https://github.com/zntb/api-recon/tree/main/examples/output"><code>examples/output/</code></a>.</p>
+</article>
+<footer>api-recon documentation — the <a href="https://github.com/zntb/api-recon#readme">README</a> is the front door and indexes every page.</footer>
+</main>
+</div>
+</body>
+</html>

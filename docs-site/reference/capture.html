@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>What a scan captures · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../reference/cli.html">CLI reference</a></li><li><a href="../reference/library.html">Library API</a></li><li><a href="../reference/capture.html" class="active">What a scan captures</a></li><li><a href="../reference/reports.html">Reports</a></li><li><a href="../reference/dashboard.html">Dashboard</a></li><li><a href="../reference/diffing.html">Comparing scans</a></li><li><a href="../reference/authentication.html">Authentication</a></li><li><a href="../reference/sharing.html">Sharing a report</a></li><li><a href="../reference/safety.html">Safety guardrails</a></li><li><a href="../reference/telemetry.html">Telemetry</a></li><li><a href="../cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html">GraphQL</a></li><li><a href="../cookbook/websocket.html">WebSockets</a></li><li><a href="../cookbook/ci-gate.html">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>What a scan captures</h1>
+<p>For every XHR/fetch request it records the method, normalized URL, status,
+MIME type, redacted request/response headers, request body, JSON response body
+(size-capped), timing, and the page that triggered it. Calls are deduplicated
+by <code>(method, URL pattern, status)</code> and grouped into endpoints such as
+<code>GET /api/orders/{id}</code>.</p>
+<p>WebSocket connections opened by a page are captured too, with the frames sent
+and received on each one (see <a href="#websocket-capture">WebSocket capture</a>).</p>
+<p>Endpoints are categorized with heuristics:</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Heuristic</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>authentication</code></td>
+<td>paths like <code>/login</code>, <code>/oauth</code>, <code>/token</code>, <code>/session</code>, <code>/sso</code></td>
+</tr>
+<tr>
+<td><code>analytics</code></td>
+<td>analytics hosts (<code>google-analytics.com</code>, <code>segment.io</code>, …) or paths like <code>/track</code>, <code>/collect</code>, <code>/beacon</code></td>
+</tr>
+<tr>
+<td><code>third-party</code></td>
+<td>anything cross-origin (only reported with <code>--include-third-party</code>)</td>
+</tr>
+<tr>
+<td><code>graphql</code></td>
+<td>the request carried a GraphQL operation (see <a href="#graphql-detection">GraphQL detection</a>)</td>
+</tr>
+<tr>
+<td><code>mutations</code></td>
+<td>POST/PUT/PATCH/DELETE</td>
+</tr>
+<tr>
+<td><code>data-fetching</code></td>
+<td>GET/HEAD returning JSON</td>
+</tr>
+<tr>
+<td><code>uncategorized</code></td>
+<td>everything else</td>
+</tr>
+</tbody></table>
+<p>The analyzer also infers <strong>path parameters</strong> (id-like segments), <strong>query
+parameters</strong> with sample values, and <strong>JSON schemas</strong> (depth 4) for request and
+response bodies. Where possible it fingerprints the stack (frameworks, CMS,
+CDN, analytics) from headers, cookies, HTML, and script paths.</p>
+<p>The rules themselves are data and small enough to audit: categorization lives in
+<a href="https://github.com/zntb/api-recon/blob/main/src/core/analyzer.ts"><code>src/core/analyzer.ts</code></a>
+and the technology fingerprints in
+<a href="https://github.com/zntb/api-recon/blob/main/src/core/techStack.ts"><code>src/core/techStack.ts</code></a>.</p>
+<h2>GraphQL detection</h2>
+<p>GraphQL rides on ordinary HTTP, so it is recognized by what a request carries
+rather than by its URL: a JSON body with a <code>query</code> document (POST), an
+<code>application/graphql</code> body, a <code>query</code> search parameter (GET), or the
+<code>operationName</code> of an automatic persisted query. Such endpoints are categorized
+as <code>graphql</code> and gain a <code>graphql</code> object:</p>
+<pre><code class="language-jsonc">&quot;graphql&quot;: {
+  &quot;introspection&quot;: true,          // a `__schema` / `__type` query was observed
+  &quot;operations&quot;: [                 // operation definitions seen across samples
+    { &quot;name&quot;: &quot;IntrospectionQuery&quot;, &quot;type&quot;: &quot;query&quot; },
+    { &quot;name&quot;: &quot;GetProducts&quot;, &quot;type&quot;: &quot;query&quot; }
+  ]
+}
+</code></pre>
+<p>Operation names are read from the document itself with a small tokenizer that
+ignores keywords inside strings, comments, nested selection sets, and
+fragments, so a field named <code>mutation</code> is not mistaken for an operation.
+Anonymous operations are kept with a <code>null</code> name, and a request that names an
+operation the document does not declare (a persisted query, for example) is
+recorded with the <code>unknown</code> type. Nothing is executed or replayed — the document
+text is only scanned. The report&#39;s Markdown, HTML, dashboard, and OpenAPI
+output surface the same information, with the OpenAPI spec carrying it as
+<code>x-graphql-operations</code> / <code>x-graphql-introspection</code> extensions.</p>
+<p>See the <a href="../cookbook/graphql.html">GraphQL cookbook recipe</a> for an end-to-end scan
+of a GraphQL app.</p>
+<h2>WebSocket capture</h2>
+<p>Every WebSocket a page opens is recorded, with the frames sent and received on
+it. Frames are subject to the same rules as HTTP bodies: payloads are redacted
+at capture time (a <code>token</code>-shaped field in a frame is masked exactly like one in
+a request body), capped per frame by <code>--max-body-mb</code>, and drawn from the same
+total-size budget. A per-connection frame cap keeps a chatty stream — heartbeats,
+for example — from filling a report; the connection still reports how many
+frames were seen, and says so when some were not stored. <code>--include-third-party</code>
+controls cross-origin sockets the same way it controls cross-origin fetches.</p>
+<pre><code class="language-jsonc">{
+  &quot;url&quot;: &quot;wss://example.com/live&quot;,
+  &quot;origins&quot;: [&quot;wss://example.com&quot;],
+  &quot;triggeredBy&quot;: &quot;https://example.com/dashboard&quot;,
+  &quot;frameCount&quot;: 3,
+  &quot;sentCount&quot;: 1,
+  &quot;receivedCount&quot;: 2,
+  &quot;framesTruncated&quot;: false,
+  &quot;frames&quot;: [
+    { &quot;direction&quot;: &quot;sent&quot;, &quot;type&quot;: &quot;text&quot;, &quot;payloadSample&quot;: &quot;{\&quot;subscribe\&quot;:true}&quot;, &quot;size&quot;: 17, &quot;truncated&quot;: false, &quot;at&quot;: 1699999999999 }
+  ]
+}
+</code></pre>
+<p>Binary frames are stored base64-encoded. JSON frames are summarized into
+message schemas — <code>sentSchema</code> for what the page sent (like a request body) and
+<code>receivedSchema</code> for what it received (like a response) — so a socket&#39;s messages
+sit alongside the HTTP schemas. The Markdown/HTML/PDF reports gain a <strong>WebSocket
+Traffic</strong> section with those schemas, and the dashboard lists each connection as
+a row whose expanded view is its frames and message schemas.</p>
+<p>See the <a href="../cookbook/websocket.html">WebSocket cookbook recipe</a> for a worked scan.</p>
+<h2>Engines</h2>
+<p>The capture layer is engine-independent: <code>--browser</code> swaps the Playwright
+driver, and interception, categorization, technology detection, and schema
+inference all behave the same. The report records the engine it ran in
+(<code>meta.engine</code>), so a scan is reproducible from its own output.</p>
+<blockquote>
+<p>Firefox and WebKit send different <code>User-Agent</code> and <code>Accept</code> headers than
+Chromium, and sites sometimes serve different responses per engine — so if
+you only care about the API surface, Chromium is the safer default.</p>
+</blockquote>
+<p>Each engine has to be installed before <code>--browser</code> can use it:</p>
+<pre><code class="language-bash">npx playwright install firefox webkit
+</code></pre>
+</article>
+<footer>api-recon documentation — the <a href="https://github.com/zntb/api-recon#readme">README</a> is the front door and indexes every page.</footer>
+</main>
+</div>
+</body>
+</html>

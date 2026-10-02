@@ -23,6 +23,7 @@ npx playwright install chromium   # only Chromium is used
 | `npm run docs:generate` | Rebuild `docs-site/` from `docs/` (a test fails when it is stale) |
 | `npm run completions:generate` | Rewrite the committed shell completions after changing a flag |
 | `npm run examples:generate` | Rewrite the committed sample reports |
+| `npm run docs:generate` | Rebuild `docs-site/` after editing anything under `docs/` |
 
 ## Tests
 
@@ -125,6 +126,62 @@ npm run release:dry           # preview the tarball without publishing
 If your npm account requires two-factor auth for publishing, add `--otp=<code>`.
 
 The tag must match the version exactly: `v0.2.0` for `"version": "0.2.0"`.
+
+## Documentation
+
+The reference lives as Markdown under [`docs/`](docs), one page per question,
+and the README is only the front door that indexes it. When you add a flag or
+change a field:
+
+- update the page that owns it — [CLI reference](docs/reference/cli.md) for a
+  flag, [Reports](docs/reference/reports.md) for a `report.json` field,
+  [Library API](docs/reference/library.md) for an exported option,
+  [Safety guardrails](docs/reference/safety.md) for a default;
+- add the page to `DOCS_PAGES` in `src/docs/site.ts` if it is new (a test fails
+  on a stale `docs-site/`);
+- run `npm run docs:generate` — the freshness test compares the committed site
+  against a fresh render, so a forgotten rebuild fails the build rather than
+  shipping a stale page;
+- record a user-visible change in `CHANGELOG.md` under `[Unreleased]`.
+
+Links between docs pages are written as `.md` so the sources also read correctly
+on GitHub; the site renderer rewrites them to `.html`. A link that leaves
+`docs/` (to the repository, a file in it, or the README) is an absolute
+`https://github.com/…` URL, since a relative one would dangle in the rendered
+site.
+
+## Supply chain
+
+The release pipeline is built to be auditable:
+
+- **Actions are pinned by commit SHA** in every workflow, with the release the
+  SHA came from in a trailing comment, so a repointed tag cannot silently run
+  new code. Dependabot ([`.github/dependabot.yml`](.github/dependabot.yml))
+  opens the PR that moves the SHA when a new release lands, along with routine
+  npm updates.
+- **CI audits dependencies** with `npm audit --audit-level=high`, so a bad
+  transitive update fails the build rather than shipping quietly.
+- **CI asserts the published file list** with `npm run check:pack`
+  (`scripts/check-pack.ts`): it runs `npm pack --dry-run` and fails if the
+  tarball holds anything outside `dist/`, `schema/`, `completions/`, `docs/`,
+  `README.md`, `LICENSE`, `CHANGELOG.md`, and `package.json`, or is missing a
+  file the package needs — so a session file, a debug bundle, or the source tree
+  cannot ride into a release.
+- **CI loads the built package** with `npm run check:published`, which imports
+  `dist/index.js`, checks the `exports` map and declaration emit, and runs the
+  bin; `npm run check:publint` and `npm run check:types` cover the published
+  shape.
+- **Publishing is attested** — `npm publish --provenance` attaches a signed
+  attestation linking the tarball to the workflow run that built it (see
+  [`.github/workflows/publish.yml`](.github/workflows/publish.yml)).
+
+Run the same gates locally:
+
+```bash
+npm audit --audit-level=high
+npm run build && npm run check:pack && npm run check:published
+npm run check:publint && npm run check:types
+```
 
 ## Ground rules
 

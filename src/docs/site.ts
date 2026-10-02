@@ -31,6 +31,16 @@ export interface DocsPageSource {
 /** The pages, in the order they appear in the sidebar. */
 export const DOCS_PAGES: DocsPageSource[] = [
   { file: 'index.md', nav: 'Overview', title: 'api-recon documentation' },
+  { file: 'reference/cli.md', nav: 'CLI reference', title: 'CLI reference' },
+  { file: 'reference/library.md', nav: 'Library API', title: 'Library API' },
+  { file: 'reference/capture.md', nav: 'What a scan captures', title: 'What a scan captures' },
+  { file: 'reference/reports.md', nav: 'Reports', title: 'Reports' },
+  { file: 'reference/dashboard.md', nav: 'Dashboard', title: 'Dashboard' },
+  { file: 'reference/diffing.md', nav: 'Comparing scans', title: 'Comparing scans' },
+  { file: 'reference/authentication.md', nav: 'Authentication', title: 'Authentication and interaction' },
+  { file: 'reference/sharing.md', nav: 'Sharing a report', title: 'Sharing a report' },
+  { file: 'reference/safety.md', nav: 'Safety guardrails', title: 'Safety guardrails' },
+  { file: 'reference/telemetry.md', nav: 'Telemetry', title: 'Telemetry (opt-in)' },
   { file: 'cookbook/authenticated-spa.md', nav: 'Authenticated SPA', title: 'Scan an authenticated SPA' },
   { file: 'cookbook/graphql.md', nav: 'GraphQL', title: 'Scan a GraphQL endpoint' },
   { file: 'cookbook/websocket.md', nav: 'WebSockets', title: 'Scan a WebSocket app' },
@@ -144,7 +154,7 @@ ${sidebar(page, prefix)}
 <article>
 ${body}
 </article>
-<footer>api-recon documentation — see the <a href="https://github.com/zntb/api-recon#readme">README</a> for the full CLI and library reference.</footer>
+<footer>api-recon documentation — the <a href="https://github.com/zntb/api-recon#readme">README</a> is the front door and indexes every page.</footer>
 </main>
 </div>
 </body>

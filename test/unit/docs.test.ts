@@ -24,13 +24,58 @@ describe('docs site', () => {
     const files = await buildDocsSite('docs');
 
     for (const file of files.filter((entry) => entry.path.endsWith('.html'))) {
-      expect(file.contents, `${file.path} should not link to a .md file`).not.toMatch(
-        /href="[^"#]+\.md/,
+      // Only a *relative* `.md` link is dead once rendered: `toSiteLinks`
+      // deliberately skips anything carrying a scheme (`[^"#:]+`), so a link
+      // out to GitHub stays exactly as written and is correct in the site.
+      expect(file.contents, `${file.path} should not link to a relative .md file`).not.toMatch(
+        /href="[^":#]+\.md/,
       );
       // Every page carries the sidebar, so each nav label appears.
       for (const page of DOCS_PAGES) {
         expect(file.contents, `${file.path} should link to ${page.nav}`).toContain(page.nav);
       }
+    }
+  });
+
+  it('links only pages the site actually generates', async () => {
+    // A relative link to a directory, or to a Markdown file outside
+    // `DOCS_PAGES`, resolves in the repository and dangles in the rendered
+    // site — which is what happened with a `../cookbook` directory link.
+    const generated = new Set(DOCS_PAGES.map((page) => page.file));
+    for (const page of DOCS_PAGES) {
+      const source = await readFile(join(process.cwd(), 'docs', page.file), 'utf8');
+      const fromDirectory = page.file.split('/').slice(0, -1);
+      for (const [, link = ''] of source.matchAll(/\]\(([^)#:]+\.md)(?:#[^)]*)?\)/g)) {
+        const segments = fromDirectory.concat(link.split('/'));
+        const resolved: string[] = [];
+        for (const segment of segments) {
+          if (segment === '..') resolved.pop();
+          else if (segment !== '.') resolved.push(segment);
+        }
+        const target = resolved.join('/');
+        expect(generated, `${page.file} links to ${target}, which is not a docs page`).toContain(
+          target,
+        );
+      }
+    }
+  });
+
+  it('keeps a link out of docs/ absolute, since a relative one would dangle', async () => {
+    // Asserted on the Markdown sources, not the rendered pages: the generated
+    // sidebar and stylesheet link use a `../` prefix legitimately, so only a
+    // hand-written link can be wrong. A relative link from `reference/*.md` to
+    // `../../schema/…` resolves in the repository but not in the rendered site,
+    // so anything leaving `docs/` is written as a full URL instead.
+    for (const page of DOCS_PAGES) {
+      const source = await readFile(join(process.cwd(), 'docs', page.file), 'utf8');
+      // Relative links only: an absolute URL is correct by construction.
+      const fromDirectory = page.file.split('/').length - 1;
+      const leavesDocs = [...source.matchAll(/\]\(((?:\.\.\/)+[^):]+)\)/g)]
+        .map((match) => match[1]!)
+        // `up` is how many `../` the link climbs; the page's own directory depth
+        // is how many it has to spend before it leaves `docs/`.
+        .filter((link) => (link.match(/\.\.\//g)?.length ?? 0) > fromDirectory);
+      expect(leavesDocs, `${page.file} should link outside docs/ absolutely`).toEqual([]);
     }
   });
 

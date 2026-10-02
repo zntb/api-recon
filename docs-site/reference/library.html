@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>Library API · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../reference/cli.html">CLI reference</a></li><li><a href="../reference/library.html" class="active">Library API</a></li><li><a href="../reference/capture.html">What a scan captures</a></li><li><a href="../reference/reports.html">Reports</a></li><li><a href="../reference/dashboard.html">Dashboard</a></li><li><a href="../reference/diffing.html">Comparing scans</a></li><li><a href="../reference/authentication.html">Authentication</a></li><li><a href="../reference/sharing.html">Sharing a report</a></li><li><a href="../reference/safety.html">Safety guardrails</a></li><li><a href="../reference/telemetry.html">Telemetry</a></li><li><a href="../cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html">GraphQL</a></li><li><a href="../cookbook/websocket.html">WebSockets</a></li><li><a href="../cookbook/ci-gate.html">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>Library API</h1>
+<p><code>api-recon</code> is ESM-only and published with type declarations. Install it as a
+dependency and drive a scan from Node:</p>
+<pre><code class="language-bash">npm install api-recon
+npx playwright install chromium
+</code></pre>
+<pre><code class="language-js">import { scan } from &#39;api-recon&#39;;
+
+const result = await scan({
+  url: &#39;https://example.com&#39;,
+  depth: 2,
+  formats: [&#39;json&#39;, &#39;md&#39;, &#39;openapi&#39;],
+  auth: &#39;./session.json&#39;,
+  actions: &#39;./actions.yaml&#39;,
+  redact: true,
+  respectRobots: true,
+});
+
+console.log(result.endpoints);
+await result.writeReports(&#39;./out&#39;);
+</code></pre>
+<p><code>scan()</code> returns <code>{ report, endpoints, technologies, safety, writeReports(dir), files }</code>.
+Passing <code>out</code> writes the reports during the scan; <code>writeReports()</code> writes them
+later. All CLI flags have camelCase equivalents (<code>maxPages</code>, <code>respectRobots</code>,
+<code>includeThirdParty</code>, <code>allowLocal</code>, <code>maxBodyBytes</code>, <code>browser</code>, …), including
+<code>checksum</code> and <code>signKey</code> for the integrity manifest. The digest and manifest
+functions are exported too — <code>buildIntegrityManifest</code>, <code>verifyIntegrityManifest</code>,
+and <code>verifyManifestFromDisk</code> — for an application that wants to check a report
+without the CLI.</p>
+<p>The typed error classes are exported as well, so a host application can tell a
+refusal from a failure: <code>SafetyError</code> (a guard refused to start), <code>RuntimeError</code>
+(a scan that started and then broke), <code>CancelledError</code> (stopped on request), and
+their shared base <code>ApiReconError</code>, each carrying an optional <code>hint</code> — the same
+one the CLI prints under a failure.</p>
+<p>Pass a <code>signal</code> (an <code>AbortSignal</code>) to stop a scan on your own terms: when it
+aborts, the browser is closed, the partial capture is written to
+<code>&lt;out&gt;/report.json</code>, and the promise rejects with the exported <code>CancelledError</code>
+(leaving the checkpoint in place for a later <code>resume</code>).</p>
+<p>Types are exported for every report structure:</p>
+<pre><code class="language-ts">import type { ReconReport, Endpoint, ScanOptions, ScanResult, ScanEvent } from &#39;api-recon&#39;;
+</code></pre>
+<p>TypeScript consumers should use <code>moduleResolution: &quot;node16&quot;</code>, <code>&quot;nodenext&quot;</code>, or
+<code>&quot;bundler&quot;</code>; the package is ESM-only, so there is no CommonJS <code>require</code> entry.</p>
+<h2>Events</h2>
+<p><code>scan()</code> returns a promise of the result that is also an async iterator, so an
+embedding application can draw its own progress and stream endpoints as they are
+grouped — against one scan, not two:</p>
+<pre><code class="language-ts">import { scan } from &#39;api-recon&#39;;
+
+for await (const event of scan({ url: &#39;https://example.com&#39;, depth: 2 })) {
+  switch (event.type) {
+    case &#39;phase&#39;:    console.error(event.phase); break;             // crawling | recording | analyzing
+    case &#39;page&#39;:     console.log(&#39;visited&#39;, event.page.url); break;
+    case &#39;endpoint&#39;: console.log(&#39;found&#39;, event.endpoint.id); break;
+    case &#39;done&#39;:     console.log(event.result.report.endpoints.length); break;
+  }
+}
+</code></pre>
+<p><code>phase</code> and <code>page</code> arrive while the crawl runs, <code>endpoint</code> once per grouped
+pattern, and <code>done</code> last, carrying the same <code>ScanResult</code> that <code>await scan(...)</code>
+resolves to. A caller that only awaits still works unchanged; so does the
+<code>onProgress</code> callback.</p>
+<p>Comparing two reports without scanning at all is exported too — see
+<a href="../reference/diffing.html">Comparing scans</a>.</p>
+</article>
+<footer>api-recon documentation — the <a href="https://github.com/zntb/api-recon#readme">README</a> is the front door and indexes every page.</footer>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>Authentication and interaction · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../reference/cli.html">CLI reference</a></li><li><a href="../reference/library.html">Library API</a></li><li><a href="../reference/capture.html">What a scan captures</a></li><li><a href="../reference/reports.html">Reports</a></li><li><a href="../reference/dashboard.html">Dashboard</a></li><li><a href="../reference/diffing.html">Comparing scans</a></li><li><a href="../reference/authentication.html" class="active">Authentication</a></li><li><a href="../reference/sharing.html">Sharing a report</a></li><li><a href="../reference/safety.html">Safety guardrails</a></li><li><a href="../reference/telemetry.html">Telemetry</a></li><li><a href="../cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html">GraphQL</a></li><li><a href="../cookbook/websocket.html">WebSockets</a></li><li><a href="../cookbook/ci-gate.html">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>Authentication and interaction</h1>
+<p>Two mechanisms for an authenticated app, both credential-safe, plus two ways to
+make the page actually do something before the capture is taken.</p>
+<h2>Saved session</h2>
+<p>Anything you saved with Playwright, or that <code>--login</code> produced:</p>
+<pre><code class="language-bash">api-recon https://app.example.com --auth ./session.json
+</code></pre>
+<h2>Scripted login</h2>
+<p>A YAML/JSON flow with <code>${ENV_VAR}</code> substitution. Values are read from the
+environment, never logged, and never written to reports:</p>
+<pre><code class="language-yaml">loginUrl: https://app.example.com/login
+steps:
+  - fill: { selector: &#39;#email&#39;, value: &#39;${APP_USER}&#39; }
+  - fill: { selector: &#39;#password&#39;, value: &#39;${APP_PASS}&#39; }
+  - click: &#39;button[type=&quot;submit&quot;]&#39;
+  - waitForURL: &#39;**/dashboard&#39;
+saveStateTo: ./session.json   # optional: reuse later with --auth
+</code></pre>
+<p>Supported steps: <code>fill</code>, <code>click</code>, <code>submit</code>, <code>waitForURL</code>, <code>waitForSelector</code>,
+<code>waitForTimeout</code>. The flow is validated before the browser opens: an unknown
+step, a missing field, or the wrong type fails with the offending path and line
+(<code>steps[1].fill.value</code>), and a YAML syntax error names its line and column — so
+a typo costs a moment, not a run.</p>
+<p>Credential handling is deliberate. A session written because of <code>saveStateTo</code>
+is saved owner-only (<code>chmod 600</code>), since it holds live cookies; an <code>--auth</code> file
+that is group- or world-readable is flagged with a warning on startup; and
+nothing is persisted unless <code>saveStateTo</code> asks for it — passing <code>--auth</code> reads a
+session but never rewrites it.</p>
+<p>The <a href="../cookbook/authenticated-spa.html">authenticated SPA cookbook recipe</a> walks
+through both mechanisms on a real app shape.</p>
+<h2>Scripted actions</h2>
+<p>Run interaction steps on every crawled page to surface lazy-loaded endpoints:</p>
+<pre><code class="language-yaml">- wait: 500
+- scroll: { to: bottom }
+- click: &#39;button.load-more&#39;
+- wait: 1000
+- fill: { selector: &#39;input[name=&quot;q&quot;]&#39;, value: &#39;widget&#39; }
+- submit: &#39;form#search&#39;
+</code></pre>
+<p>Supported steps: <code>click</code>, <code>fill</code>, <code>submit</code>, <code>wait</code>, <code>waitForSelector</code>,
+<code>scroll</code> (<code>{ to: top|bottom }</code> or a selector), <code>navigate</code>, <code>press</code>. A step that
+fails at run time (a selector that is not there) logs a warning and the crawl
+continues — but a <em>malformed</em> step is rejected before the browser opens, naming
+its path and line, so a typo is never silently skipped.</p>
+<p>The file may be a bare list of steps or <code>{ &quot;steps&quot;: [ … ] }</code>.</p>
+<h2>Interactive record mode</h2>
+<pre><code class="language-bash">api-recon https://app.example.com --record
+</code></pre>
+<p>A headed browser opens; browse, click, log in — every XHR/fetch call is
+captured. Type <code>done</code> + Enter (or press Ctrl+C) to finish and write the report.
+Redaction settings still apply.</p>
+<p>Automation hooks: <code>API_RECON_HEADLESS=1</code> runs record mode headless,
+<code>API_RECON_TELEMETRY=1</code> enables telemetry, and
+<code>API_RECON_RECORD_AUTOSTOP_MS=&lt;ms&gt;</code> ends the session automatically.</p>
+</article>
+<footer>api-recon documentation — the <a href="https://github.com/zntb/api-recon#readme">README</a> is the front door and indexes every page.</footer>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234f6ef7%22%20%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23eef2ff%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M7%2013a4%204%200%200%201%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%208a9%209%200%200%201%209%209%22%20%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%222%22%20fill%3D%22%23eef2ff%22%20%2F%3E%3C%2Fsvg%3E" />
+<title>Sharing a report · api-recon</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" role="img" aria-label="api-recon" focusable="false"><rect width="24" height="24" rx="6" fill="var(--brand-500)" /><g fill="none" stroke="var(--brand-50)" stroke-width="2" stroke-linecap="round"><path d="M7 13a4 4 0 0 1 4 4" /><path d="M7 8a9 9 0 0 1 9 9" /></g><circle cx="7" cy="17" r="1.7" fill="var(--brand-50)" /></svg><span>api-recon</span></a><ul><li><a href="../index.html">Overview</a></li><li><a href="../reference/cli.html">CLI reference</a></li><li><a href="../reference/library.html">Library API</a></li><li><a href="../reference/capture.html">What a scan captures</a></li><li><a href="../reference/reports.html">Reports</a></li><li><a href="../reference/dashboard.html">Dashboard</a></li><li><a href="../reference/diffing.html">Comparing scans</a></li><li><a href="../reference/authentication.html">Authentication</a></li><li><a href="../reference/sharing.html" class="active">Sharing a report</a></li><li><a href="../reference/safety.html">Safety guardrails</a></li><li><a href="../reference/telemetry.html">Telemetry</a></li><li><a href="../cookbook/authenticated-spa.html">Authenticated SPA</a></li><li><a href="../cookbook/graphql.html">GraphQL</a></li><li><a href="../cookbook/websocket.html">WebSockets</a></li><li><a href="../cookbook/ci-gate.html">CI gate</a></li><li><a href="../faq.html">Troubleshooting FAQ</a></li></ul></nav>
+<main>
+<article>
+<h1>Sharing a report</h1>
+<h2>Share-safe mode</h2>
+<p><code>report.json</code>, <code>report.md</code>, <code>report.html</code>, and <code>dashboard.html</code> all keep
+<em>redacted</em> samples — a request body, a header, a socket frame. That is what you
+want for yourself, and not what you want in a ticket, a chat, or a shared drive:
+redaction masks the secrets it recognizes and leaves everything else. <code>--share</code>
+writes a different artifact instead:</p>
+<pre><code class="language-bash">api-recon https://example.com --share --out ./reports
+# ./reports/share.md — one page, paste it into a ticket
+</code></pre>
+<p><code>share.md</code> is built only from request patterns, categories, status codes, call
+counts, and inferred schemas. It is safe by construction rather than by
+redaction: the reporter never reads a request or response body, a header, a
+query value, a socket frame, a page URL, or an origin, so the output cannot leak
+what the scan saw. Finding <em>details</em> are omitted too, because the verbose-error
+cue quotes a slice of an error body. <code>--share</code> replaces the whole format set — a
+full report is never written beside it — and a <code>--print</code> in the same run prints
+the summary rather than the sampled report.</p>
+<p><code>share</code> is also an ordinary format, if you want the summary in a pipe rather
+than a file:</p>
+<pre><code class="language-bash">api-recon https://example.com --print share &gt; ticket.md
+api-recon https://example.com --formats share --out ./reports
+</code></pre>
+<h2>Report integrity</h2>
+<p>A report attached to a ticket or uploaded as a CI artifact can be edited on the
+way. <code>--checksum</code> writes a <code>checksums.json</code> beside the reports that records a
+digest of each one, so a recipient can recompute it and confirm the bytes are
+the ones the scan wrote:</p>
+<pre><code class="language-bash">api-recon https://example.com --checksum --out ./reports
+api-recon verify ./reports/checksums.json
+</code></pre>
+<p>A plain checksum proves the files were not changed, but not who wrote the
+manifest — anyone can edit a report and the manifest that covers it. Add
+<code>--sign-key &lt;file&gt;</code> to sign the manifest with an HMAC held in a file, so a
+recipient with the same key can also confirm the manifest came from the scan:</p>
+<pre><code class="language-bash">api-recon https://example.com --checksum sha512 --sign-key ./report.key --out ./reports
+api-recon verify ./reports/checksums.json --sign-key ./report.key
+</code></pre>
+<p><code>verify</code> exits <code>0</code> when every file matches (and the signature checks, if the
+manifest is signed) and <code>2</code> otherwise, so a pipeline can fail on it. It launches
+no browser and does no network work:</p>
+<pre><code class="language-console">$ api-recon verify ./reports/checksums.json
+✓ Integrity OK — 6 file(s) match the sha256 manifest.
+</code></pre>
+<p>The manifest names the digest algorithm, the time it was written, the tool name
+and version, and a digest per file — the artifact-to-run link the npm provenance
+attestation gives the published tarball. It never covers itself, and the digests
+are computed over the files on disk, so they describe exactly what a recipient
+receives. It also covers the files under <code>&lt;out&gt;/payloads/</code>, so a spilled body
+cannot be swapped for another one of the same length. Off by default.</p>
+<p>A manifest is untrusted input — it is the artifact a recipient receives from
+someone they may not know — so <code>verify</code> refuses any entry that is an absolute
+path or that climbs out of the report directory with <code>..</code>. A manifest that
+names <code>../../etc/passwd</code> fails as a <code>SafetyError</code> (exit <code>2</code>) before anything is
+opened. Names that stay inside are unaffected, including a nested <code>payloads/…</code>
+entry.</p>
+</article>
+<footer>api-recon documentation — the <a href="https://github.com/zntb/api-recon#readme">README</a> is the front door and indexes every page.</footer>
+</main>
+</div>
+</body>
+</html>

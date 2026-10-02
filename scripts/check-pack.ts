@@ -24,6 +24,7 @@ export const ALLOWED_TOP_LEVEL: readonly string[] = [
   'dist',
   'schema',
   'completions',
+  'docs',
   'README.md',
   'LICENSE',
   'CHANGELOG.md',
@@ -37,6 +38,10 @@ export const REQUIRED_ENTRIES: readonly string[] = [
   'LICENSE',
   'CHANGELOG.md',
   'schema/report.schema.json',
+  // The reference the README indexes, so an installed copy carries the same
+  // documentation a reader gets from the repository.
+  'docs/index.md',
+  'docs/reference/cli.md',
   'dist/index.js',
   'dist/index.d.ts',
   'dist/cli/index.js',
