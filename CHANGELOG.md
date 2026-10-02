@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-02
+
+Adds optional integrity over the written reports, with a manifest a recipient
+can verify and an HMAC signature for origin, plus two supply-chain and privacy
+hardening changes. No existing flags, options, or report fields change.
+
 ### Added
 
 - **Integrity for shared reports** — `--checksum [sha256|sha512]` writes a
@@ -718,7 +724,8 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
-[Unreleased]: https://github.com/zntb/api-recon/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/zntb/api-recon/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/zntb/api-recon/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/zntb/api-recon/compare/v0.3.9...v0.4.0
 [0.3.9]: https://github.com/zntb/api-recon/compare/v0.3.8...v0.3.9
 [0.3.8]: https://github.com/zntb/api-recon/compare/v0.3.7...v0.3.8
