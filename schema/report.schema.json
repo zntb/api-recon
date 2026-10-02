@@ -144,6 +144,7 @@
         "status": { "type": "integer" },
         "count": { "type": "integer" },
         "bodySample": { "type": ["string", "null"] },
+        "bodyFile": { "type": "string" },
         "schema": {
           "oneOf": [{ "$ref": "#/definitions/jsonSchema" }, { "type": "null" }]
         },
@@ -211,6 +212,8 @@
         "responseHeaders": { "$ref": "#/definitions/headers" },
         "requestBodySample": { "type": ["string", "null"] },
         "responseBodySample": { "type": ["string", "null"] },
+        "requestBodyFile": { "type": "string" },
+        "responseBodyFile": { "type": "string" },
         "pathParams": { "type": "array", "items": { "type": "string" } },
         "queryParams": { "type": "array", "items": { "$ref": "#/definitions/queryParam" } },
         "requestBodySchema": {

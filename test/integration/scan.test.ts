@@ -594,3 +594,49 @@ describe('cancellation', () => {
     expect((await stat(join(dir, 'checkpoint.json'))).isFile()).toBe(true);
   }, 120_000);
 });
+
+describe('memory bounds', () => {
+  it('spills oversized bodies to side files, references them, and hashes them', async () => {
+    const dir = join(outDir, 'spill');
+    const result = await scan({
+      url: `${fixture.url}/products`,
+      depth: 0,
+      allowLocal: true,
+      rate: 0,
+      // A tiny in-memory cap forces the products body to spill.
+      maxBodyBytes: 64,
+      checksum: 'sha256',
+      formats: ['json'],
+      out: dir,
+      logger: silent(),
+    });
+
+    const products = findEndpoint(result.report, 'GET /api/products');
+    expect(products?.responseBodyFile).toMatch(/^payloads\/response-body-\d+\.json$/);
+    // The side file holds the full body the in-memory sample had to cut.
+    const spilled = JSON.parse(await readFile(join(dir, products!.responseBodyFile!), 'utf8'));
+    expect(spilled).toHaveProperty('products');
+    expect((products!.responseBodySample ?? '').length).toBeLessThanOrEqual(64);
+
+    // The integrity manifest covers the spilled payload by its relative path.
+    const manifest = JSON.parse(await readFile(join(dir, 'checksums.json'), 'utf8')) as {
+      files: Record<string, string>;
+    };
+    expect(Object.keys(manifest.files)).toContain(products!.responseBodyFile);
+  }, 120_000);
+
+  it('drops calls past --max-calls instead of growing the endpoint list', async () => {
+    const result = await scan({
+      url: fixture.url,
+      depth: 1,
+      allowLocal: true,
+      rate: 0,
+      maxCalls: 1,
+      formats: ['json'],
+      out: join(outDir, 'capped'),
+      logger: silent(),
+    });
+
+    expect(result.report.endpoints.length).toBeLessThanOrEqual(1);
+  }, 120_000);
+});

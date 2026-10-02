@@ -87,6 +87,9 @@ describe('api-recon CLI', () => {
     for (const flag of [
       '--depth',
       '--max-pages',
+      '--max-calls',
+      '--max-sockets',
+      '--max-frames',
       '--out',
       '--formats',
       '--auth',

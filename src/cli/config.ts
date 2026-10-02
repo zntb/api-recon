@@ -80,6 +80,9 @@ interface OptionSpec {
 const OPTION_SPECS: OptionSpec[] = [
   { key: 'depth', kind: 'int', env: 'API_RECON_DEPTH' },
   { key: 'maxPages', kind: 'int', env: 'API_RECON_MAX_PAGES' },
+  { key: 'maxCalls', kind: 'int', env: 'API_RECON_MAX_CALLS' },
+  { key: 'maxSockets', kind: 'int', env: 'API_RECON_MAX_SOCKETS' },
+  { key: 'maxFrames', kind: 'int', env: 'API_RECON_MAX_FRAMES' },
   { key: 'out', kind: 'path', env: 'API_RECON_OUT' },
   { key: 'formats', kind: 'list', env: 'API_RECON_FORMATS' },
   { key: 'browser', kind: 'engine', env: 'API_RECON_BROWSER' },

@@ -9,6 +9,8 @@
  * event still stamps start time and the triggering page.
  */
 
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join, posix } from 'node:path';
 import type { Page, Request, Response, WebSocket } from 'playwright';
 import type { CapturedCall, CapturedWebSocket, WebSocketDirection } from '../types.js';
 import { redactBody, redactHeaders, type SecretRecorder } from '../utils/redact.js';
@@ -27,6 +29,20 @@ export interface InterceptorOptions {
   scope?: ScanScope;
   /** Frames stored per WebSocket connection; later frames are counted but not kept. */
   maxWebSocketFrames?: number;
+  /** API calls whose metadata is retained; later calls are counted but not stored. */
+  maxCalls?: number;
+  /** WebSocket connections retained; later connections are counted but not stored. */
+  maxWebSockets?: number;
+  /**
+   * Directory for spilled payloads. When set, a body larger than
+   * `maxBodyBytes` is written there in full (redacted) and the call records a
+   * path to it, so the full body is preserved without holding it in memory.
+   * When unset (a scan with no output directory), oversized bodies are only
+   * truncated in memory.
+   */
+  payloadDir?: string;
+  /** Total bytes of spilled payloads to write before giving up. */
+  maxSpillBytes?: number;
   onCapture?: (call: CapturedCall) => void;
   /**
    * Receives every original value redaction removes, so the report can be
@@ -37,19 +53,91 @@ export interface InterceptorOptions {
 
 const DEFAULT_TOTAL_BODY_BYTES = 25 * 1024 * 1024;
 const DEFAULT_MAX_WEBSOCKET_FRAMES = 200;
+const DEFAULT_MAX_CALLS = 10_000;
+const DEFAULT_MAX_WEBSOCKETS = 100;
+const DEFAULT_MAX_SPILL_BYTES = 50 * 1024 * 1024;
 
 export class TrafficInterceptor {
   readonly calls: CapturedCall[] = [];
   readonly webSockets: CapturedWebSocket[] = [];
+  /** Absolute paths of payloads spilled to disk, for the integrity manifest. */
+  readonly payloadFiles: string[] = [];
+  /** Calls an axis cap refused to store, so the scan can report the loss. */
+  droppedCalls = 0;
+  /** WebSocket connections an axis cap refused to store. */
+  droppedSockets = 0;
   private readonly pending = new Map<Request, { t0: number; pageUrl: string }>();
   private readonly totalBodyBytes: number;
   private readonly maxWebSocketFrames: number;
+  private readonly maxCalls: number;
+  private readonly maxWebSockets: number;
+  private readonly maxSpillBytes: number;
   private bytesStored = 0;
   private bodiesSuppressed = false;
+  private spilledBytes = 0;
+  private spillCount = 0;
+  private spillSuppressed = false;
+  private readonly pendingWrites: Promise<void>[] = [];
 
   constructor(private readonly options: InterceptorOptions) {
     this.totalBodyBytes = options.totalBodyBytes ?? DEFAULT_TOTAL_BODY_BYTES;
     this.maxWebSocketFrames = options.maxWebSocketFrames ?? DEFAULT_MAX_WEBSOCKET_FRAMES;
+    this.maxCalls = options.maxCalls ?? DEFAULT_MAX_CALLS;
+    this.maxWebSockets = options.maxWebSockets ?? DEFAULT_MAX_WEBSOCKETS;
+    this.maxSpillBytes = options.maxSpillBytes ?? DEFAULT_MAX_SPILL_BYTES;
+  }
+
+  /**
+   * Wait for any payloads being spilled to disk, so a report that references
+   * them is never written before they exist.
+   */
+  async flush(): Promise<void> {
+    if (this.pendingWrites.length === 0) return;
+    await Promise.allSettled(this.pendingWrites);
+    this.pendingWrites.length = 0;
+  }
+
+  /** Store a captured call, unless the call cap is already reached. */
+  private addCall(call: CapturedCall): void {
+    if (this.calls.length >= this.maxCalls) {
+      this.droppedCalls += 1;
+      return;
+    }
+    this.calls.push(call);
+    this.options.onCapture?.(call);
+  }
+
+  /**
+   * Write an oversized payload to `<payloadDir>` in full, redacted, and return
+   * its path relative to the report directory (`payloads/<name>`). Returns null
+   * when there is nowhere to write, the cap is set low, or the spill budget is
+   * spent — in which case the truncated in-memory sample is all that is kept.
+   */
+  private spill(payload: string, kind: string, ext: string): string | null {
+    const dir = this.options.payloadDir;
+    if (!dir || this.spillSuppressed) return null;
+    // Estimate with the un-redacted length; redaction only shortens a payload,
+    // so this is a safe upper bound on what reaches disk.
+    if (this.spilledBytes + payload.length > this.maxSpillBytes) {
+      this.spillSuppressed = true;
+      return null;
+    }
+    const text = this.options.redact ? redactBody(payload, undefined, this.options.onSecret) : payload;
+    // A body that is nothing but a secret has no safe content to write; leave
+    // it out rather than spilling the unredacted original.
+    if (text === null) return null;
+    this.spilledBytes += payload.length;
+    const name = `${kind}-${++this.spillCount}${ext}`;
+    const file = join(dir, name);
+    this.pendingWrites.push(
+      (async () => {
+        await mkdir(dir, { recursive: true });
+        await writeFile(file, text, 'utf8');
+      })(),
+    );
+    this.payloadFiles.push(file);
+    // Report paths with forward slashes, so a report stays portable.
+    return posix.join('payloads', name);
   }
 
   attach(page: Page): void {
@@ -119,23 +207,37 @@ export class TrafficInterceptor {
       : response.headers();
 
     let requestBodySample: string | null = null;
+    let requestBodyFile: string | undefined;
     try {
       const raw = req.postData();
-      if (raw !== null && raw !== undefined) requestBodySample = this.storeBody(raw);
+      if (raw !== null && raw !== undefined) {
+        requestBodySample = this.storeBody(raw);
+        if (raw.length > this.options.maxBodyBytes) {
+          requestBodyFile = this.spill(raw, 'request-body', '.txt') ?? undefined;
+        }
+      }
     } catch {
       requestBodySample = null;
     }
 
     const mimeType = (response.headers()['content-type'] ?? '').split(';')[0]!.trim();
     let responseBodySample: string | null = null;
+    let responseBodyFile: string | undefined;
     let truncated = false;
     const contentLength = Number(response.headers()['content-length'] ?? '0');
     const jsonish = mimeType.includes('json');
-    if (jsonish && (Number.isNaN(contentLength) || contentLength <= this.options.maxBodyBytes)) {
+    // With somewhere to spill, read up to the remaining spill budget so an
+    // oversized body can be preserved on disk rather than dropped; otherwise
+    // read no further than the in-memory cap, as before.
+    const readLimit = this.options.payloadDir
+      ? Math.max(this.options.maxBodyBytes, this.maxSpillBytes - this.spilledBytes)
+      : this.options.maxBodyBytes;
+    if (jsonish && (Number.isNaN(contentLength) || contentLength <= readLimit)) {
       try {
         const text = await response.text();
         if (text.length > this.options.maxBodyBytes) {
           responseBodySample = this.storeBody(text.slice(0, this.options.maxBodyBytes));
+          responseBodyFile = this.spill(text, 'response-body', '.json') ?? undefined;
           truncated = true;
         } else {
           responseBodySample = this.storeBody(text);
@@ -146,7 +248,7 @@ export class TrafficInterceptor {
       }
     }
 
-    const call: CapturedCall = {
+    this.addCall({
       method: req.method().toUpperCase(),
       url,
       status: response.status(),
@@ -157,12 +259,12 @@ export class TrafficInterceptor {
       responseHeaders,
       responseBodySample,
       responseBodyTruncated: truncated,
+      ...(requestBodyFile ? { requestBodyFile } : {}),
+      ...(responseBodyFile ? { responseBodyFile } : {}),
       startedAt: meta?.t0 ?? Date.now(),
       durationMs: Date.now() - (meta?.t0 ?? Date.now()),
       triggeredBy: normalizeUrl(meta?.pageUrl ?? '') || (meta?.pageUrl ?? ''),
-    };
-    this.calls.push(call);
-    this.options.onCapture?.(call);
+    });
   }
 
   private onFailed(req: Request): void {
@@ -171,7 +273,7 @@ export class TrafficInterceptor {
     this.pending.delete(req);
     const url = normalizeUrl(req.url());
     if (!this.shouldCapture(url)) return;
-    this.calls.push({
+    this.addCall({
       method: req.method().toUpperCase(),
       url,
       status: 0,
@@ -199,6 +301,12 @@ export class TrafficInterceptor {
   private onWebSocket(ws: WebSocket, page: Page): void {
     const url = normalizeUrl(ws.url());
     if (!this.shouldCapture(url)) return;
+    // A page that opens sockets in a loop must not grow the report without
+    // bound; keep counting, but stop storing past the cap.
+    if (this.webSockets.length >= this.maxWebSockets) {
+      this.droppedSockets += 1;
+      return;
+    }
 
     const connection: CapturedWebSocket = {
       url,

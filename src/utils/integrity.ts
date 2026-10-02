@@ -24,7 +24,7 @@
 
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { basename, dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { TOOL_NAME, TOOL_VERSION } from '../version.js';
 import { SafetyError } from './errors.js';
 
@@ -328,7 +328,10 @@ export async function writeIntegrityManifest(
 ): Promise<string> {
   const payloads: Record<string, Uint8Array> = {};
   for (const file of files) {
-    const name = basename(file);
+    // Kept relative to the output directory (and slash-separated) so a spilled
+    // payload under `payloads/` is named the same way the report names it —
+    // `basename` would flatten it into the output root and break verification.
+    const name = relative(resolve(outDir), resolve(file)).split(/[\\/]/).join('/');
     if (name === INTEGRITY_FILENAME) continue;
     payloads[name] = await readFile(file);
   }

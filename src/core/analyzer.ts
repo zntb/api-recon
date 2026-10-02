@@ -119,6 +119,8 @@ function buildEndpoint(
   const requestBytes = sizeStats(samples.map((s) => s.requestBodySample));
   const responseBytes = sizeStats(samples.map((s) => s.responseBodySample));
   const cache = firstCache(samples);
+  const requestBodyFile = firstNonNull(samples.map((s) => s.requestBodyFile));
+  const responseBodyFile = firstNonNull(samples.map((s) => s.responseBodyFile));
 
   return {
     id,
@@ -132,6 +134,8 @@ function buildEndpoint(
     responseHeaders: representative.responseHeaders,
     requestBodySample: firstNonNull(samples.map((s) => s.requestBodySample)),
     responseBodySample: firstNonNull(samples.map((s) => s.responseBodySample)),
+    ...(requestBodyFile ? { requestBodyFile } : {}),
+    ...(responseBodyFile ? { responseBodyFile } : {}),
     pathParams: uniquePathParams(pattern),
     queryParams,
     requestBodySchema: requestSchema,
@@ -359,10 +363,12 @@ function collectErrorResponses(samples: CapturedCall[]): ErrorResponse[] {
     .sort(([a], [b]) => a - b)
     .map(([status, group]) => {
       const reason = worstGapReason(group.map(responseGapReason));
+      const bodyFile = firstNonNull(group.map((s) => s.responseBodyFile));
       return {
         status,
         count: group.length,
         bodySample: firstNonNull(group.map((s) => s.responseBodySample)),
+        ...(bodyFile ? { bodyFile } : {}),
         schema: inferSchemaFromBodies(group.map((s) => s.responseBodySample)),
         ...(reason ? { schemaReason: reason } : {}),
         mimeTypes: unique(group.map((s) => s.mimeType).filter(Boolean)),
@@ -370,7 +376,7 @@ function collectErrorResponses(samples: CapturedCall[]): ErrorResponse[] {
     });
 }
 
-function firstNonNull(values: (string | null)[]): string | null {
+function firstNonNull(values: (string | null | undefined)[]): string | null {
   return values.find((v): v is string => v !== null && v !== undefined) ?? null;
 }
 

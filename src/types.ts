@@ -74,6 +74,14 @@ export interface CapturedCall {
   responseHeaders: Record<string, string>;
   responseBodySample: string | null;
   responseBodyTruncated: boolean;
+  /**
+   * Path (relative to the report directory) of the full request body when it
+   * exceeded the per-body cap and was spilled to `<out>/payloads/`. Omitted
+   * when the body was not oversized, or when no output directory was given.
+   */
+  requestBodyFile?: string;
+  /** Path of the spilled full response body, alongside `responseBodySample`. */
+  responseBodyFile?: string;
   startedAt: number;
   durationMs: number;
   /** The page URL that triggered this call. */
@@ -146,6 +154,10 @@ export interface Endpoint {
   responseHeaders: Record<string, string>;
   requestBodySample: string | null;
   responseBodySample: string | null;
+  /** Spilled full request body, when a sample exceeded the per-body cap. */
+  requestBodyFile?: string;
+  /** Spilled full response body, when a sample exceeded the per-body cap. */
+  responseBodyFile?: string;
   pathParams: string[];
   queryParams: QueryParam[];
   requestBodySchema: JsonSchemaLike | null;
@@ -209,6 +221,8 @@ export interface ErrorResponse {
   count: number;
   /** A redacted, size-capped body sample; `null` when the response had no body. */
   bodySample: string | null;
+  /** Spilled full error body, when it exceeded the per-body cap. */
+  bodyFile?: string;
   /** Inferred shape of the bodies seen with this status, merged across them. */
   schema: JsonSchemaLike | null;
   /** Present when this status's schema is absent or only partly observed. */
@@ -638,6 +652,23 @@ export interface ScanOptions {
    * can abort a long scan on its own terms.
    */
   signal?: AbortSignal;
+  /**
+   * Cap on captured API calls whose metadata is retained, which in turn bounds
+   * the endpoint list. Calls past it are counted but not stored. Defaults to
+   * 10000; raise it for a very large site and accept the memory.
+   */
+  maxCalls?: number;
+  /**
+   * Cap on WebSocket connections retained. Connections past it are counted but
+   * not stored, so a page that opens sockets in a loop cannot grow the report
+   * without bound. Defaults to 100.
+   */
+  maxWebSockets?: number;
+  /**
+   * Frames stored per WebSocket connection. Later frames are counted but not
+   * kept. Defaults to 200.
+   */
+  maxWebSocketFrames?: number;
   /**
    * Write a `checksums.json` integrity manifest beside the reports, so a
    * recipient can confirm the files were not edited. `true` uses `sha256`;

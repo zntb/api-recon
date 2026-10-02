@@ -107,7 +107,10 @@ api-recon https://example.com --browser firefox
 | `completion <shell>` | — | Subcommand: print a completion script for `bash`, `zsh`, or `fish` |
 | `verify <manifest>` | — | Subcommand: check reports against a `checksums.json` integrity manifest |
 | `-d, --depth <n>` | `1` | Same-domain crawl depth (0 = seed page only) |
-| `-m, --max-pages <n>` | `25` | Hard cap on pages visited |
+| `-m, --max-pages <n>` | `25` | Hard cap on pages visited (and on pages recorded in `--record` mode) |
+| `--max-calls <n>` | `10000` | Cap on captured API calls retained, which bounds the endpoint list; later calls are counted but not stored |
+| `--max-sockets <n>` | `100` | Cap on WebSocket connections retained; later connections are counted but not stored |
+| `--max-frames <n>` | `200` | Frames stored per WebSocket connection; later frames are counted but not stored |
 | `-o, --out <dir>` | `./api-recon-output` | Output directory |
 | `-f, --formats <list>` | `json,md,html,pdf,openapi,dashboard` | Report formats to write |
 | `-b, --browser <engine>` | `chromium` | Playwright engine to drive (`chromium`, `firefox`, `webkit`), recorded in the report |
@@ -129,7 +132,7 @@ api-recon https://example.com --browser firefox
 | `--strict-redaction` | off | After the scan, refuse to write the reports if a redacted value still appears in them (by default that is a loud warning) |
 | `--force` | off | Bypass robots.txt restrictions (only for systems you may test) |
 | `--allow-local` | off | Allow scanning localhost/private network ranges |
-| `--max-body-mb <n>` | `1` | Maximum response body / WebSocket frame size kept, in MB |
+| `--max-body-mb <n>` | `1` | Maximum response body / WebSocket frame size kept in memory, in MB; an oversized JSON body is spilled in full to `<out>/payloads/` (see below) |
 | `--telemetry` | off | Write anonymized categorization signals to `telemetry.json` (no host, path, or body data) |
 | `--telemetry-preview` | off | Print that payload to stdout without writing `telemetry.json` |
 | `-q, --quiet` / `-v, --verbose` | — | Reduce / increase progress output |
@@ -278,7 +281,8 @@ The environment variables are the flags in `SCREAMING_SNAKE_CASE`:
 `API_RECON_RESPECT_ROBOTS`, `API_RECON_INCLUDE_THIRD_PARTY`,
 `API_RECON_INCLUDE_HOST`, `API_RECON_EXCLUDE_PATH`, `API_RECON_REDACT`,
 `API_RECON_STRICT_REDACTION`, `API_RECON_FORCE`, `API_RECON_ALLOW_LOCAL`, `API_RECON_TELEMETRY`,
-`API_RECON_TELEMETRY_PREVIEW`, `API_RECON_MAX_BODY_MB`, `API_RECON_QUIET`,
+`API_RECON_TELEMETRY_PREVIEW`, `API_RECON_MAX_BODY_MB`, `API_RECON_MAX_CALLS`,
+`API_RECON_MAX_SOCKETS`, `API_RECON_MAX_FRAMES`, `API_RECON_QUIET`,
 `API_RECON_VERBOSE`, `API_RECON_JSON_PROGRESS`, `API_RECON_RECORD`,
 `API_RECON_SHARE`, `API_RECON_DEBUG`, `API_RECON_CHECKSUM`, `API_RECON_SIGN_KEY`,
 `API_RECON_TIMEOUT`, `API_RECON_RESUME`. Booleans take `1`/`0` (also
@@ -392,6 +396,25 @@ reading. The checkpoint is deliberately kept, so the run continues with
 `SIGINT`, `143` for `SIGTERM`. Pressing Ctrl+C a second time skips the graceful
 path and exits at once, so a wedged teardown is never something you cannot
 escape.
+
+### Keeping memory bounded
+
+A long crawl of a busy app can bury a small machine in captured traffic, so
+every axis has its own cap rather than sharing one global budget:
+`--max-calls` bounds the captured calls (and so the endpoint list),
+`--max-sockets` bounds WebSocket connections, `--max-frames` bounds frames per
+connection, `--max-pages` bounds pages (in record mode too), and `--max-body-mb`
+bounds any single body held in memory. Past a cap the data is still counted but
+no longer stored, and the scan warns, so a capped run says so instead of looking
+complete.
+
+An oversized JSON body is not thrown away. When an output directory is set, the
+full body is written — redacted, exactly like the in-memory sample — under
+`<out>/payloads/`, and the report references it (`requestBodyFile` /
+`responseBodyFile` on an endpoint, `bodyFile` on an error response). The name is
+relative to the output directory, so the reports and their side files move
+together, and `--checksum` covers them. A scan with no `--out` has nowhere to
+spill, so it truncates in memory as before.
 
 ## What it captures
 

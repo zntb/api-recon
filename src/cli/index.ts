@@ -79,6 +79,24 @@ function registerScanOptions(command: Command): Command {
   return command
     .option('-d, --depth <n>', 'same-domain crawl depth (0 = seed page only)', intArg, 1)
     .option('-m, --max-pages <n>', 'hard cap on pages visited', intArg, 25)
+    .option(
+      '--max-calls <n>',
+      'cap on captured API calls retained, which bounds the endpoint list; later calls are counted but not stored',
+      intArg,
+      10_000,
+    )
+    .option(
+      '--max-sockets <n>',
+      'cap on WebSocket connections retained; later connections are counted but not stored',
+      intArg,
+      100,
+    )
+    .option(
+      '--max-frames <n>',
+      'frames stored per WebSocket connection; later frames are counted but not stored',
+      intArg,
+      200,
+    )
     .option('--open', 'open the dashboard in your browser when the scan finishes', false)
     .option(
       '--share',
@@ -267,6 +285,12 @@ program
 interface CliOptions {
   depth: number;
   maxPages: number;
+  /** Cap on captured API calls retained; bounds the endpoint list. */
+  maxCalls: number;
+  /** Cap on WebSocket connections retained. */
+  maxSockets: number;
+  /** Frames stored per WebSocket connection. */
+  maxFrames: number;
   out: string;
   formats: string;
   auth?: string;
@@ -487,9 +511,12 @@ async function runScan(
     try {
       result = await scan({
         url: seedUrl,
-        depth: opts.depth,
-        maxPages: opts.maxPages,
-        out: opts.out,
+      depth: opts.depth,
+      maxPages: opts.maxPages,
+      maxCalls: opts.maxCalls,
+      maxWebSockets: opts.maxSockets,
+      maxWebSocketFrames: opts.maxFrames,
+      out: opts.out,
         formats,
         ...(opts.auth ? { auth: opts.auth } : {}),
         ...(opts.login ? { login: opts.login } : {}),

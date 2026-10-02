@@ -198,6 +198,14 @@ async function runScan(
     includeThirdParty,
     seedUrl,
     scope,
+    ...(options.maxWebSocketFrames !== undefined
+      ? { maxWebSocketFrames: options.maxWebSocketFrames }
+      : {}),
+    ...(options.maxCalls !== undefined ? { maxCalls: options.maxCalls } : {}),
+    ...(options.maxWebSockets !== undefined ? { maxWebSockets: options.maxWebSockets } : {}),
+    // Spill oversized bodies beside the reports; with no output directory there
+    // is nowhere to put them, so they are only truncated in memory.
+    ...(options.out ? { payloadDir: join(options.out, 'payloads') } : {}),
     onSecret: (value) => ledger.add(value),
   });
   interceptor.attach(session.page);
@@ -310,6 +318,7 @@ async function runScan(
         page: session.page,
         seedUrl,
         logger,
+        maxPages,
         onPage: () => publishProgress('recording'),
       });
     } else {
@@ -388,6 +397,19 @@ async function runScan(
       }
     }
     await session.close();
+  }
+
+  // Payloads being spilled to disk must exist before a report references them.
+  await interceptor.flush();
+  if (interceptor.droppedCalls > 0) {
+    logger.warn(
+      `Capture cap reached: ${interceptor.droppedCalls} call(s) past the cap were counted but not stored.`,
+    );
+  }
+  if (interceptor.droppedSockets > 0) {
+    logger.warn(
+      `WebSocket cap reached: ${interceptor.droppedSockets} connection(s) were counted but not stored.`,
+    );
   }
 
   if (interrupted) {
@@ -494,7 +516,7 @@ async function runScan(
     if (telemetry && telemetryPlan.write) written.push(await writeTelemetryFile(telemetry, outDir));
     if (integrityAlgorithm) {
       written.push(
-        await writeIntegrityManifest(written, outDir, {
+        await writeIntegrityManifest([...written, ...interceptor.payloadFiles], outDir, {
           algorithm: integrityAlgorithm,
           ...(signKey ? { key: signKey } : {}),
         }),

@@ -27,6 +27,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   run continues with `--resume`. The CLI wires this to `SIGINT` and `SIGTERM`
   and exits with the conventional `128` + signal (`130`/`143`); a second signal
   exits at once, so a wedged teardown is still escapable.
+- **Memory bounded on every axis** — each thing that could grow without limit
+  now has its own cap instead of leaning on the single global byte budget:
+  `--max-calls` (10000) bounds captured calls and the endpoint list,
+  `--max-sockets` (100) bounds WebSocket connections, `--max-frames` (200)
+  bounds frames per connection, and `--max-pages` now applies to record mode.
+  Past a cap the data is counted but not stored, and the scan warns. An
+  oversized JSON body is spilled in full — redacted — to `<out>/payloads/` and
+  referenced from the report (`requestBodyFile` / `responseBodyFile` on an
+  endpoint, `bodyFile` on an error response), so the full body survives without
+  being held in memory; `--checksum` covers the spilled files. Spilling is off
+  when there is no output directory.
 
 ### Internal
 

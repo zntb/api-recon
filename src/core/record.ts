@@ -27,6 +27,8 @@ export interface RecordSessionOptions {
   page: Page;
   seedUrl: string;
   logger: Logger;
+  /** Cap on pages recorded, so a long interactive session stays bounded. */
+  maxPages?: number;
   /** Override for tests. Defaults to reading process.stdin. */
   waitForStop?: () => Promise<void>;
   /** Fired for every page the human navigates to, so progress can keep up. */
@@ -41,6 +43,7 @@ export async function runRecordSession(options: RecordSessionOptions): Promise<C
     if (!url || url === 'about:blank') return;
     const normalized = normalizeUrl(url);
     if (!pages.has(normalized)) {
+      if (options.maxPages !== undefined && pages.size >= options.maxPages) return;
       const entry: CapturedPage = {
         url,
         normalizedUrl: normalized,

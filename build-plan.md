@@ -674,6 +674,20 @@ Follow-up work beyond v0.1.0. Items move up into "Shipped" as they land.
   exits at once, so a wedged teardown is never something Ctrl+C cannot escape.
   The library path is covered by `test/integration/scan.test.ts`, and the CLI's
   signal handling by a POSIX-only test in `test/integration/cli.test.ts`.
+- **Bound memory on every axis** — each thing that could grow without limit now
+  has its own cap instead of leaning on the one global byte budget. `--max-calls`
+  (default 10000) bounds the captured calls, and so the endpoint list;
+  `--max-sockets` (default 100) bounds WebSocket connections; `--max-frames`
+  (default 200) bounds frames per connection; and `--max-pages` now applies to
+  record mode as well as the crawl. Past a cap the data is counted but not
+  stored, and the scan warns rather than silently truncating. An oversized JSON
+  body is no longer thrown away: it is written in full — redacted — to
+  `<out>/payloads/` and the call (and the endpoint it rolls up into, and the
+  error response it becomes) records the path in `requestBodyFile` /
+  `responseBodyFile` / `bodyFile`, so the full body survives without living in
+  memory. Spilling is off when there is no output directory to write to; the
+  spilled files are covered by the integrity manifest, which now keys files by
+  their path relative to the output directory rather than by basename.
 
 **Proposed updates & features**
 
@@ -687,10 +701,6 @@ so it can be scoped without re-reading the source.
 
 **Stability & performance**
 
-- **Bound memory on every axis.** The capture budget is global, but frames,
-  endpoints, pages, and error bodies can each grow without limit. Cap each
-  explicitly, and stream oversized payloads to a side file rather than holding
-  them in memory.
 - **Give the browser suite a flake budget.** Mark the browser-driven integration
   tests as a separate job, record a Playwright trace on failure for triage, and
   allow a single retry on the known-flaky assertions instead of re-running the
