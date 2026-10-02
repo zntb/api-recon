@@ -73,6 +73,25 @@ jobs:
         run: npm run check:pack
         if: runner.os == 'Linux'
 
+      # Loads the built package the way a consumer does: imports dist/index.js,
+      # checks the documented exports are callable, runs the bin, and confirms
+      # every emitted module has a declaration. Every other test imports src/,
+      # so a broken exports map or a bin that no longer starts would otherwise
+      # pass the whole suite. Runs after the build, once, on Linux.
+      # See scripts/check-published.ts.
+      - name: Check the built package
+        run: npm run check:published
+        if: runner.os == 'Linux'
+
+      # publint and are-the-types-wrong check the published *shape* — field
+      # order, export conditions, and how types resolve — which no test here
+      # exercises because they all run against source. attw's
+      # `cjs-resolves-to-esm` rule is ignored: the package is ESM-only by
+      # design, and that is expected rather than a defect. Runs once, on Linux.
+      - name: Check the published package shape
+        run: npm run check:publint && npm run check:types
+        if: runner.os == 'Linux'
+
       - name: Unit tests
         run: npm run test:unit
         env:

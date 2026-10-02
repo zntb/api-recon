@@ -6,7 +6,7 @@
 
 **Recommendation: Ready to publish.** The one High finding has been fixed on `main` since this review was written — see Finding 1, which now carries its resolution and regression coverage. Nothing outstanding blocks a release.
 
-**Findings: 1 High (**fixed**) · 3 Medium (**1 fixed**) · 6 Low · 2 Nit (12 total; 10 open).** Both findings that needed a code change are now resolved on `main`; the remaining ten are polish, documentation, or CI work that can follow.
+**Findings: 1 High (**fixed**) · 3 Medium (**3 fixed**) · 6 Low (**1 fixed**) · 2 Nit (12 total; 8 open).** Every finding that needed a code or gate change is now resolved on `main`; the remaining eight are polish, documentation, and CI-planning work that can follow.
 
 ## 2. What I Verified
 
@@ -16,8 +16,9 @@
 | --- | --- | --- |
 | Prod dependency tree | `npm ls --omit=dev --depth=0` | At review time 6 deps (chalk, commander, js-yaml, marked, **openapi3-ts**, playwright). Now 5, after Finding 2 |
 | Vulnerabilities (prod) | `npm audit --omit=dev` | `found 0 vulnerabilities` |
-| Packaging lint | `npx publint` | `All good!` |
-| Types resolution | `npx @arethetypeswrong/cli --pack .` | One warning (require→ESM); `node10`/`node16 ESM`/`bundler` all 🟢 |
+| Packaging lint | `npm run check:publint` | `All good!` |
+| Types resolution | `npm run check:types` | Passes with `cjs-resolves-to-esm` ignored (Finding 7); `node10`/`node16 ESM`/`bundler` all 🟢 |
+| Built package | `npm run check:published` | `dist/index.js` loads with the documented exports; the bin reports `v0.4.2`; all 171 emitted files have declarations |
 | Tarball contents | `npm pack --dry-run` | 179 files, 273.5 kB packed, 1.0 MB unpacked; non-`dist` files are exactly `CHANGELOG.md`, `LICENSE`, `README.md`, `completions/*`, `package.json`, `schema/report.schema.json` |
 | Bin entry | `head -1 dist/cli/index.js`, `ls -l` | `#!/usr/bin/env node`, mode `-rwxr-xr-x` |
 | Type hygiene | `grep` over `src` | 0 `any`, 0 `@ts-ignore`/`@ts-expect-error`, 0 `eslint-disable`, 40 non-null assertions |
@@ -75,7 +76,9 @@
 - **Evidence:** `grep -rn "openapi3-ts" src test scripts schema docs` returns **zero** matches.
 - **Fix:** remove it from `dependencies`. If a spec was intended for future work, leave it out of the manifest — a commented line in the issue beats a permanent install cost for all users.
 
-### **[MEDIUM] Nothing tests the built or packed artifact** (`confirmed`)
+### **[MEDIUM] Nothing tests the built or packed artifact** (`confirmed` — **FIXED**)
+
+> **Resolution:** A new `scripts/check-published.ts` (`npm run check:published`) now loads the package the way a consumer does. It reads the `exports` map out of `package.json` and fails if any listed target is missing from `dist/`, requires a `.d.ts` beside every emitted `.js`, does `await import(pathToFileURL('dist/index.js'))` and asserts `scan`, `SafetyError`, `CancelledError`, and `normalizeFormats` all resolve, then spawns the bin and asserts it starts and prints the manifest's version. Its pure helpers (`exportTargets`, `missingExportTargets`, `missingDeclarations`, `shebangOf`, `runBin`) are covered by 12 unit tests in `test/unit/publishedArtifact.test.ts`, so the gate itself is tested without needing a build. It runs as a CI step after `npm run build`, on Linux only. Real output: `Built package OK — dist/index.js loads and exports scan, SafetyError, CancelledError, normalizeFormats; the bin reports v0.4.2; all 171 emitted files have declarations.` The `attw` and `publint` gates (Finding 9) landed with it as a second CI step.
 
 - **Where:** `test/` (whole tree), `scripts/check-pack.ts`
 - **Problem:** every test imports from `src` through tsx/Vitest, and `check:pack` asserts only which paths `npm pack` *would* include. Nothing ever imports `dist/`, so a regression in `exports`, the `files` allowlist, the bin shebang, or `.d.ts` emit would pass every gate and ship broken. `publint` and `arethetypeswrong` cover the static shape well but are not wired into CI either (Finding 9), and neither one executes the package.
@@ -113,7 +116,9 @@
 - **Problem:** the code is Node-only, but the DOM lib makes browser-only globals (`document`, `window`, `localStorage`, `alert`) typecheck. In a package that parses hostile HTML and runs a headless browser, the last thing you want is a `document` reference that silently compiles.
 - **Fix:** `"lib": ["ES2022"]`. Node's own types supply everything actually used.
 
-### **[LOW] Packaging gates are not in CI** (`confirmed`)
+### **[LOW] Packaging gates are not in CI** (`confirmed` — **FIXED**)
+
+> **Resolution:** `publint` and `@arethetypeswrong/cli` are dev dependencies with `npm run check:publint` and `npm run check:types`, and both run as a single Linux-only step in the existing `unit` job, right after `Check the published file list`. `attw` is given `--ignore-rules cjs-resolves-to-esm`, because the package is ESM-only by design and that warning is the expected result of Finding 7 rather than a defect; with the rule ignored the gate exits 0, and it was confirmed non-vacuous (pointing `types` at a missing file makes it exit 1).
 
 - **Where:** `.github/workflows/ci.yml`
 - **Problem:** `grep -rn "publint\|arethetypeswrong"` across workflows, scripts, and `package.json` returns nothing. The repo has a strong gate culture (audit, schema, examples, pack list) and these two are conspicuously absent from it — they pass today, and nothing keeps them passing.
@@ -166,11 +171,11 @@ No breaking changes are present in 0.4.2. The design additions are additive opti
 
 ## 6. Test and CI Gaps
 
-1. **No consumer test of the built artifact** (Finding 3) — the single highest-value gap, because it protects everything in the table above.
+1. ~~No consumer test of the built artifact~~ (Finding 3) — **closed**: `npm run check:published` imports `dist/index.js`, checks the exports map and declaration emit, and runs the bin; it and the `publint`/`attw` gates are CI steps.
 2. ~~No test asserts the integrity verifier stays inside the report directory~~ — **closed**: `test/unit/integrity.test.ts` now covers refused names, accepted names that normalize back inside, and the original attack end to end.
 3. **No type-level tests** (`expect-type`/`tsd`) for `ScanOptions`, `ScanHandle`'s promise+iterator duality, or the report types. These are the parts a TypeScript consumer depends on most, and all three are easy to break with a refactor.
 4. **The SIGINT CLI test cannot run on Windows** (`it.runIf(process.platform !== 'win32')`). Both real bugs fixed during the 0.4.2 release — the missed abort signal and the partial report claiming zero pages — were invisible locally for exactly this reason. The unit job runs on `windows-latest`; consider a signal-agnostic library-level test (an `AbortController` fired during `openSession`) so the teardown path is covered on every OS.
-5. **`publint` / `arethetypeswrong` not in CI** (Finding 9).
+5. ~~**`publint` / `arethetypeswrong` not in CI**~~ (Finding 9) — **closed**: both run as a step in the `unit` job.
 
 ## 7. What's Done Well
 
@@ -193,9 +198,9 @@ No breaking changes are present in 0.4.2. The design additions are additive opti
 
 **Soon after:**
 
-3. Add a built-artifact smoke test (`import('dist/index.js')`, `spawn('dist/cli/index.js', ['--version'])`) after `npm run build` (Finding 3).
+3. ~~Add a built-artifact smoke test~~ — **done on `main`**: `scripts/check-published.ts` imports `dist/index.js`, checks the exports map and declaration emit, and spawns the bin; its helpers are unit-tested and the whole gate is a CI step.
 4. Add `SECURITY.md` with a private advisory channel (Finding 4).
-5. Wire `publint` and `arethetypeswrong --pack .` into the existing unit CI job (Finding 9).
+5. ~~Wire `publint` and `arethetypeswrong --pack .` into the existing unit CI job~~ — **done on `main`**: one Linux-only step running both.
 6. Drop `@types/js-yaml` (Finding 5); narrow `engines.node` to `>=22.12` or document ESM-only (Finding 7); state ESM-only in the README (Finding 10).
 
 **Nice to have:**

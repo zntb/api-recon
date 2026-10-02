@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Internal
+
+- **The published package is now tested** — every test imported from `src/`, so
+  a broken `exports` map, a lost bin shebang, a missing `.d.ts`, or a `files`
+  allowlist that dropped a directory would pass the whole suite and ship. A new
+  `npm run check:published` (`scripts/check-published.ts`) loads the built
+  package the way a consumer does: it fails if a target named in `exports` is
+  missing from `dist/`, if an emitted `.js` has no declaration beside it, if
+  `dist/index.js` does not load with `scan`, `SafetyError`, `CancelledError`,
+  and `normalizeFormats` exported, or if the bin does not start and print the
+  package version. `publint` and `arethetypeswrong` are now dev dependencies
+  with `npm run check:publint` and `npm run check:types` (`attw` ignores the
+  `cjs-resolves-to-esm` rule, which the ESM-only design expects). All three run
+  as steps in the Linux CI job, after the build. The gate's own helpers are
+  unit-tested, so the check is covered whether or not a build has run.
+
 ### Security
 
 - **`api-recon verify` no longer reads outside the report directory** — the
