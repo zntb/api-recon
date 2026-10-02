@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
+- **Dependency refresh** — updated the lockfile to the latest versions that
+  remain mutually compatible (`@types/node`, `typescript-eslint`, `vitest`, and
+  transitive packages), all within the existing ranges, so no manifest change
+  was needed. TypeScript stays on 6.x because `typescript-eslint` peers on
+  `typescript >=4.8.4 <6.1.0`; jumping to TypeScript 7 would require that
+  toolchain to widen its range first. `npm audit` reports 0 vulnerabilities.
 - **Example freshness in CI** — because generation is deterministic,
   `npm run check:examples` now generates the sample reports into a temporary
   directory and compares them to the committed ones, failing when a report was
