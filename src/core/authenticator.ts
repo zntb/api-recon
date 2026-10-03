@@ -6,6 +6,9 @@
  * `saveStateTo` asks for it.
  */
 
+// `submitForm` evaluates a callback in the page, where the DOM globals exist.
+/// <reference lib="dom" />
+
 import { existsSync } from 'node:fs';
 import { chmod, mkdir, readFile, stat } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';

@@ -4,6 +4,9 @@
  * the others are opt-in via `--browser` / the `browser` option.
  */
 
+// The `addInitScript` / `evaluate` callbacks below run in the page, not in Node.
+/// <reference lib="dom" />
+
 import {
   chromium,
   firefox,

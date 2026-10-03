@@ -167,6 +167,13 @@ The release pipeline is built to be auditable:
   `README.md`, `LICENSE`, `CHANGELOG.md`, and `package.json`, or is missing a
   file the package needs — so a session file, a debug bundle, or the source tree
   cannot ride into a release.
+- **Source maps ship on purpose.** `tsconfig.json` sets `"sourceMap": true`, so
+  the tarball carries a `.map` beside every emitted module (57 of them at
+  `0.4.3`). The maps hold `sources` but no `sourcesContent`, so no TypeScript
+  text is disclosed — only the module layout. This is a deliberate choice (a
+  stack trace from `dist` resolves to the right source line), not an inherited
+  default; `test/unit/packList.test.ts` pins a map in the expected set, so
+  dropping them is a change to make here and in that list together.
 - **CI loads the built package** with `npm run check:published`, which imports
   `dist/index.js`, checks the `exports` map and declaration emit, and runs the
   bin; `npm run check:publint` and `npm run check:types` cover the published

@@ -12,6 +12,9 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+// The `page.evaluate` callbacks evaluate the dashboard in a browser, so the DOM
+// test code here runs in a page. Node-side code has no DOM lib.
+/// <reference lib="dom" />
 import { afterAll, beforeAll, describe, expect, it, beforeEach } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright';
 import { writeDashboardReport } from '../../src/reporters/dashboard.js';

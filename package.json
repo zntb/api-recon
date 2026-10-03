@@ -13,7 +13,7 @@
     "url": "https://github.com/zntb/api-recon/issues"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -86,7 +86,6 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
-    "@types/js-yaml": "^4.0.9",
     "@types/marked": "^5.0.2",
     "@types/node": "^26.6.3",
     "ajv": "^8.20.0",

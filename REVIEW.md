@@ -6,7 +6,7 @@
 
 **Recommendation: Ready to publish.** The one High finding has been fixed on `main` since this review was written — see Finding 1, which now carries its resolution and regression coverage. Nothing outstanding blocks a release.
 
-**Findings: 1 High (**fixed**) · 3 Medium (**3 fixed**) · 6 Low (**2 fixed**) · 2 Nit (12 total; 6 open).** Every finding that needed a code or gate change is now resolved on `main`; the remaining six are polish and CI-planning work that can follow. The two documentation findings are now moot in a second sense: the README no longer holds the material at all, since it was cut down to a front door and the reference split across `docs/` — so the "state ESM-only in the README" fix landed in the library page that owns it.
+**Findings: 1 High (**fixed**) · 3 Medium (**fixed**) · 6 Low (**fixed**) · 3 Nit (13 total; 1 open).** Every finding is resolved on `main` except the one optional experiment (`exactOptionalPropertyTypes`); the trailing section records the resolution of the second batch. The two documentation findings are now moot in a second sense: the README no longer holds the material at all, since it was cut down to a front door and the reference split across `docs/` — so the "state ESM-only in the README" fix landed in the library page that owns it. Verifying that page for the type-level tests turned up one further mismatch, now Finding 13: the reference documents `RuntimeError` and `ApiReconError` as exported, and the entry point did not export them.
 
 ## 2. What I Verified
 
@@ -93,26 +93,34 @@
 - **Problem:** this package invites people to point it at sites they do not own, ingest third-party responses, and — unusually — writes redaction and integrity guarantees in its README. A reader deciding whether to trust that will look for a disclosure channel. The absence is most costly here precisely because the security claims are strong.
 - **Fix:** a short `SECURITY.md` with a private advisory link, a supported-versions line, and an explicit note that findings about redaction or the integrity manifest are prioritized. It is a page of text; `CONTRIBUTING.md` already has the right place to point at it.
 
-### **[LOW] `@types/js-yaml` is dead weight and a latent hazard** (`confirmed`)
+### **[LOW] `@types/js-yaml` is dead weight and a latent hazard** (`confirmed` — **FIXED**)
+
+> **Resolution:** removed with `npm uninstall @types/js-yaml`, which updated `package.json` and `package-lock.json` together and dropped the package from the lockfile. `js-yaml@5.4.2` resolves through its own bundled `dist/js-yaml.d.ts` (its `exports` maps `types` first), so nothing was consulting the DefinitelyTyped copy; `npm run typecheck` is unchanged and the production dependency count is still five.
 
 - **Where:** `package.json:85`
 - **Problem:** `js-yaml@5.4.2` ships its own declarations (`"types": "./dist/js-yaml.d.ts"`), so the DefinitelyTyped package is never consulted. If `js-yaml` ever dropped its bundled types, this `@types/js-yaml@4` would silently take over and describe the **v4** API against v5 runtime.
 - **Fix:** delete it. Nothing else in the tree uses `@types` for `js-yaml`'s surface.
 
-### **[LOW] 57 source maps ship to npm** (`confirmed`)
+### **[LOW] 57 source maps ship to npm** (`confirmed` — **FIXED**, by documenting the choice)
+
+> **Resolution:** kept and documented. `CONTRIBUTING.md`'s supply-chain section now states that shipping `.map` files is deliberate — they carry `sources` but no `sourcesContent`, so no TypeScript text is disclosed, and a stack trace from `dist` resolves to the right line — and that `test/unit/packList.test.ts` pins one in the expected set, so dropping them is a change to make in both places together. That converts an implicit default into a recorded decision, which is what this finding asked for; it does not change the tarball.
 
 - **Where:** `tsconfig.json:15` (`"sourceMap": true`)
 - **Problem:** the tarball contains 57 `.map` files (verified: `total files: 179`, `.map files: 57`). I checked the emitted map and it carries `sources` (`["../src/index.ts"]`) with **no `sourcesContent`**, so no TypeScript source text is disclosed — but the internal module layout and file names are, for no runtime benefit to a CLI whose stack traces come from `dist`.
 - **Note:** `test/unit/packList.test.ts:12` lists `dist/cli/index.js.map` in its expected set, so shipping maps looks deliberate. If it is, that is a defensible call — I am flagging that it is currently an implicit one.
 - **Fix:** either drop `sourceMap` for the build, or keep it and say so in `CONTRIBUTING.md`, so the next reader knows it was chosen rather than inherited.
 
-### **[LOW] `require()` resolves to ESM while `engines` allows Node 22.0** (`confirmed`, static)
+### **[LOW] `require()` resolves to ESM while `engines` allows Node 22.0** (`confirmed`, static — **FIXED**)
+
+> **Resolution:** `engines.node` is now `">=22.12"`, the version where `require(esm)` exists and the documented CommonJS interop story is actually true. No runtime behavior changes on a supported version, and `arethetypeswrong` is unaffected (its `node16 (from CJS)` warning is about the `exports` map, not the engine floor, which is why the CI gate still ignores `cjs-resolves-to-esm`).
 
 - **Where:** `package.json:16` (`"node": ">=22"`), `package.json:18` (`"main": "./dist/index.js"`), `package.json:20` (`exports`)
 - **Problem:** `arethetypeswrong` reports `node16 (from CJS): ⚠️ ESM (dynamic import only)`. ESM-only is clearly intended, but `>=22` also admits 22.0–22.11, where `require(esm)` does not exist — a CommonJS consumer there gets a hard failure rather than a clear error. `require(esm)` only works from 22.12.
 - **Fix:** narrow to `">=22.12"` (it is the version that makes the documented CJS interop story true), or drop `main` and state ESM-only in the README. I would do the former.
 
-### **[LOW] `DOM` in `lib` for a Node-only package** (`confirmed`)
+### **[LOW] `DOM` in `lib` for a Node-only package** (`confirmed` — **FIXED**, scoped rather than removed)
+
+> **Resolution:** `DOM` is gone from `tsconfig.json`'s global `lib`, so a stray `document`/`window` in Node-side code is now a type error. Removing it outright did not compile: four files legitimately evaluate code in the page — `src/core/actions.ts` (the `scroll` step), `src/core/browser.ts` (the SPA init script), `src/core/authenticator.ts` (`submitForm`), and `test/integration/dashboard.test.ts` (the assertions that run in the page) — and each now references the DOM lib locally with a `/// <reference lib="dom" />` directive and a comment saying why. That keeps the intent (browser globals only where a browser is actually running) while preserving the existing functionality; `npm run typecheck` passes.
 
 - **Where:** `tsconfig.json:6` — `"lib": ["ES2022", "DOM"]`
 - **Problem:** the code is Node-only, but the DOM lib makes browser-only globals (`document`, `window`, `localStorage`, `alert`) typecheck. In a package that parses hostile HTML and runs a headless browser, the last thing you want is a `document` reference that silently compiles.
@@ -134,16 +142,28 @@
 - **Problem:** the library examples use `import { scan } from 'api-recon'` but the README never says the package is ESM-only or that TypeScript consumers need `moduleResolution: node16`/`nodenext`/`bundler`. Someone on `moduleResolution: node10` will get a types error and no explanation.
 - **Fix:** three lines in the install section.
 
-### **[NIT] Empty `## [Unreleased]` heading** (`confirmed`)
+### **[NIT] Empty `## [Unreleased]` heading** (`confirmed` — **MOOT**)
+
+> **Resolution:** the heading was already gone from `main` by the time the fixes for this review landed (the changelog jumped straight from the intro to `## [0.4.3]`). The follow-up work then added a genuine `## [Unreleased]` section holding the fixes below, which is the intended use of the placeholder rather than an empty one.
 
 - **Where:** `CHANGELOG.md:8` — `## [Unreleased]` is immediately followed by `## [0.4.2]`.
 - **Fix:** remove the empty heading, or leave it as the placeholder for the next cycle. Harmless either way.
 
-### **[NIT] `exactOptionalPropertyTypes` is off** (`confirmed`)
+### **[NIT] `exactOptionalPropertyTypes` is off** (`confirmed` — **OPEN**)
+
+> **Status:** left open deliberately. This is the one finding that is explicitly optional ("worth an experiment on a branch; not worth blocking on"), and enabling it would surface mismatches across the `foo?: T` fields and the spread-conditional pattern the codebase relies on — a refactor with real regression risk, out of scope for a pass whose mandate was to leave behavior unchanged.
 
 - **Where:** `tsconfig.json`
 - **Problem:** `ScanOptions` and the report types thread a lot of `foo?: T` fields, and the spread-conditional pattern (`...(x ? { a: x } : {})`) used throughout the codebase is a workaround for exactly this strictness flag. Enabling it would likely surface real mismatches.
 - **Fix:** optional. Worth an experiment on a branch; not worth blocking on.
+
+### **[NIT] `RuntimeError` and `ApiReconError` are documented as exported but are not** (`confirmed` — **FIXED**)
+
+> **Resolution:** found while writing the type-level tests this review asked for (Finding 3/4 below). `src/index.ts` re-exported `SafetyError` and `CancelledError` only, while `docs/reference/library.md` names all four typed errors — `SafetyError`, `RuntimeError`, `CancelledError`, and the shared base `ApiReconError` — as "exported as well, so a host application can tell a refusal from a failure". A consumer following the docs could not import `RuntimeError` or `ApiReconError`, and could not `instanceof` the base. Both are now exported beside the others; `test/unit/publicTypes.test.ts` asserts the class hierarchy, so the docs and the entry point can no longer drift. Additive: no existing export changed.
+
+- **Where:** `src/index.ts:586` (`export { CancelledError } from './utils/errors.js'`), `docs/reference/library.md:37`
+- **Problem:** the reference promises four exported error classes; the entry point provides two. The mismatch is invisible to the test suite because every test imports `src/index.js` for what it needs, and nothing asserted the export set.
+- **Fix:** export `RuntimeError` and `ApiReconError` alongside `SafetyError` and `CancelledError`, and add a type-level test that pins the hierarchy.
 
 ## 4. Public API and Semver Assessment
 
@@ -160,14 +180,14 @@ No breaking changes are present in 0.4.2. The design additions are additive opti
 | `exports` conditions | `types` first, then `import`. No `require` — correct for ESM-only. `./package.json` and `./schema/report.schema.json` exposed. No deep-import leakage. |
 | `main` / `types` | Consistent with `exports`; `main` points at ESM (see Finding 7) |
 | `attw` — node10 | 🟢 |
-| `attw` — node16 from CJS | ⚠️ ESM (dynamic import only) — Finding 7 |
+| `attw` — node16 from CJS | ⚠️ ESM (dynamic import only) — expected for an ESM-only package; the CI gate ignores `cjs-resolves-to-esm` and `engines.node` is now `>=22.12`, where `require(esm)` exists (Finding 7, fixed) |
 | `attw` — node16 from ESM / bundler | 🟢 |
 | `attw` — JSON subpaths | 🟢 across all four |
 | `publint` | `All good!` |
 | Tarball | 179 files · 273.5 kB packed · 1.0 MB unpacked |
 | `files` allowlist | Correct; nothing leaks. `dist/` is gitignored and untracked. `SECURITY.md` deliberately stays out of the tarball and lives at the repository root |
 | Bin | `#!/usr/bin/env node`, mode `755` |
-| Dependency placement | Five production dependencies (chalk, commander, js-yaml, marked, playwright), all genuinely imported. `openapi3-ts` removed (Finding 2). `@types/*` are correctly in devDependencies, with `@types/js-yaml` redundant (Finding 5) |
+| Dependency placement | Five production dependencies (chalk, commander, js-yaml, marked, playwright), all genuinely imported. `openapi3-ts` removed (Finding 2); `@types/js-yaml` removed as redundant (Finding 5, now fixed) — `js-yaml@5` ships its own declarations. Remaining `@types/*` are correctly in devDependencies |
 | Install-time behavior | `playwright@1.63.0` declares no `scripts`, so **no browser download on install** — a real win, since this is a hard dependency |
 | Lifecycle scripts | `prepack` (build), `prepublishOnly` (lint + typecheck + test). No `postinstall`. CI publishes with `--ignore-scripts` and runs each step explicitly, so the gate is not silently skipped |
 | Provenance | Published with a signed provenance statement; trusted publishing via OIDC with a token fallback |
@@ -177,8 +197,8 @@ No breaking changes are present in 0.4.2. The design additions are additive opti
 
 1. ~~No consumer test of the built artifact~~ (Finding 3) — **closed**: `npm run check:published` imports `dist/index.js`, checks the exports map and declaration emit, and runs the bin; it and the `publint`/`attw` gates are CI steps.
 2. ~~No test asserts the integrity verifier stays inside the report directory~~ — **closed**: `test/unit/integrity.test.ts` now covers refused names, accepted names that normalize back inside, and the original attack end to end.
-3. **No type-level tests** (`expect-type`/`tsd`) for `ScanOptions`, `ScanHandle`'s promise+iterator duality, or the report types. These are the parts a TypeScript consumer depends on most, and all three are easy to break with a refactor.
-4. **The SIGINT CLI test cannot run on Windows** (`it.runIf(process.platform !== 'win32')`). Both real bugs fixed during the 0.4.2 release — the missed abort signal and the partial report claiming zero pages — were invisible locally for exactly this reason. The unit job runs on `windows-latest`; consider a signal-agnostic library-level test (an `AbortController` fired during `openSession`) so the teardown path is covered on every OS.
+3. ~~**No type-level tests** (`expect-type`/`tsd`) for `ScanOptions`, `ScanHandle`'s promise+iterator duality, or the report types.~~ — **closed**: `test/unit/publicTypes.test.ts` uses Vitest's built-in `expectTypeOf` (no new dependency) to pin the option fields, the handle's duality, the report shape, and the error classes. It is in `tsconfig.json`'s include, so the assertions are checked by `npm run typecheck`. Writing it surfaced Finding 13.
+4. ~~**The SIGINT CLI test cannot run on Windows** (`it.runIf(process.platform !== 'win32')`).~~ — **partly closed**: the browser test still cannot send `SIGINT` on Windows, but `test/unit/browser.test.ts` now asserts the OS-independent half of the guarantee — an already-aborted `AbortSignal` stops a scan on the library's own teardown path (`CancelledError`, before any browser launches) — so the unit job covers that path on `windows-latest`. The full mid-crawl teardown still only runs where a real signal can be delivered.
 5. **The one real bug this review missed: Playwright owns the process on SIGINT.** The browser suite failed on `main` after this review was written, on a test that had been passing — and the cause was not a flake. `launch()` installs its own `SIGINT` listener by default that closes the browser and then calls `process.exit(130)`, a hard exit waiting for nothing else in the process. That raced the CLI's handler, which closes the session *and* flushes `report.json`: the browser closed first, Playwright exited, and the partial report was never written (`checkpoint.json` alone in the output directory, both warnings on stdout, exit `130` — a failure the test could not distinguish from a genuinely failed flush). Sessions now launch with `handleSIGINT: false`, verified to leave `process.listenerCount('SIGINT')` at `0` where the default raises it to `1`; Playwright's `exit` handler is still installed, so no browser outlives the process. The PDF render's throwaway browser had the same latent race and is fixed the same way. This is the argument for the signal-agnostic library-level test in item 4: the defect was in *who exits the process*, which no assertion about the library's own teardown path would have named.
 6. ~~**`publint` / `arethetypeswrong` not in CI**~~ (Finding 9) — **closed**: both run as a step in the `unit` job.
 
@@ -206,13 +226,13 @@ No breaking changes are present in 0.4.2. The design additions are additive opti
 3. ~~Add a built-artifact smoke test~~ — **done on `main`**: `scripts/check-published.ts` imports `dist/index.js`, checks the exports map and declaration emit, and spawns the bin; its helpers are unit-tested and the whole gate is a CI step.
 4. ~~Add `SECURITY.md` with a private advisory channel~~ — **done on `main`**: advisory link, supported versions, a redaction-and-integrity-first priority list, and out-of-scope lines, pointed at from `CONTRIBUTING.md` and the README.
 5. ~~Wire `publint` and `arethetypeswrong --pack .` into the existing unit CI job~~ — **done on `main`**: one Linux-only step running both.
-6. Drop `@types/js-yaml` (Finding 5); narrow `engines.node` to `>=22.12` or document ESM-only (Finding 7); state ESM-only in the README (Finding 10).
+6. ~~Drop `@types/js-yaml` (Finding 5); narrow `engines.node` to `>=22.12` (Finding 7); state ESM-only in the README (Finding 10).~~ — **done**: `@types/js-yaml` removed, `engines.node` is `>=22.12`, and ESM-only is stated in `docs/reference/library.md` (Finding 10's resolution).
 
 **Nice to have:**
 
-7. Decide source maps deliberately — drop them from the build, or document the choice and update `test/unit/packList.test.ts` to match (Finding 6).
-8. Set `"lib": ["ES2022"]` (Finding 8).
-9. Add type-level tests for `ScanOptions` / `ScanHandle` / the report types, and an OS-independent teardown test (Finding 3/4 in §6).
-10. Remove the empty `## [Unreleased]` heading (Finding 11); try `exactOptionalPropertyTypes` on a branch (Finding 12).
+7. ~~Decide source maps deliberately — drop them from the build, or document the choice and update `test/unit/packList.test.ts` to match (Finding 6).~~ — **done**: kept and documented in `CONTRIBUTING.md`; `packList.test.ts` already pins one, so the two agree.
+8. ~~Set `"lib": ["ES2022"]` (Finding 8).~~ — **done**: `DOM` is out of the global lib and referenced locally in the four files that evaluate in a page.
+9. ~~Add type-level tests for `ScanOptions` / `ScanHandle` / the report types, and an OS-independent teardown test (Finding 3/4 in §6).~~ — **done**: `test/unit/publicTypes.test.ts` and the cancellation case in `test/unit/browser.test.ts`.
+10. ~~Remove the empty `## [Unreleased]` heading (Finding 11)~~ — **moot**: it was already gone; the follow-up added a real one. Try `exactOptionalPropertyTypes` on a branch (Finding 12) — **still open**, the one remaining item.
 
 **Not covered in this review:** a line-by-line pass over `src/core/*` (crawler, interceptor, analyzer, schema inference), the reporter output formats, and the docs site. Those areas carry their own invariants — rate limiting, the per-axis capture caps, schema merging — and would be the natural next scope if you want a second review. I did not modify any files; `REVIEW.md` is the only addition.

@@ -5,6 +5,54 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Closes the remaining findings from the `0.4.3` review. Most of them are polish —
+a dead `@types` package, a Node engine floor that did not match the ESM-only
+design, a Node-only build that still allowed browser globals, and two library
+exports the reference documented but the entry point never provided. No flag,
+option, default, exit code, or report field changes.
+
+### Added
+
+- **`RuntimeError` and `ApiReconError` are exported** — the library reference
+  documents all four typed errors, but the entry point re-exported only
+  `SafetyError` and `CancelledError`, so a consumer following the docs could not
+  `import { RuntimeError, ApiReconError } from 'api-recon'` or `instanceof` the
+  shared base. Both are now exported beside the others. This is additive: no
+  existing export changes.
+
+### Changed
+
+- **`engines.node` narrowed to `>=22.12`** — the package is ESM-only and its
+  documented CommonJS interop relies on `require(esm)`, which only exists from
+  Node 22.12. `>=22` admitted 22.0–22.11, where a CommonJS consumer gets a hard
+  failure rather than a clear one. Nothing changes on a supported version.
+
+### Internal
+
+- **`@types/js-yaml` removed** — `js-yaml@5` ships its own declarations, so the
+  DefinitelyTyped package was never consulted; had it been, it would have
+  described the v4 API against the v5 runtime. The production dependency count
+  is unchanged at five.
+- **The DOM lib is scoped to the files that run in a browser** — `tsconfig.json`
+  dropped `DOM` from `lib`, so a stray `document`/`window` in Node-side code is
+  now a type error instead of a silent compile. The four files that legitimately
+  evaluate in the page (`src/core/actions.ts`, `src/core/browser.ts`,
+  `src/core/authenticator.ts`, and the dashboard integration test) reference the
+  DOM lib locally with a triple-slash directive.
+- **Type-level tests for the public surface** — `test/unit/publicTypes.test.ts`
+  pins `ScanOptions`, `ScanHandle`'s promise-and-iterator duality, the report
+  shape, and the error classes with `expectTypeOf`, so a refactor that widens or
+  narrows a public type fails `npm run typecheck` rather than shipping.
+- **An OS-independent cancellation test** — an already-aborted `AbortSignal`
+  stops a scan on the library's own teardown path, asserted in the unit suite so
+  it runs on Windows too, where the CLI `SIGINT` test cannot.
+- **The source-map choice is documented** — `CONTRIBUTING.md` now states that
+  shipping `.map` files is deliberate (they carry `sources` but no
+  `sourcesContent`), so the next reader knows it was chosen rather than
+  inherited, and that `test/unit/packList.test.ts` pins one.
+
 ## [0.4.3] - 2026-10-02
 
 Fixes the report lost on Ctrl+C, adds a security policy and the built-package
@@ -898,6 +946,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
+[Unreleased]: https://github.com/zntb/api-recon/compare/v0.4.3...HEAD
 [0.4.3]: https://github.com/zntb/api-recon/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/zntb/api-recon/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/zntb/api-recon/compare/v0.4.0...v0.4.1

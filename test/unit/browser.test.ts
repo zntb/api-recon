@@ -4,7 +4,7 @@ import {
   resolveEngine,
   SESSION_LAUNCH_OPTIONS,
 } from '../../src/core/browser.js';
-import { BROWSER_ENGINES, SafetyError, scan } from '../../src/index.js';
+import { BROWSER_ENGINES, CancelledError, SafetyError, scan } from '../../src/index.js';
 import type { BrowserEngine } from '../../src/index.js';
 
 describe('resolveEngine', () => {
@@ -60,5 +60,19 @@ describe('scan() engine validation', () => {
     await expect(
       scan({ url: 'https://example.com', browser: 'netscape' as BrowserEngine }),
     ).rejects.toThrow(/Unknown browser engine/);
+  });
+});
+
+describe('scan() cancellation', () => {
+  // The OS-independent half of the SIGINT guarantee: an already-aborted signal
+  // stops the scan on the library's own teardown path, without a browser and
+  // without a signal, so this runs on Windows too (the CLI SIGINT test does
+  // not). The mid-crawl case is covered by the browser suite.
+  it('refuses to start and rejects with CancelledError when the signal is already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      scan({ url: 'https://example.com', signal: controller.signal }),
+    ).rejects.toThrow(CancelledError);
   });
 });

@@ -1,5 +1,11 @@
 /** Scripted interaction steps. Each step is resilient: failures log and continue. */
 
+// The `page.evaluate` callbacks below run inside the browser, where `document`,
+// `window`, and `HTMLFormElement` exist. The DOM lib is referenced here rather
+// than in `tsconfig.json` so a stray browser global in the Node-side code — the
+// thing that lib would silently allow — is still a type error everywhere else.
+/// <reference lib="dom" />
+
 import type { Page } from 'playwright';
 import { loadDocument } from '../utils/config.js';
 import {

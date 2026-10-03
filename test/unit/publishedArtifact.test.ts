@@ -120,6 +120,8 @@ describe('the documented API', () => {
     // A rename here is a breaking change; the guard is where it gets noticed.
     expect(REQUIRED_EXPORTS).toContain('scan');
     expect(REQUIRED_EXPORTS).toContain('SafetyError');
+    expect(REQUIRED_EXPORTS).toContain('RuntimeError');
     expect(REQUIRED_EXPORTS).toContain('CancelledError');
+    expect(REQUIRED_EXPORTS).toContain('ApiReconError');
   });
 });

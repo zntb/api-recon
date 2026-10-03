@@ -584,7 +584,9 @@ export function normalizeFormats(formats: readonly string[] | undefined): Report
 }
 
 export { SafetyError } from './utils/safety.js';
-export { CancelledError } from './utils/errors.js';
+// The typed error classes the library reference documents, so a host
+// application can tell a refusal from a failure and read the shared `hint`.
+export { ApiReconError, CancelledError, RuntimeError } from './utils/errors.js';
 export { Logger } from './utils/logger.js';
 export type {
   BrowserEngine,

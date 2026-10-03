@@ -29,14 +29,18 @@ export const DIST_DIR = 'dist';
  * Names the built entry point must expose for the documented API to work.
  *
  * These are the load-bearing ones a consumer reaches for first: the scan
- * handle, the two error classes they are documented to catch, and the format
- * normalizer the CLI and library share. A rename here is a breaking change,
- * and this is where it should be noticed.
+ * handle, the typed error classes the library reference documents, and the
+ * format normalizer the CLI and library share. A rename here is a breaking
+ * change, and this is where it should be noticed.
  */
 export const REQUIRED_EXPORTS: readonly string[] = [
   'scan',
+  // All four typed errors the library reference names as exported, so the docs
+  // and the entry point cannot drift apart again.
   'SafetyError',
+  'RuntimeError',
   'CancelledError',
+  'ApiReconError',
   'normalizeFormats',
 ];
 
