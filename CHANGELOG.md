@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.4] - 2026-10-03
 
 Closes the remaining findings from the `0.4.3` review. Most of them are polish —
 a dead `@types` package, a Node engine floor that did not match the ESM-only
@@ -52,6 +52,9 @@ option, default, exit code, or report field changes.
   shipping `.map` files is deliberate (they carry `sources` but no
   `sourcesContent`), so the next reader knows it was chosen rather than
   inherited, and that `test/unit/packList.test.ts` pins one.
+- **Internal planning notes removed** — `REVIEW.md`, `prompt.md`, and
+  `build-plan.md` were working documents for the `0.4.x` cycle and are deleted
+  now that the findings they recorded are resolved. Nothing referenced them.
 
 ## [0.4.3] - 2026-10-02
 
@@ -946,7 +949,7 @@ headless browser, simulating user actions, and exporting a categorized report.
 - Categorization and schema inference are heuristic and should be reviewed
   before a report is published or shared.
 
-[Unreleased]: https://github.com/zntb/api-recon/compare/v0.4.3...HEAD
+[0.4.4]: https://github.com/zntb/api-recon/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/zntb/api-recon/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/zntb/api-recon/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/zntb/api-recon/compare/v0.4.0...v0.4.1
